@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"golang.org/x/term"
 )
 
@@ -78,11 +79,27 @@ func isTerminal(writer io.Writer) bool {
 
 func (a *App) Run(args []string) int {
 	jsonOutput := jsonMode(args)
-	root := a.rootCommand(jsonOutput)
+	var helpErr error
+	root := a.rootCommand(jsonOutput, &helpErr)
 	root.SetArgs(args)
 
-	if _, err := root.ExecuteC(); err != nil {
+	if _, _, err := root.Find(args); err != nil {
+		cliError := usageError(err.Error())
+		writeError(a.options.errOut, cliError, jsonOutput)
+		return int(cliError.ExitCode)
+	}
+
+	executed, err := root.ExecuteC()
+	if err != nil {
+		if hasMissingRequiredFlag(executed) {
+			err = usageError(err.Error())
+		}
 		cliError := normalizeError(err)
+		writeError(a.options.errOut, cliError, jsonOutput)
+		return int(cliError.ExitCode)
+	}
+	if helpErr != nil {
+		cliError := normalizeError(helpErr)
 		writeError(a.options.errOut, cliError, jsonOutput)
 		return int(cliError.ExitCode)
 	}
@@ -90,7 +107,7 @@ func (a *App) Run(args []string) int {
 	return int(ExitOK)
 }
 
-func (a *App) rootCommand(jsonOutput bool) *cobra.Command {
+func (a *App) rootCommand(jsonOutput bool, helpErr *error) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "daiku",
 		Short:         "Manage Daiku from the command line",
@@ -101,7 +118,10 @@ func (a *App) rootCommand(jsonOutput bool) *cobra.Command {
 	root.SetOut(a.options.out)
 	root.SetErr(a.options.errOut)
 	root.PersistentFlags().Bool("json", false, "write a stable JSON envelope")
-	root.SetHelpFunc(a.helpFunc(jsonOutput))
+	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return usageError(err.Error())
+	})
+	root.SetHelpFunc(a.helpFunc(jsonOutput, helpErr))
 
 	for _, module := range a.options.modules {
 		module.Register(root)
@@ -110,10 +130,13 @@ func (a *App) rootCommand(jsonOutput bool) *cobra.Command {
 	return root
 }
 
-func (a *App) helpFunc(jsonOutput bool) func(*cobra.Command, []string) {
+func (a *App) helpFunc(jsonOutput bool, helpErr *error) func(*cobra.Command, []string) {
 	return func(command *cobra.Command, _ []string) {
+		if *helpErr != nil {
+			return
+		}
 		if jsonOutput {
-			_ = WriteSuccess(command.OutOrStdout(), map[string]any{
+			*helpErr = WriteSuccess(command.OutOrStdout(), map[string]any{
 				"command": command.CommandPath(),
 				"help":    commandDescription(command),
 				"usage":   command.UseLine(),
@@ -125,19 +148,33 @@ func (a *App) helpFunc(jsonOutput bool) func(*cobra.Command, []string) {
 		if a.options.isTerminal(command.OutOrStdout()) {
 			heading = boldCyan + heading + reset
 		}
-		_, _ = fmt.Fprintf(command.OutOrStdout(), "%s\n\n%s\n\nUsage:\n  %s\n", heading, commandDescription(command), command.UseLine())
+		if _, err := fmt.Fprintf(command.OutOrStdout(), "%s\n\n%s\n\nUsage:\n  %s\n", heading, commandDescription(command), command.UseLine()); err != nil {
+			*helpErr = err
+			return
+		}
 
 		if command.HasAvailableSubCommands() {
-			_, _ = fmt.Fprintln(command.OutOrStdout(), "\nCommands:")
+			if _, err := fmt.Fprintln(command.OutOrStdout(), "\nCommands:"); err != nil {
+				*helpErr = err
+				return
+			}
 			for _, child := range command.Commands() {
 				if child.IsAvailableCommand() || child.Name() == "help" {
-					_, _ = fmt.Fprintf(command.OutOrStdout(), "  %-12s %s\n", child.Name(), child.Short)
+					if _, err := fmt.Fprintf(command.OutOrStdout(), "  %-12s %s\n", child.Name(), child.Short); err != nil {
+						*helpErr = err
+						return
+					}
 				}
 			}
 		}
 
-		_, _ = fmt.Fprintln(command.OutOrStdout(), "\nFlags:")
-		_, _ = fmt.Fprint(command.OutOrStdout(), command.Flags().FlagUsages())
+		if _, err := fmt.Fprintln(command.OutOrStdout(), "\nFlags:"); err != nil {
+			*helpErr = err
+			return
+		}
+		if _, err := fmt.Fprint(command.OutOrStdout(), command.Flags().FlagUsages()); err != nil {
+			*helpErr = err
+		}
 	}
 }
 
@@ -178,29 +215,23 @@ func normalizeError(err error) *Error {
 		return cliError
 	}
 
-	if isUsageError(err.Error()) {
-		return usageError(err.Error())
-	}
-
 	return &Error{Code: "internal_error", Message: "an unexpected internal error occurred", ExitCode: ExitFailure}
 }
 
-func isUsageError(message string) bool {
-	usagePrefixes := []string{
-		"unknown command",
-		"unknown flag",
-		"unknown shorthand flag",
-		"invalid argument",
-		"flag needs an argument",
+func hasMissingRequiredFlag(command *cobra.Command) bool {
+	if command == nil {
+		return false
 	}
-	for _, prefix := range usagePrefixes {
-		if strings.HasPrefix(message, prefix) {
-			return true
+	missing := false
+	command.Flags().VisitAll(func(flag *pflag.Flag) {
+		if flag.Changed {
+			return
 		}
-	}
-
-	return strings.HasPrefix(message, "requires at least") ||
-		strings.HasPrefix(message, "requires at most") ||
-		strings.HasPrefix(message, "requires exactly") ||
-		strings.HasPrefix(message, "accepts ")
+		for _, annotation := range flag.Annotations[cobra.BashCompOneRequiredFlag] {
+			if annotation == "true" {
+				missing = true
+			}
+		}
+	})
+	return missing
 }

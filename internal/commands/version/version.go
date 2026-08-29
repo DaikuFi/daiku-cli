@@ -19,7 +19,7 @@ func (module Module) Register(root *cobra.Command) {
 	root.AddCommand(&cobra.Command{
 		Use:   "version",
 		Short: "Print the Daiku CLI version",
-		Args:  cobra.NoArgs,
+		Args:  cli.UsageArgs(cobra.NoArgs),
 		RunE: func(command *cobra.Command, _ []string) error {
 			jsonOutput, _ := command.Flags().GetBool("json")
 			if jsonOutput {

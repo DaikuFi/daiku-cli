@@ -26,7 +26,8 @@ This file is the operating guide for agents working in this repository.
 2. Implement `cli.Module`; let the package own its complete Cobra subtree.
 3. Inject clients, credential stores, clocks, and terminal behavior. Do not use mutable globals or `init()` registration.
 4. Add the module at the composition root in `cmd/daiku/main.go`. Coordinate this small integration edit with stacked PR order.
-5. Test human and JSON output, invalid input, exit codes, and pipe behavior.
+5. Wrap Cobra positional validators with `cli.UsageArgs` so their failures are typed as safe usage errors. Flag parsing and required flags are typed at the app boundary; never infer error type from message text.
+6. Test human and JSON output, invalid input, exit codes, and pipe behavior.
 
 ### Return errors
 

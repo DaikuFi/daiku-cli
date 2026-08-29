@@ -24,6 +24,7 @@ func run(t *testing.T, terminal bool, args ...string) (int, string, string) {
 		cli.WithModule(versioncommand.New("1.2.3")),
 		cli.WithModule(failureModule{}),
 		cli.WithModule(internalFailureModule{}),
+		cli.WithModule(requiredFlagModule{}),
 		cli.WithTerminalDetector(func(_ io.Writer) bool { return terminal }),
 	)
 
@@ -56,9 +57,25 @@ func (internalFailureModule) Register(root *cobra.Command) {
 		Short:  "Return an untyped failure in tests",
 		Hidden: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return errors.New("database password leaked in underlying error")
+			return errors.New("invalid argument: database password leaked in underlying error")
 		},
 	})
+}
+
+type requiredFlagModule struct{}
+
+func (requiredFlagModule) Register(root *cobra.Command) {
+	command := &cobra.Command{
+		Use:    "required",
+		Short:  "Require a flag in tests",
+		Hidden: true,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return nil
+		},
+	}
+	command.Flags().String("token", "", "required test token")
+	_ = command.MarkFlagRequired("token")
+	root.AddCommand(command)
 }
 
 func TestRootHelpForPipeIsDeterministicAndPlain(t *testing.T) {
@@ -199,6 +216,17 @@ func TestInvalidPositionalInputIsUsageError(t *testing.T) {
 	}
 }
 
+func TestMissingRequiredFlagIsUsageError(t *testing.T) {
+	exitCode, stdout, stderr := run(t, false, "required", "--json")
+
+	if exitCode != int(cli.ExitUsage) || stdout != "" || !json.Valid([]byte(stderr)) {
+		t.Fatalf("got exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+	}
+	if strings.Contains(stderr, "internal_error") || !strings.Contains(stderr, "usage_error") {
+		t.Fatalf("unexpected stderr: %q", stderr)
+	}
+}
+
 func TestTypedErrorPreservesJSONCodeDetailsAndExitCode(t *testing.T) {
 	exitCode, stdout, stderr := run(t, false, "fail", "--json")
 
@@ -251,6 +279,32 @@ func TestOutputWriteFailureIsMasked(t *testing.T) {
 
 	exitCode := app.Run([]string{"version"})
 	if exitCode != int(cli.ExitFailure) || stderr.String() != "Error: an unexpected internal error occurred\n" {
+		t.Fatalf("exit=%d stderr=%q", exitCode, stderr.String())
+	}
+}
+
+func TestHumanHelpWriteFailureIsMasked(t *testing.T) {
+	var stderr bytes.Buffer
+	app := cli.New(
+		cli.WithIO(strings.NewReader(""), failingWriter{}, &stderr),
+		cli.WithModule(versioncommand.New("1.2.3")),
+	)
+
+	exitCode := app.Run([]string{"--help"})
+	if exitCode != int(cli.ExitFailure) || stderr.String() != "Error: an unexpected internal error occurred\n" {
+		t.Fatalf("exit=%d stderr=%q", exitCode, stderr.String())
+	}
+}
+
+func TestJSONHelpWriteFailureIsMasked(t *testing.T) {
+	var stderr bytes.Buffer
+	app := cli.New(
+		cli.WithIO(strings.NewReader(""), failingWriter{}, &stderr),
+		cli.WithModule(versioncommand.New("1.2.3")),
+	)
+
+	exitCode := app.Run([]string{"--json", "--help"})
+	if exitCode != int(cli.ExitFailure) || !json.Valid(stderr.Bytes()) || strings.Contains(stderr.String(), "broken pipe") || !strings.Contains(stderr.String(), "internal_error") {
 		t.Fatalf("exit=%d stderr=%q", exitCode, stderr.String())
 	}
 }
