@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -76,7 +77,7 @@ func isTerminal(writer io.Writer) bool {
 }
 
 func (a *App) Run(args []string) int {
-	jsonOutput := hasJSONFlag(args)
+	jsonOutput := jsonMode(args)
 	root := a.rootCommand(jsonOutput)
 	root.SetArgs(args)
 
@@ -147,13 +148,28 @@ func commandDescription(command *cobra.Command) string {
 	return command.Short
 }
 
-func hasJSONFlag(args []string) bool {
+// jsonMode mirrors pflag's bool syntax. It is intentionally small: Cobra may
+// fail before a command or persistent flag value can be inspected, but error
+// rendering still needs to know whether the caller requested JSON.
+func jsonMode(args []string) bool {
+	enabled := false
 	for _, arg := range args {
-		if arg == "--json" || arg == "--json=true" {
-			return true
+		if arg == "--" {
+			break
+		}
+		if arg == "--json" {
+			enabled = true
+			continue
+		}
+		if strings.HasPrefix(arg, "--json=") {
+			value, err := strconv.ParseBool(strings.TrimPrefix(arg, "--json="))
+			if err != nil {
+				return false
+			}
+			enabled = value
 		}
 	}
-	return false
+	return enabled
 }
 
 func normalizeError(err error) *Error {
@@ -162,10 +178,29 @@ func normalizeError(err error) *Error {
 		return cliError
 	}
 
-	message := err.Error()
-	if strings.HasPrefix(message, "unknown command") || strings.HasPrefix(message, "unknown flag") || strings.Contains(message, "requires") {
-		return usageError(message)
+	if isUsageError(err.Error()) {
+		return usageError(err.Error())
 	}
 
-	return &Error{Code: "internal_error", Message: message, ExitCode: ExitFailure}
+	return &Error{Code: "internal_error", Message: "an unexpected internal error occurred", ExitCode: ExitFailure}
+}
+
+func isUsageError(message string) bool {
+	usagePrefixes := []string{
+		"unknown command",
+		"unknown flag",
+		"unknown shorthand flag",
+		"invalid argument",
+		"flag needs an argument",
+	}
+	for _, prefix := range usagePrefixes {
+		if strings.HasPrefix(message, prefix) {
+			return true
+		}
+	}
+
+	return strings.HasPrefix(message, "requires at least") ||
+		strings.HasPrefix(message, "requires at most") ||
+		strings.HasPrefix(message, "requires exactly") ||
+		strings.HasPrefix(message, "accepts ")
 }
