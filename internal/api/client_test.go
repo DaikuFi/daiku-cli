@@ -125,6 +125,77 @@ func TestRedirectPolicyRejectsSubdomainAndAllowsAPIPath(t *testing.T) {
 	}
 }
 
+func TestRedirectsRejectAmbiguousAPIPathsBeforeForwardingAuthorization(t *testing.T) {
+	t.Parallel()
+	for _, location := range []string{
+		"/api/v1/%2e%2e/admin/",
+		"/api/v1/%252e%252e/admin/",
+		"/api/v1/accounts%2f..%2fadmin/",
+		"/api/v1/accounts%5c..%5cadmin/",
+		`/api/v1/accounts\..\admin/`,
+	} {
+		t.Run(location, func(t *testing.T) {
+			var redirected atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/v1/start/" {
+					w.Header().Set("Location", location)
+					w.WriteHeader(http.StatusFound)
+					return
+				}
+				redirected.Add(1)
+				if r.Header.Get("Authorization") != "" {
+					t.Error("authorization reached ambiguous redirect path")
+				}
+			}))
+			defer server.Close()
+			client := testClient(t, server.URL+"/api/v1/", Config{})
+			if err := client.Do(context.Background(), http.MethodGet, "start/", "secret", nil, nil); err == nil {
+				t.Fatal("ambiguous redirect succeeded")
+			}
+			if redirected.Load() != 0 {
+				t.Fatalf("followed %d ambiguous redirects", redirected.Load())
+			}
+		})
+	}
+}
+
+func TestInjectedRedirectPolicyCannotBypassBounds(t *testing.T) {
+	t.Parallel()
+	base, _ := url.Parse("https://api.daiku.app/api/v1/")
+	t.Run("hop limit precedes callback", func(t *testing.T) {
+		called := false
+		policy := safeRedirectPolicy(base, func(*http.Request, []*http.Request) error { called = true; return nil })
+		target, _ := url.Parse("https://api.daiku.app/api/v1/accounts/")
+		via := make([]*http.Request, 10)
+		if err := policy(&http.Request{URL: target}, via); err == nil {
+			t.Fatal("hop limit accepted")
+		}
+		if called {
+			t.Fatal("callback ran after hop limit")
+		}
+	})
+	t.Run("callback cannot mutate origin", func(t *testing.T) {
+		policy := safeRedirectPolicy(base, func(request *http.Request, _ []*http.Request) error {
+			request.URL, _ = url.Parse("https://evil.test/api/v1/accounts/")
+			return nil
+		})
+		target, _ := url.Parse("https://api.daiku.app/api/v1/accounts/")
+		if err := policy(&http.Request{URL: target}, nil); !errors.Is(err, http.ErrUseLastResponse) {
+			t.Fatalf("error = %v", err)
+		}
+	})
+	t.Run("callback cannot mutate path", func(t *testing.T) {
+		policy := safeRedirectPolicy(base, func(request *http.Request, _ []*http.Request) error {
+			request.URL.Path = "/admin/"
+			return nil
+		})
+		target, _ := url.Parse("https://api.daiku.app/api/v1/accounts/")
+		if err := policy(&http.Request{URL: target}, nil); !errors.Is(err, http.ErrUseLastResponse) {
+			t.Fatalf("error = %v", err)
+		}
+	})
+}
+
 func TestDoMapsHTTPFailuresWithoutLeakingResponseOrToken(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {
@@ -242,9 +313,18 @@ func TestRetryPolicyIsBounded(t *testing.T) {
 
 func TestNewRejectsUnsafeBaseURLComponents(t *testing.T) {
 	t.Parallel()
-	for _, base := range []string{"https://user:pass@example.test/api/v1/", "https://example.test/api/v1/?token=secret", "https://example.test/api/v1/#fragment", "https://example.test/"} {
+	for _, base := range []string{"https://user:pass@example.test/api/v1/", "https://example.test/api/v1/?token=secret", "https://example.test/api/v1/#fragment", "https://example.test/", "https://example.test/foo/../api/v1/", "https://example.test/api/%2e/v1/"} {
 		if _, err := New(Config{BaseURL: base}); err == nil {
 			t.Fatalf("accepted %q", base)
+		}
+	}
+}
+
+func TestNewRejectsNegativeTimeouts(t *testing.T) {
+	t.Parallel()
+	for _, config := range []Config{{Timeout: -time.Second}, {HTTPClient: &http.Client{Timeout: -time.Second}}} {
+		if _, err := New(config); err == nil {
+			t.Fatal("accepted negative timeout")
 		}
 	}
 }

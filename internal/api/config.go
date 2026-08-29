@@ -20,8 +20,9 @@ const (
 // Config contains transport policy. Authentication is intentionally supplied
 // per request so this package does not own or persist credentials.
 type Config struct {
-	BaseURL         string
-	HTTPClient      *http.Client
+	BaseURL    string
+	HTTPClient *http.Client
+	// Timeout defaults to DefaultTimeout when zero. Negative values are invalid.
 	Timeout         time.Duration
 	UserAgent       string
 	MaxResponseBody int64

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	pathpkg "path"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +29,9 @@ type Client struct {
 }
 
 func New(config Config) (*Client, error) {
+	if config.Timeout < 0 || (config.HTTPClient != nil && config.HTTPClient.Timeout < 0) {
+		return nil, fmt.Errorf("API timeout must not be negative")
+	}
 	base := config.BaseURL
 	if base == "" {
 		base = DefaultBaseURL
@@ -41,6 +45,9 @@ func New(config Config) (*Client, error) {
 	}
 	if parsed.Scheme != "https" && parsed.Hostname() != "localhost" && parsed.Hostname() != "127.0.0.1" {
 		return nil, fmt.Errorf("API base URL must use HTTPS")
+	}
+	if !isSafeRedirectURL(parsed, parsed) {
+		return nil, fmt.Errorf("API base URL path must be canonical")
 	}
 	timeout := config.Timeout
 	if timeout == 0 {
@@ -184,26 +191,44 @@ func (c *Client) doOnce(ctx context.Context, method string, requestURL *url.URL,
 
 func safeRedirectPolicy(base *url.URL, previous func(*http.Request, []*http.Request) error) func(*http.Request, []*http.Request) error {
 	return func(request *http.Request, via []*http.Request) error {
-		isSafe := func() bool {
-			return request.URL.Scheme == base.Scheme && request.URL.Host == base.Host && strings.HasPrefix(request.URL.Path, base.Path)
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
 		}
-		if !isSafe() {
+		if !isSafeRedirectURL(base, request.URL) {
 			return http.ErrUseLastResponse
 		}
 		if previous != nil {
 			if err := previous(request, via); err != nil {
 				return err
 			}
-			if !isSafe() {
+			if !isSafeRedirectURL(base, request.URL) {
 				return http.ErrUseLastResponse
 			}
 			return nil
 		}
-		if len(via) >= 10 {
-			return errors.New("stopped after 10 redirects")
-		}
 		return nil
 	}
+}
+
+func isSafeRedirectURL(base, candidate *url.URL) bool {
+	if candidate.Scheme != base.Scheme || candidate.Host != base.Host || strings.Contains(candidate.Path, "\\") {
+		return false
+	}
+	// Redirect paths are API-generated ASCII identifiers. Reject every escape
+	// rather than risk different normalization across proxies and application servers.
+	if strings.Contains(candidate.EscapedPath(), "%") {
+		return false
+	}
+	cleaned := pathpkg.Clean(candidate.Path)
+	canonical := cleaned
+	if strings.HasSuffix(candidate.Path, "/") && cleaned != "/" {
+		canonical += "/"
+	}
+	if candidate.Path != canonical {
+		return false
+	}
+	basePath := strings.TrimSuffix(pathpkg.Clean(base.Path), "/") + "/"
+	return strings.HasPrefix(candidate.Path, basePath)
 }
 
 func (c *Client) resolve(path string) (*url.URL, error) {
