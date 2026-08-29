@@ -99,7 +99,10 @@ run_installer "$dir" >/dev/null
 dir=$(make_case stale-lock)
 mkdir "$dir/install/.daiku.install.lock"
 printf 'owner\n' > "$dir/install/.daiku.install.lock/sentinel"
-if run_installer "$dir" >/dev/null 2>&1; then echo 'stale lock was ignored' >&2; exit 1; fi
+lock_error="$dir/lock-error"
+if run_installer "$dir" > /dev/null 2> "$lock_error"; then echo 'stale lock was ignored' >&2; exit 1; fi
+expected_lock_error="daiku installer: install lock exists at $dir/install/.daiku.install.lock; confirm no daiku installer is active, then remove that directory"
+[ "$(cat "$lock_error")" = "$expected_lock_error" ] || { echo 'stale lock error was not actionable' >&2; exit 1; }
 [ "$(cat "$dir/install/.daiku.install.lock/sentinel")" = owner ]
 
 dir=$(make_case symlink-member)

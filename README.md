@@ -32,6 +32,14 @@ restores an existing binary if installation is interrupted. Set
 `DAIKU_INSTALL_DIR` to choose another user-writable destination; it never invokes
 `sudo`.
 
+The installer serializes updates with
+`$DAIKU_INSTALL_DIR/.daiku.install.lock`. If that path remains after an
+interrupted process, first confirm that no Daiku installer is active, then remove
+that lock directory and retry. Files matching `.daiku.install.*` and
+`.daiku.backup.*` have unique names; inspect and remove leftovers only after
+confirming no installer is active. The installer never deletes a lock or
+leftover created by another process.
+
 GitHub also records SLSA build provenance for every archive, SBOM, checksum,
 signature, and certificate. After downloading an artifact, verify that it was
 built by this repository's release workflow and commit with:

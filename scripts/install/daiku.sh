@@ -79,7 +79,7 @@ tar -xzf "$tmp/$archive" -C "$tmp/unpack" daiku
 [ -f "$tmp/unpack/daiku" ] || fail 'archive does not contain daiku'
 
 lock_path="$install_dir/.daiku.install.lock"
-mkdir "$lock_path" 2>/dev/null || fail 'another install is running or a stale install lock exists'
+mkdir "$lock_path" 2>/dev/null || fail "install lock exists at $lock_path; confirm no daiku installer is active, then remove that directory"
 lock=$lock_path
 if [ -L "$target" ] || [ -d "$target" ] || [ -p "$target" ] || [ -b "$target" ] || [ -c "$target" ]; then
   fail 'existing daiku target must be a regular executable file'
