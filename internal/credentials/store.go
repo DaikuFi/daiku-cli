@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/DaikuFi/daiku-cli/internal/securefile"
 	"github.com/zalando/go-keyring"
 )
 
@@ -96,17 +97,10 @@ func (f FileStore) Get(profile string) (Token, error) {
 	}
 	var t Token
 	p := f.path(profile)
-	info, err := os.Lstat(p)
+	data, err := securefile.Read(p)
 	if errors.Is(err, os.ErrNotExist) {
 		return t, ErrNotFound
 	}
-	if err != nil {
-		return t, err
-	}
-	if info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0o077 != 0 {
-		return t, errors.New("credential file has unsafe permissions")
-	}
-	data, err := os.ReadFile(p)
 	if err != nil {
 		return t, err
 	}
@@ -123,52 +117,11 @@ func (f FileStore) Put(profile string, t Token) error {
 	if err != nil {
 		return err
 	}
-	return atomicWrite(f.path(profile), data)
+	return securefile.Write(f.path(profile), data)
 }
 func (f FileStore) Delete(profile string) error {
 	if err := safeProfile(profile); err != nil {
 		return err
 	}
-	p := f.path(profile)
-	info, err := os.Lstat(p)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		return errors.New("refusing to delete a symbolic link")
-	}
-	return os.Remove(p)
-}
-func atomicWrite(path string, data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
-		return errors.New("refusing to replace a symbolic link")
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".token-*")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	defer os.Remove(name)
-	if err = tmp.Chmod(0o600); err != nil {
-		tmp.Close()
-		return err
-	}
-	if _, err = tmp.Write(data); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err = tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err = tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(name, path)
+	return securefile.Remove(f.path(profile))
 }

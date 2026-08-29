@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -46,6 +47,11 @@ func New(cfg Config) (*Client, error) {
 	if cfg.HTTPClient == nil {
 		cfg.HTTPClient = &http.Client{Timeout: 30 * time.Second}
 	}
+	// OAuth POST bodies contain one-shot codes, PKCE verifiers, refresh tokens,
+	// or revocation tokens. Never let net/http replay them to a redirect target.
+	httpClient := *cfg.HTTPClient
+	httpClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	cfg.HTTPClient = &httpClient
 	if cfg.OpenBrowser == nil {
 		cfg.OpenBrowser = openBrowser
 	}
@@ -126,13 +132,17 @@ type callbackResult struct {
 func callbackHandler(state string, port int, result chan<- callbackResult) http.Handler {
 	var used atomic.Bool
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != callbackPath || r.Host != fmt.Sprintf("127.0.0.1:%d", port) || !used.CompareAndSwap(false, true) {
+		if r.Method != http.MethodGet || r.URL.Path != callbackPath || r.Host != fmt.Sprintf("127.0.0.1:%d", port) {
 			http.Error(w, "Invalid callback", http.StatusBadRequest)
 			return
 		}
-		if values := r.URL.Query()["state"]; len(values) != 1 || values[0] != state {
-			result <- callbackResult{err: errors.New("OAuth callback state did not match")}
+		values := r.URL.Query()["state"]
+		if len(values) != 1 || !constantTimeEqual(values[0], state) {
 			http.Error(w, "Invalid state", http.StatusBadRequest)
+			return
+		}
+		if !used.CompareAndSwap(false, true) {
+			http.Error(w, "Callback already used", http.StatusConflict)
 			return
 		}
 		if denied := r.URL.Query().Get("error"); denied != "" {
@@ -150,6 +160,12 @@ func callbackHandler(state string, port int, result chan<- callbackResult) http.
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = io.WriteString(w, "Daiku CLI authorization complete. You may close this window.\n")
 	})
+}
+
+func constantTimeEqual(a, b string) bool {
+	ah := sha256.Sum256([]byte(a))
+	bh := sha256.Sum256([]byte(b))
+	return subtle.ConstantTimeCompare(ah[:], bh[:]) == 1 && len(a) == len(b)
 }
 
 func listenLoopback() (net.Listener, int, error) {

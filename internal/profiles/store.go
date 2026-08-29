@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/DaikuFi/daiku-cli/internal/securefile"
 )
 
 var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
@@ -33,7 +35,7 @@ func ValidateName(name string) error {
 
 func (s Store) Load() (Config, error) {
 	cfg := Config{Profiles: map[string]Profile{}}
-	data, err := os.ReadFile(s.Path)
+	data, err := securefile.Read(s.Path)
 	if errors.Is(err, os.ErrNotExist) {
 		return cfg, nil
 	}
@@ -71,39 +73,7 @@ func (s Store) Save(cfg Config) error {
 		return err
 	}
 	data = append(data, '\n')
-	return atomicWrite(s.Path, data, 0o600)
-}
-
-func atomicWrite(path string, data []byte, mode os.FileMode) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
-	}
-	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
-		return errors.New("refusing to replace a symbolic link")
-	}
-	tmp, err := os.CreateTemp(dir, ".daiku-*")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
-	if err := tmp.Chmod(mode); err != nil {
-		tmp.Close()
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmpName, path)
+	return securefile.Write(s.Path, data)
 }
 
 func DefaultPath() (string, error) {

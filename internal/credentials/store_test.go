@@ -8,7 +8,7 @@ import (
 )
 
 func TestFileStoreRoundTripPermissionsAndDelete(t *testing.T) {
-	s := FileStore{Dir: t.TempDir()}
+	s := FileStore{Dir: filepath.Join(t.TempDir(), "credentials")}
 	want := Token{AccessToken: "access-secret", RefreshToken: "refresh-secret", ExpiresAt: 42}
 	if err := s.Put("work", want); err != nil {
 		t.Fatal(err)
@@ -29,7 +29,10 @@ func TestFileStoreRoundTripPermissionsAndDelete(t *testing.T) {
 	}
 }
 func TestFileStoreRejectsSymlinkAndLoosePermissions(t *testing.T) {
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "credentials")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	s := FileStore{Dir: dir}
 	target := filepath.Join(dir, "target")
 	if err := os.WriteFile(target, []byte("keep"), 0o600); err != nil {
