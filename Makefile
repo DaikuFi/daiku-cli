@@ -1,4 +1,4 @@
-.PHONY: build test check cross-build
+.PHONY: build test check cross-build release-check installer-test
 
 build:
 	go build -o bin/daiku ./cmd/daiku
@@ -16,3 +16,9 @@ cross-build:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o dist/daiku-darwin-arm64 ./cmd/daiku
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o dist/daiku-linux-amd64 ./cmd/daiku
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o dist/daiku-linux-arm64 ./cmd/daiku
+
+release-check:
+	./scripts/release/check.sh
+
+installer-test:
+	./scripts/install/test.sh

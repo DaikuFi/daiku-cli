@@ -1,0 +1,32 @@
+class Daiku < Formula
+  desc "CLI for Daiku personal finance"
+  homepage "https://daiku.app"
+  version "{{ .Version }}"
+  on_macos do
+    if Hardware::CPU.arm?
+      url "{{ .DarwinArm64URL }}"
+      sha256 "{{ .DarwinArm64SHA256 }}"
+    else
+      url "{{ .DarwinAmd64URL }}"
+      sha256 "{{ .DarwinAmd64SHA256 }}"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "{{ .LinuxArm64URL }}"
+      sha256 "{{ .LinuxArm64SHA256 }}"
+    else
+      url "{{ .LinuxAmd64URL }}"
+      sha256 "{{ .LinuxAmd64SHA256 }}"
+    end
+  end
+
+  def install
+    bin.install "daiku"
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/daiku version")
+  end
+end
