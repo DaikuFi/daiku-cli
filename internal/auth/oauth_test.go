@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/DaikuFi/daiku-cli/internal/credentials"
+	"github.com/DaikuFi/daiku-cli/internal/securefile"
 )
 
 func testClient(t *testing.T, opener func(string) error, handler http.HandlerFunc) *Client {
@@ -198,9 +200,10 @@ func TestLoginDenialAndTimeout(t *testing.T) {
 }
 
 type memoryStore struct {
-	mu   sync.Mutex
-	t    credentials.Token
-	puts int
+	mu     sync.Mutex
+	t      credentials.Token
+	puts   int
+	putErr error
 }
 
 func (m *memoryStore) Get(string) (credentials.Token, error) {
@@ -211,6 +214,9 @@ func (m *memoryStore) Get(string) (credentials.Token, error) {
 func (m *memoryStore) Put(_ string, t credentials.Token) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.putErr != nil {
+		return m.putErr
+	}
 	m.t = t
 	m.puts++
 	return nil
@@ -262,4 +268,63 @@ func TestManagerReturnsRecoverableCrossProcessRefreshConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 	releaseAgain()
+}
+
+func TestAdvisoryRefreshLockReleasesWhenOwnerFDCloses(t *testing.T) {
+	manager := Manager{LockDir: filepath.Join(t.TempDir(), "locks")}
+	profile := "stale"
+	dir := manager.LockDir
+	if err := securefile.EnsureDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	hash := sha256.Sum256([]byte(profile))
+	path := filepath.Join(dir, fmt.Sprintf("%x.lock", hash))
+	owner, err := securefile.OpenLock(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = tryAdvisoryLock(owner); err != nil {
+		t.Fatal(err)
+	}
+	contender, err := securefile.OpenLock(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = tryAdvisoryLock(contender); !errors.Is(err, ErrRefreshInProgress) {
+		t.Fatalf("got %v", err)
+	}
+	if err = owner.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err = tryAdvisoryLock(contender); err != nil {
+		t.Fatalf("stale artifact blocked lock: %v", err)
+	}
+	_ = unlockAdvisory(contender)
+	_ = contender.Close()
+}
+
+func TestRefreshLockReleasesOnRefreshAndPersistenceErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		putErr error
+	}{{"refresh", http.StatusBadRequest, nil}, {"persistence", http.StatusOK, errors.New("disk failed")}} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := testClient(t, func(string) error { return nil }, func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+				if tc.status == http.StatusOK {
+					_, _ = w.Write([]byte(`{"access_token":"new","refresh_token":"rotated","expires_in":3600}`))
+				}
+			})
+			manager := Manager{Store: &memoryStore{t: credentials.Token{AccessToken: "old", RefreshToken: "refresh", ExpiresAt: 1}, putErr: tc.putErr}, OAuth: client, LockDir: filepath.Join(t.TempDir(), "locks")}
+			if _, err := manager.AccessToken(context.Background(), "work"); err == nil {
+				t.Fatal("expected refresh failure")
+			}
+			release, err := manager.acquire("work")
+			if err != nil {
+				t.Fatalf("lock leaked after error: %v", err)
+			}
+			release()
+		})
+	}
 }

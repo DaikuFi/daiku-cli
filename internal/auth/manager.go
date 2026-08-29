@@ -76,23 +76,15 @@ func (m *Manager) acquire(profile string) (func(), error) {
 	}
 	profileHash := sha256.Sum256([]byte(profile))
 	path := filepath.Join(dir, fmt.Sprintf("%x.lock", profileHash))
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-	if errors.Is(err, os.ErrExist) {
-		return nil, ErrRefreshInProgress
-	}
+	file, err := securefile.OpenLock(path)
 	if err != nil {
 		return nil, fmt.Errorf("refresh lock unavailable: %w", err)
 	}
-	if err = file.Sync(); err != nil {
+	if err = tryAdvisoryLock(file); err != nil {
 		file.Close()
-		_ = securefile.Remove(path)
 		return nil, err
 	}
-	if err = file.Close(); err != nil {
-		_ = securefile.Remove(path)
-		return nil, err
-	}
-	return func() { _ = securefile.Remove(path) }, nil
+	return func() { _ = unlockAdvisory(file); _ = file.Close() }, nil
 }
 func (m *Manager) Logout(ctx context.Context, profile string) error {
 	token, err := m.Store.Get(profile)
