@@ -11,6 +11,7 @@ on:
 permissions:
   contents: write
   id-token: write
+  attestations: write
 
 concurrency:
   group: draft-release-${{ inputs.version }}
@@ -21,28 +22,37 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
-      - name: Validate prerelease version
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          case "$VERSION" in
-            v[0-9]*.[0-9]*.[0-9]*-*) ;;
-            *) echo 'version must be a v-prefixed prerelease (for example v0.2.0-rc.1)' >&2; exit 2 ;;
-          esac
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Validate prerelease version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: scripts/install/daiku.sh --validate-version "$VERSION"
       - name: Install pinned release tools
         env:
           GOBIN: ${{ runner.temp }}/bin
         run: |
-          go install github.com/goreleaser/goreleaser/v2@v2.8.2
-          go install github.com/sigstore/cosign/v2/cmd/cosign@v2.4.3
-          go install github.com/anchore/syft/cmd/syft@v1.20.0
+          go install github.com/goreleaser/goreleaser/v2@2d07c80923ac8a85886544b5dfb40160aa9ba90b
+          go install github.com/sigstore/cosign/v2/cmd/cosign@6a7abbf3ae7eb6949883a80c8f6007cc065d2dfb
+          go install github.com/anchore/syft/cmd/syft@46522bcc5dff8b65b61a7cda1393abe515802306
           echo "$GOBIN" >> "$GITHUB_PATH"
       - name: Create signed draft prerelease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ inputs.version }}
         run: goreleaser release --clean
+      - name: Attest archives, checksums, signatures, certificates, and SBOMs
+        uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/checksums.txt
+            dist/checksums.txt.sig
+            dist/checksums.txt.pem
+            dist/*.spdx.sbom.json

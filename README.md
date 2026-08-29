@@ -32,6 +32,19 @@ restores an existing binary if installation is interrupted. Set
 `DAIKU_INSTALL_DIR` to choose another user-writable destination; it never invokes
 `sudo`.
 
+GitHub also records SLSA build provenance for every archive, SBOM, checksum,
+signature, and certificate. After downloading an artifact, verify that it was
+built by this repository's release workflow and commit with:
+
+```sh
+gh attestation verify daiku_0.2.0-rc.1_linux_amd64.tar.gz \
+  --repo DaikuFi/daiku-cli \
+  --signer-workflow DaikuFi/daiku-cli/.github/workflows/release.yml
+```
+
+Add `--format json` when auditing and compare the provenance's source digest to
+the commit recorded in the draft release.
+
 Maintainers create drafts from GitHub Actions' **Draft release** workflow using a
 prerelease version such as `v0.2.0-rc.1`. The workflow only runs from `main`, uses
 least-privilege release and OIDC permissions, and does not run on pull requests.

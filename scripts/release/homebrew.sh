@@ -6,11 +6,13 @@ version=${1#v}
 checksums=$2
 output=$3
 repo=${DAIKU_RELEASE_REPOSITORY:-DaikuFi/daiku-cli}
+"$(dirname "$0")/../install/daiku.sh" --validate-version "v$version" || { echo 'invalid prerelease version' >&2; exit 2; }
+printf '%s\n' "$repo" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$' || { echo 'invalid repository owner/name' >&2; exit 2; }
 base="https://github.com/$repo/releases/download/v$version"
 
 checksum() {
-  value=$(awk -v file="daiku_${version}_$1_$2.tar.gz" '$2 == file { print $1 }' "$checksums")
-  [ -n "$value" ] || { echo "missing checksum for $1/$2" >&2; exit 1; }
+  value=$(awk -v file="daiku_${version}_$1_$2.tar.gz" '$2 == file { count++; value=$1 } END { if (count == 1) print value }' "$checksums")
+  printf '%s\n' "$value" | grep -Eq '^[0-9a-f]{64}$' || { echo "invalid or duplicate checksum for $1/$2" >&2; exit 1; }
   printf '%s' "$value"
 }
 

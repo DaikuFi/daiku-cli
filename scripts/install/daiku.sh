@@ -2,6 +2,15 @@
 # Download this file first, inspect it, then run it. The installer never executes downloaded code.
 set -eu
 
+validate_prerelease_version() {
+  printf '%s\n' "$1" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-((0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.((0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*$'
+}
+
+if [ "${1:-}" = --validate-version ]; then
+  [ "$#" -eq 2 ] && validate_prerelease_version "$2"
+  exit $?
+fi
+
 repo=${DAIKU_RELEASE_REPOSITORY:-DaikuFi/daiku-cli}
 version=${DAIKU_VERSION:-}
 install_dir=${DAIKU_INSTALL_DIR:-"${HOME:?HOME is required}/.local/bin"}
@@ -19,7 +28,7 @@ arch=$(uname -m)
 case "$arch" in x86_64|amd64) arch=amd64 ;; arm64|aarch64) arch=arm64 ;; *) fail "unsupported architecture: $arch" ;; esac
 
 case "$repo" in *[!A-Za-z0-9._/-]*|/*|*..*) fail 'invalid release repository' ;; esac
-printf '%s\n' "$version" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$' || fail 'DAIKU_VERSION must be an exact v-prefixed semantic version'
+validate_prerelease_version "$version" || fail 'DAIKU_VERSION must be an exact v-prefixed semantic prerelease'
 base="https://github.com/$repo/releases/download/$version"
 label=${version#v}
 case "$base" in https://*) ;; *) fail 'release URL must use HTTPS' ;; esac
@@ -45,13 +54,18 @@ cosign verify-blob --certificate "$tmp/checksums.txt.pem" --signature "$tmp/chec
 
 archive="daiku_${label}_${os}_${arch}.tar.gz"
 get "$base/$archive" "$tmp/$archive"
-expected=$(awk -v file="$archive" '$2 == file { print $1 }' "$tmp/checksums.txt")
-[ -n "$expected" ] || fail 'artifact is absent from signed checksums'
+matches=$(awk -v file="$archive" '$2 == file { count++; value=$1 } END { if (count == 1) print value }' "$tmp/checksums.txt")
+printf '%s\n' "$matches" | grep -Eq '^[0-9a-f]{64}$' || fail 'signed checksums must contain exactly one valid artifact digest'
+expected=$matches
 actual=$(shasum -a 256 "$tmp/$archive" 2>/dev/null || sha256sum "$tmp/$archive")
 actual=${actual%% *}
 [ "$actual" = "$expected" ] || fail 'artifact checksum verification failed'
 
 mkdir -p "$tmp/unpack" "$install_dir"
+members=$(tar -tzf "$tmp/$archive") || fail 'could not inspect archive'
+[ "$members" = daiku ] || fail 'archive must contain exactly one member named daiku'
+member_type=$(tar -tvzf "$tmp/$archive" | awk 'NR == 1 { print substr($1, 1, 1) } NR > 1 { exit 2 }') || fail 'could not inspect archive member type'
+[ "$member_type" = - ] || fail 'daiku archive member must be a regular file'
 tar -xzf "$tmp/$archive" -C "$tmp/unpack" daiku
 [ -f "$tmp/unpack/daiku" ] || fail 'archive does not contain daiku'
 chmod 0755 "$tmp/unpack/daiku"
