@@ -49,5 +49,8 @@ func DecodePage[T any](data []byte) (Page[T], error) {
 func decodeJSON(data []byte, out any) error {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
-	return decoder.Decode(out)
+	if err := decoder.Decode(out); err != nil {
+		return err
+	}
+	return requireJSONEOF(decoder)
 }

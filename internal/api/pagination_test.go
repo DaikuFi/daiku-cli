@@ -31,7 +31,7 @@ func TestDecodePageVariants(t *testing.T) {
 
 func TestDecodePageRejectsMalformedShapes(t *testing.T) {
 	t.Parallel()
-	for _, input := range []string{`not-json`, `{}`, `{"results":{}}`} {
+	for _, input := range []string{`not-json`, `{}`, `{"results":{}}`, `[] []`, `[] trailing`} {
 		if _, err := DecodePage[map[string]any]([]byte(input)); err == nil {
 			t.Fatalf("accepted %s", input)
 		}

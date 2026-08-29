@@ -36,7 +36,7 @@ func New(config Config) (*Client, error) {
 		base += "/"
 	}
 	parsed, err := url.Parse(base)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || !strings.HasSuffix(parsed.Path, "/api/v1/") {
 		return nil, fmt.Errorf("invalid API base URL")
 	}
 	if parsed.Scheme != "https" && parsed.Hostname() != "localhost" && parsed.Hostname() != "127.0.0.1" {
@@ -55,17 +55,23 @@ func New(config Config) (*Client, error) {
 	if copyClient.Timeout == 0 {
 		copyClient.Timeout = timeout
 	}
+	previousRedirectPolicy := copyClient.CheckRedirect
+	copyClient.CheckRedirect = safeRedirectPolicy(parsed, previousRedirectPolicy)
 	maxBody := config.MaxResponseBody
 	if maxBody <= 0 {
 		maxBody = DefaultMaxResponseBody
 	}
 	attempts := config.MaxAttempts
 	if attempts <= 0 {
-		attempts = 3
+		attempts = DefaultMaxAttempts
+	} else if attempts > MaxAttempts {
+		attempts = MaxAttempts
 	}
 	delay := config.RetryDelay
 	if delay <= 0 {
 		delay = 250 * time.Millisecond
+	} else if delay > MaxRetryDelay {
+		delay = MaxRetryDelay
 	}
 	now := config.Now
 	if now == nil {
@@ -110,7 +116,7 @@ func (c *Client) Do(ctx context.Context, method, path, bearerToken string, body,
 		}
 		delay := apiErr.RetryAfter
 		if delay <= 0 {
-			delay = c.retryDelay * time.Duration(1<<(attempt-1))
+			delay = exponentialDelay(c.retryDelay, attempt)
 		}
 		if err := c.sleep(ctx, delay); err != nil {
 			return err
@@ -170,7 +176,34 @@ func (c *Client) doOnce(ctx context.Context, method string, requestURL *url.URL,
 	if err := decoder.Decode(out); err != nil {
 		return newError("invalid_response", "the Daiku API returned an invalid JSON response", response.StatusCode, false, err)
 	}
+	if err := requireJSONEOF(decoder); err != nil {
+		return newError("invalid_response", "the Daiku API returned an invalid JSON response", response.StatusCode, false, err)
+	}
 	return nil
+}
+
+func safeRedirectPolicy(base *url.URL, previous func(*http.Request, []*http.Request) error) func(*http.Request, []*http.Request) error {
+	return func(request *http.Request, via []*http.Request) error {
+		isSafe := func() bool {
+			return request.URL.Scheme == base.Scheme && request.URL.Host == base.Host && strings.HasPrefix(request.URL.Path, base.Path)
+		}
+		if !isSafe() {
+			return http.ErrUseLastResponse
+		}
+		if previous != nil {
+			if err := previous(request, via); err != nil {
+				return err
+			}
+			if !isSafe() {
+				return http.ErrUseLastResponse
+			}
+			return nil
+		}
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		return nil
+	}
 }
 
 func (c *Client) resolve(path string) (*url.URL, error) {
@@ -190,6 +223,9 @@ func parseRetryAfter(value string, now time.Time) time.Duration {
 	value = strings.TrimSpace(value)
 	if seconds, err := strconv.ParseInt(value, 10, 64); err == nil {
 		if seconds > 0 {
+			if seconds > int64(MaxRetryDelay/time.Second) {
+				return MaxRetryDelay
+			}
 			return time.Duration(seconds) * time.Second
 		}
 		return 0
@@ -198,7 +234,36 @@ func parseRetryAfter(value string, now time.Time) time.Duration {
 	if err != nil || !date.After(now) {
 		return 0
 	}
-	return date.Sub(now)
+	delay := date.Sub(now)
+	if delay > MaxRetryDelay {
+		return MaxRetryDelay
+	}
+	return delay
+}
+
+func exponentialDelay(base time.Duration, attempt int) time.Duration {
+	delay := base
+	for index := 1; index < attempt; index++ {
+		if delay >= MaxRetryDelay/2 {
+			return MaxRetryDelay
+		}
+		delay *= 2
+	}
+	if delay > MaxRetryDelay {
+		return MaxRetryDelay
+	}
+	return delay
+}
+
+func requireJSONEOF(decoder *json.Decoder) error {
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return errors.New("multiple JSON values")
+		}
+		return err
+	}
+	return nil
 }
 
 func isRetryableMethod(method string) bool {
