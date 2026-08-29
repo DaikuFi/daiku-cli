@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 case_root=$(mktemp -d "${TMPDIR:-/tmp}/daiku-installer-test.XXXXXX")
 trap 'rm -rf "$case_root"' EXIT HUP INT TERM
 
@@ -14,13 +14,16 @@ make_case() {
   tar -czf "$dir/releases/daiku_1.2.3-rc.1_linux_amd64.tar.gz" -C "$dir/releases" daiku
   (cd "$dir/releases" && shasum -a 256 daiku_1.2.3-rc.1_linux_amd64.tar.gz > checksums.txt)
   : > "$dir/releases/checksums.txt.sig"; : > "$dir/releases/checksums.txt.pem"
+  # shellcheck disable=SC2016 # Deliberately generate a mock whose variables expand when invoked.
   printf '#!/bin/sh\ncase "$1" in -s) echo Linux;; -m) echo x86_64;; *) exit 2;; esac\n' > "$dir/bin/uname"
+  # shellcheck disable=SC2016 # Deliberately generate a mock whose variables expand when invoked.
   printf '%s\n' '#!/bin/sh' 'set -eu' \
     'identity= issuer=' \
     'while [ "$#" -gt 0 ]; do case "$1" in --certificate-identity) identity=$2; shift 2;; --certificate-oidc-issuer) issuer=$2; shift 2;; *) shift;; esac; done' \
     '[ "$identity" = "https://github.com/DaikuFi/daiku-cli/.github/workflows/release.yml@refs/heads/main" ]' \
     '[ "$issuer" = "https://token.actions.githubusercontent.com" ]' \
     'exit "${COSIGN_EXIT:-0}"' > "$dir/bin/cosign"
+  # shellcheck disable=SC2016 # Deliberately generate a mock whose variables expand when invoked.
   printf '#!/bin/sh\nurl=""; out=""; while [ "$#" -gt 0 ]; do case "$1" in --output) out=$2; shift 2;; http*) url=$1; shift;; *) shift;; esac; done; cp "$FIXTURE_DIR/${url##*/}" "$out"\n' > "$dir/bin/curl"
   chmod +x "$dir/bin/"*
   printf '%s\n' "$dir"
@@ -72,6 +75,7 @@ mv "$dir/releases/checksums.txt.duplicate" "$dir/releases/checksums.txt"
 if run_installer "$dir" >/dev/null 2>&1; then echo 'duplicate checksum was accepted' >&2; exit 1; fi
 
 dir=$(make_case wrong-arch)
+# shellcheck disable=SC2016 # Deliberately generate a mock whose variables expand when invoked.
 printf '#!/bin/sh\ncase "$1" in -s) echo Linux;; -m) echo sparc;; esac\n' > "$dir/bin/uname"; chmod +x "$dir/bin/uname"
 if run_installer "$dir" >/dev/null 2>&1; then echo 'wrong architecture was accepted' >&2; exit 1; fi
 
@@ -122,6 +126,7 @@ dir=$(make_case rollback)
 printf '#!/bin/sh\necho old\n' > "$dir/install/daiku"; chmod +x "$dir/install/daiku"
 old_digest=$(shasum -a 256 "$dir/install/daiku")
 old_mode=$(stat -f '%Lp' "$dir/install/daiku" 2>/dev/null || stat -c '%a' "$dir/install/daiku")
+# shellcheck disable=SC2016 # Deliberately generate a mock whose variables expand when invoked.
 printf '#!/bin/sh\nsrc= dst=; for arg do src=$dst; dst=$arg; done\ncase "$src:$dst" in */.daiku.install.*:*/daiku) exit 1;; esac\nexec /bin/mv "$@"\n' > "$dir/bin/mv"; chmod +x "$dir/bin/mv"
 if run_installer "$dir" >/dev/null 2>&1; then echo 'interrupted install succeeded' >&2; exit 1; fi
 [ "$("$dir/install/daiku")" = old ]
@@ -129,6 +134,7 @@ if run_installer "$dir" >/dev/null 2>&1; then echo 'interrupted install succeede
 [ "$(stat -f '%Lp' "$dir/install/daiku" 2>/dev/null || stat -c '%a' "$dir/install/daiku")" = "$old_mode" ]
 
 dir=$(make_case concurrent)
+# shellcheck disable=SC2016 # Deliberately generate a mock whose variables expand when invoked.
 printf '%s\n' '#!/bin/sh' \
   'src= dst=; for arg do src=$dst; dst=$arg; done' \
   'case "$src:$dst" in */.daiku.install.*:*/daiku) [ "${MV_INSTALL_DELAY:-0}" = 0 ] || sleep "$MV_INSTALL_DELAY";; esac' \

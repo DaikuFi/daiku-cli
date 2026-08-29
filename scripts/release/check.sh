@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$root"
 
 grep -q '^version: 2$' .goreleaser.yaml
@@ -27,7 +27,10 @@ done
 ./scripts/release/homebrew.sh v1.2.3-rc.1 "$fixture" "$formula"
 grep -q 'version "1.2.3-rc.1"' "$formula"
 test "$(grep -c 'https://github.com/DaikuFi/daiku-cli/releases/download/' "$formula")" -eq 4
-! grep -q '{{' "$formula"
+if grep -q '{{' "$formula"; then
+  echo 'Homebrew formula contains an unexpanded template value' >&2
+  exit 1
+fi
 
 if ./scripts/release/homebrew.sh v01.2.3-rc.1 "$fixture" "$formula" >/dev/null 2>&1; then
   echo 'Homebrew generator accepted malformed version' >&2
@@ -37,7 +40,8 @@ if DAIKU_RELEASE_REPOSITORY='owner/repo&unsafe' ./scripts/release/homebrew.sh v1
   echo 'Homebrew generator accepted malformed repository' >&2
   exit 1
 fi
-head -n 1 "$fixture" >> "$fixture"
+duplicate_checksum=$(head -n 1 "$fixture")
+printf '%s\n' "$duplicate_checksum" >> "$fixture"
 if ./scripts/release/homebrew.sh v1.2.3-rc.1 "$fixture" "$formula" >/dev/null 2>&1; then
   echo 'Homebrew generator accepted duplicate checksum' >&2
   exit 1
