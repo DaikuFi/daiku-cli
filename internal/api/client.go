@@ -238,7 +238,7 @@ func (c *Client) resolve(path string) (*url.URL, error) {
 		return nil, errors.New("invalid relative path")
 	}
 	resolved := c.baseURL.ResolveReference(reference)
-	if resolved.Scheme != c.baseURL.Scheme || resolved.Host != c.baseURL.Host || !strings.HasPrefix(resolved.Path, c.baseURL.Path) {
+	if !isSafeRedirectURL(c.baseURL, resolved) {
 		return nil, errors.New("path escapes API base URL")
 	}
 	return resolved, nil

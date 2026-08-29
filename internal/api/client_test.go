@@ -50,10 +50,41 @@ func TestDoNoContent(t *testing.T) {
 
 func TestDoRejectsPathsOutsideAPIBase(t *testing.T) {
 	t.Parallel()
-	client := testClient(t, "https://example.test/api/v1/", Config{})
-	for _, path := range []string{"../admin/", "accounts/../../../admin/", "https://evil.test/api/v1/"} {
+	transport := &countingTransport{}
+	client := testClient(t, "https://example.test/api/v1/", Config{HTTPClient: &http.Client{Transport: transport}})
+	for _, path := range []string{
+		"../admin/",
+		"accounts/../../../admin/",
+		"https://evil.test/api/v1/",
+		"%2e%2e/admin/",
+		"%252e%252e/admin/",
+		"accounts%2f..%2fadmin/",
+		"accounts%252f..%252fadmin/",
+		"accounts%5c..%5cadmin/",
+		"accounts%255c..%255cadmin/",
+		`accounts\..\admin/`,
+	} {
 		err := client.Do(context.Background(), http.MethodGet, path, "secret", nil, nil)
 		assertAPIError(t, err, "invalid_request")
+	}
+	if transport.attempts.Load() != 0 {
+		t.Fatalf("transport invoked %d times", transport.attempts.Load())
+	}
+}
+
+func TestDoAllowsCanonicalRelativePathWithQuery(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/accounts/" || r.URL.Query().Get("page") != "2" || r.URL.Query().Get("search") != "cash account" {
+			t.Errorf("URL = %s", r.URL.String())
+		}
+		_, _ = io.WriteString(w, `{}`)
+	}))
+	defer server.Close()
+	client := testClient(t, server.URL+"/api/v1/", Config{})
+	var out map[string]any
+	if err := client.Do(context.Background(), http.MethodGet, "accounts/?page=2&search=cash+account", "secret", nil, &out); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -359,6 +390,13 @@ type failingTransport struct{}
 
 func (failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
 	return nil, errors.New("dial failed with sensitive.internal")
+}
+
+type countingTransport struct{ attempts atomic.Int32 }
+
+func (transport *countingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	transport.attempts.Add(1)
+	return nil, errors.New("transport must not be invoked")
 }
 
 func testClient(t *testing.T, base string, config Config) *Client {
