@@ -35,11 +35,20 @@ case "$base" in https://*) ;; *) fail 'release URL must use HTTPS' ;; esac
 
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/daiku-install.XXXXXX") || fail 'could not create temporary directory'
 backup=
+backed_up=false
 committed=false
-staged="$install_dir/.daiku.new"
+staged=
+lock=
+target="$install_dir/daiku"
 cleanup() {
-  rm -f "$staged"
-  if [ "$committed" != true ] && [ -n "$backup" ] && [ -f "$backup" ]; then mv -f "$backup" "$install_dir/daiku"; fi
+  if [ -n "$staged" ] && [ -f "$staged" ]; then rm -f "$staged"; fi
+  if [ "$committed" != true ] && [ "$backed_up" = true ]; then
+    rm -f "$target"
+    mv -f "$backup" "$target"
+    backed_up=false
+  fi
+  if [ -n "$backup" ] && [ -f "$backup" ]; then rm -f "$backup"; fi
+  if [ -n "$lock" ] && [ -d "$lock" ]; then rmdir "$lock"; fi
   rm -rf "$tmp"
 }
 trap cleanup EXIT
@@ -68,9 +77,27 @@ member_type=$(tar -tvzf "$tmp/$archive" | awk 'NR == 1 { print substr($1, 1, 1) 
 [ "$member_type" = - ] || fail 'daiku archive member must be a regular file'
 tar -xzf "$tmp/$archive" -C "$tmp/unpack" daiku
 [ -f "$tmp/unpack/daiku" ] || fail 'archive does not contain daiku'
-chmod 0755 "$tmp/unpack/daiku"
-if [ -e "$install_dir/daiku" ]; then backup="$tmp/daiku.previous"; mv "$install_dir/daiku" "$backup"; fi
-mv "$tmp/unpack/daiku" "$staged"
-mv -f "$staged" "$install_dir/daiku"
+
+lock_path="$install_dir/.daiku.install.lock"
+mkdir "$lock_path" 2>/dev/null || fail 'another install is running or a stale install lock exists'
+lock=$lock_path
+if [ -L "$target" ] || [ -d "$target" ] || [ -p "$target" ] || [ -b "$target" ] || [ -c "$target" ]; then
+  fail 'existing daiku target must be a regular executable file'
+fi
+if [ -e "$target" ] && { [ ! -f "$target" ] || [ ! -x "$target" ]; }; then
+  fail 'existing daiku target must be a regular executable file'
+fi
+
+staged=$(mktemp "$install_dir/.daiku.install.XXXXXX") || fail 'could not allocate destination staging file'
+cp "$tmp/unpack/daiku" "$staged"
+chmod 0755 "$staged"
+if [ -e "$target" ]; then
+  backup=$(mktemp "$install_dir/.daiku.backup.XXXXXX") || fail 'could not allocate destination backup'
+  mv -f "$target" "$backup"
+  backed_up=true
+fi
+mv -f "$staged" "$target"
+staged=
 committed=true
-printf 'Installed daiku %s for %s/%s in %s\n' "$label" "$os" "$arch" "$install_dir/daiku"
+if [ "$backed_up" = true ]; then rm -f "$backup"; backed_up=false; fi
+printf 'Installed daiku %s for %s/%s in %s\n' "$label" "$os" "$arch" "$target"

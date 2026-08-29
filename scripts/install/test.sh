@@ -50,13 +50,16 @@ run_installer "$dir" >/dev/null
 
 dir=$(make_case bad-signature)
 if COSIGN_EXIT=1 run_installer "$dir" >/dev/null 2>&1; then echo 'invalid signature was accepted' >&2; exit 1; fi
+unset COSIGN_EXIT
 [ ! -e "$dir/install/daiku" ]
 
 dir=$(make_case bad-identity)
 if DAIKU_COSIGN_IDENTITY=https://example.invalid/workflow run_installer "$dir" >/dev/null 2>&1; then echo 'wrong signing identity was accepted' >&2; exit 1; fi
+unset DAIKU_COSIGN_IDENTITY
 
 dir=$(make_case bad-issuer)
 if DAIKU_COSIGN_ISSUER=https://example.invalid/issuer run_installer "$dir" >/dev/null 2>&1; then echo 'wrong signing issuer was accepted' >&2; exit 1; fi
+unset DAIKU_COSIGN_ISSUER
 
 dir=$(make_case bad-checksum)
 printf '0  daiku_1.2.3-rc.1_linux_amd64.tar.gz\n' > "$dir/releases/checksums.txt"
@@ -71,6 +74,33 @@ if run_installer "$dir" >/dev/null 2>&1; then echo 'duplicate checksum was accep
 dir=$(make_case wrong-arch)
 printf '#!/bin/sh\ncase "$1" in -s) echo Linux;; -m) echo sparc;; esac\n' > "$dir/bin/uname"; chmod +x "$dir/bin/uname"
 if run_installer "$dir" >/dev/null 2>&1; then echo 'wrong architecture was accepted' >&2; exit 1; fi
+
+dir=$(make_case existing-directory)
+mkdir "$dir/install/daiku"
+printf 'untouched\n' > "$dir/install/daiku/sentinel"
+if run_installer "$dir" >/dev/null 2>&1; then echo 'existing target directory was accepted' >&2; exit 1; fi
+[ "$(cat "$dir/install/daiku/sentinel")" = untouched ]
+
+dir=$(make_case existing-symlink)
+ln -s /bin/sh "$dir/install/daiku"
+if run_installer "$dir" >/dev/null 2>&1; then echo 'existing target symlink was accepted' >&2; exit 1; fi
+[ "$(readlink "$dir/install/daiku")" = /bin/sh ]
+
+dir=$(make_case existing-special)
+mkfifo "$dir/install/daiku"
+if run_installer "$dir" >/dev/null 2>&1; then echo 'existing special target was accepted' >&2; exit 1; fi
+[ -p "$dir/install/daiku" ]
+
+dir=$(make_case stale-staging)
+printf 'stale\n' > "$dir/install/.daiku.install.stale"
+run_installer "$dir" >/dev/null
+[ "$(cat "$dir/install/.daiku.install.stale")" = stale ]
+
+dir=$(make_case stale-lock)
+mkdir "$dir/install/.daiku.install.lock"
+printf 'owner\n' > "$dir/install/.daiku.install.lock/sentinel"
+if run_installer "$dir" >/dev/null 2>&1; then echo 'stale lock was ignored' >&2; exit 1; fi
+[ "$(cat "$dir/install/.daiku.install.lock/sentinel")" = owner ]
 
 dir=$(make_case symlink-member)
 rm "$dir/releases/daiku"
@@ -87,8 +117,25 @@ if run_installer "$dir" >/dev/null 2>&1; then echo 'traversal archive member was
 
 dir=$(make_case rollback)
 printf '#!/bin/sh\necho old\n' > "$dir/install/daiku"; chmod +x "$dir/install/daiku"
-printf '#!/bin/sh\ncase "$2" in */.daiku.new) exit 1;; esac\nexec /bin/mv "$@"\n' > "$dir/bin/mv"; chmod +x "$dir/bin/mv"
+old_digest=$(shasum -a 256 "$dir/install/daiku")
+old_mode=$(stat -f '%Lp' "$dir/install/daiku" 2>/dev/null || stat -c '%a' "$dir/install/daiku")
+printf '#!/bin/sh\nsrc= dst=; for arg do src=$dst; dst=$arg; done\ncase "$src:$dst" in */.daiku.install.*:*/daiku) exit 1;; esac\nexec /bin/mv "$@"\n' > "$dir/bin/mv"; chmod +x "$dir/bin/mv"
 if run_installer "$dir" >/dev/null 2>&1; then echo 'interrupted install succeeded' >&2; exit 1; fi
 [ "$("$dir/install/daiku")" = old ]
+[ "$(shasum -a 256 "$dir/install/daiku")" = "$old_digest" ]
+[ "$(stat -f '%Lp' "$dir/install/daiku" 2>/dev/null || stat -c '%a' "$dir/install/daiku")" = "$old_mode" ]
+
+dir=$(make_case concurrent)
+printf '%s\n' '#!/bin/sh' \
+  'src= dst=; for arg do src=$dst; dst=$arg; done' \
+  'case "$src:$dst" in */.daiku.install.*:*/daiku) [ "${MV_INSTALL_DELAY:-0}" = 0 ] || sleep "$MV_INSTALL_DELAY";; esac' \
+  'exec /bin/mv "$@"' > "$dir/bin/mv"; chmod +x "$dir/bin/mv"
+MV_INSTALL_DELAY=1 run_installer "$dir" >/dev/null & first_pid=$!
+attempts=0
+while [ ! -d "$dir/install/.daiku.install.lock" ] && [ "$attempts" -lt 100 ]; do attempts=$((attempts + 1)); sleep 0.01; done
+if run_installer "$dir" >/dev/null 2>&1; then echo 'concurrent installer entered the critical section' >&2; exit 1; fi
+wait "$first_pid"
+[ "$("$dir/install/daiku")" = new ]
+[ ! -e "$dir/install/.daiku.install.lock" ]
 
 printf 'installer tests passed\n'
