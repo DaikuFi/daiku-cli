@@ -2,7 +2,23 @@
 
 `daiku` is the command-line client for [Daiku](https://daiku.app). It is designed for people at a terminal and for agents composing reliable workflows.
 
-This repository currently contains the CLI foundation: a modular Cobra runtime, deterministic machine output, stable exit codes, tests, and macOS/Linux builds. Domain commands and OAuth authentication will arrive in subsequent stacked pull requests.
+The CLI includes a modular Cobra runtime, deterministic machine output, stable exit codes, named profiles, and OAuth authentication for macOS and Linux.
+
+## Authentication and profiles
+
+Create a profile, then sign in through the browser:
+
+```sh
+daiku profile add personal
+daiku auth login
+daiku auth status
+```
+
+Use `daiku profile list`, `daiku profile use <name>`, and `daiku profile remove <name>` to manage isolated identities. `auth login` uses Authorization Code with PKCE S256 and an IPv4 loopback callback on a random dynamic port. If the browser cannot be launched, interactive mode prints a URL and keeps waiting for the callback.
+
+Credentials use the operating-system keychain by default (Keychain on macOS and Secret Service on Linux). A keychain error is fatal and never causes a silent downgrade. Headless systems may explicitly accept a host-access-control and file-permission trust model with `DAIKU_CREDENTIAL_STORE=file`; those credential files are atomically replaced with mode `0600`. Environment variables cannot supply OAuth tokens.
+
+`daiku auth logout` revokes the refresh token before deleting its local copy. If Daiku is unavailable, it preserves the local credential so revocation can be retried; `--local-only` is the explicit escape hatch.
 
 ## Install for development
 
