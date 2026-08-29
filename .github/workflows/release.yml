@@ -13,6 +13,9 @@ permissions:
   id-token: write
   attestations: write
 
+env:
+  GOTOOLCHAIN: local
+
 concurrency:
   group: draft-release-${{ inputs.version }}
   cancel-in-progress: false

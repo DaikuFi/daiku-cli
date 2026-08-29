@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  GOTOOLCHAIN: local
+
 jobs:
   test:
     name: Test (${{ matrix.os }})
@@ -66,7 +69,8 @@ jobs:
           GOBIN: ${{ runner.temp }}/bin
         run: |
           go install github.com/goreleaser/goreleaser/v2@2d07c80923ac8a85886544b5dfb40160aa9ba90b
-          go install github.com/rhysd/actionlint/cmd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca
+          # v1.7.11 is the newest release whose go.mod requires Go 1.24.
+          go install github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8
           echo "$GOBIN" >> "$GITHUB_PATH"
       - name: Validate
         run: |
