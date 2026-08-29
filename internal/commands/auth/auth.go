@@ -1,0 +1,121 @@
+package auth
+
+import (
+	"errors"
+	"fmt"
+	"time"
+
+	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
+	"github.com/DaikuFi/daiku-cli/internal/cli"
+	"github.com/DaikuFi/daiku-cli/internal/credentials"
+	"github.com/DaikuFi/daiku-cli/internal/profiles"
+	"github.com/spf13/cobra"
+)
+
+type Module struct {
+	Profiles    profiles.Store
+	Credentials credentials.Store
+	OAuth       *authcore.Client
+}
+
+func New(p profiles.Store, c credentials.Store, o *authcore.Client) Module { return Module{p, c, o} }
+func (m Module) Register(root *cobra.Command) {
+	cmd := &cobra.Command{Use: "auth", Short: "Authenticate with Daiku", Args: cli.UsageArgs(cobra.NoArgs)}
+	cmd.AddCommand(m.login(), m.logout(), m.status())
+	root.AddCommand(cmd)
+}
+func (m Module) selected() (string, error) {
+	cfg, err := m.Profiles.Load()
+	if err != nil {
+		return "", safe("config_error", "profile configuration could not be read", cli.ExitFailure)
+	}
+	if cfg.Current == "" {
+		return "", safe("profile_required", "select a profile before authenticating", cli.ExitUsage)
+	}
+	return cfg.Current, nil
+}
+func (m Module) login() *cobra.Command {
+	return &cobra.Command{Use: "login", Short: "Sign in using OAuth", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(cmd *cobra.Command, _ []string) error {
+		profile, err := m.selected()
+		if err != nil {
+			return err
+		}
+		jsonOut, _ := cmd.Flags().GetBool("json")
+		var manual func(string) error
+		if !jsonOut {
+			manual = func(target string) error {
+				_, notifyErr := fmt.Fprintf(cmd.ErrOrStderr(), "Open this URL to continue authentication:\n%s\n", target)
+				return notifyErr
+			}
+		}
+		result, err := m.OAuth.LoginWithManualFallback(cmd.Context(), manual)
+		if err != nil {
+			return safe("oauth_login_failed", err.Error(), cli.ExitAuth)
+		}
+		if err = m.Credentials.Put(profile, result.Token); err != nil {
+			return safe("credential_store_error", "credentials could not be stored securely", cli.ExitFailure)
+		}
+		data := map[string]any{"profile": profile, "logged_in": true}
+		if jsonOut {
+			return cli.WriteSuccess(cmd.OutOrStdout(), data)
+		}
+		_, err = fmt.Fprintf(cmd.OutOrStdout(), "Logged in as profile %s.\n", profile)
+		return err
+	}}
+}
+func (m Module) logout() *cobra.Command {
+	var local bool
+	cmd := &cobra.Command{Use: "logout", Short: "Revoke and remove credentials", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(cmd *cobra.Command, _ []string) error {
+		profile, err := m.selected()
+		if err != nil {
+			return err
+		}
+		if !local {
+			manager := authcore.Manager{Store: m.Credentials, OAuth: m.OAuth}
+			if err = manager.Logout(cmd.Context(), profile); err != nil {
+				return safe("oauth_revoke_failed", "credentials could not be revoked; use --local-only to remove only the local copy", cli.ExitUnavailable)
+			}
+		} else if err = m.Credentials.Delete(profile); err != nil {
+			return safe("credential_store_error", "local credentials could not be removed", cli.ExitFailure)
+		}
+		jsonOut, _ := cmd.Flags().GetBool("json")
+		if jsonOut {
+			return cli.WriteSuccess(cmd.OutOrStdout(), map[string]any{"profile": profile, "logged_in": false, "revoked": !local})
+		}
+		_, err = fmt.Fprintf(cmd.OutOrStdout(), "Logged out profile %s.\n", profile)
+		return err
+	}}
+	cmd.Flags().BoolVar(&local, "local-only", false, "remove local credentials without revoking the token")
+	return cmd
+}
+func (m Module) status() *cobra.Command {
+	return &cobra.Command{Use: "status", Short: "Show authentication status", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(cmd *cobra.Command, _ []string) error {
+		profile, err := m.selected()
+		if err != nil {
+			return err
+		}
+		token, err := m.Credentials.Get(profile)
+		logged := err == nil
+		if err != nil && !errors.Is(err, credentials.ErrNotFound) {
+			return safe("credential_store_error", "credentials could not be read securely", cli.ExitFailure)
+		}
+		data := map[string]any{"profile": profile, "logged_in": logged}
+		if logged {
+			data["expires_at"] = time.Unix(token.ExpiresAt, 0).UTC().Format(time.RFC3339)
+			data["scope"] = token.Scope
+		}
+		jsonOut, _ := cmd.Flags().GetBool("json")
+		if jsonOut {
+			return cli.WriteSuccess(cmd.OutOrStdout(), data)
+		}
+		if logged {
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Profile %s is logged in.\n", profile)
+		} else {
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Profile %s is not logged in.\n", profile)
+		}
+		return err
+	}}
+}
+func safe(code, message string, exit cli.ExitCode) *cli.Error {
+	return &cli.Error{Code: code, Message: message, ExitCode: exit}
+}
