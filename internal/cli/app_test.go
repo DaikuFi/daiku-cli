@@ -108,6 +108,48 @@ func TestRootHelpForTerminalUsesHumanStyling(t *testing.T) {
 	}
 }
 
+func TestHelpCommandShowsRootHelp(t *testing.T) {
+	exitCode, stdout, stderr := run(t, false, "help")
+
+	if exitCode != int(cli.ExitOK) || stderr != "" || !strings.Contains(stdout, "DAIKU") || !strings.Contains(stdout, "completion") {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+	}
+}
+
+func TestHelpCommandShowsVersionHelpAsJSON(t *testing.T) {
+	exitCode, stdout, stderr := run(t, false, "help", "version", "--json=TRUE")
+
+	if exitCode != int(cli.ExitOK) || stderr != "" || !json.Valid([]byte(stdout)) {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+	}
+	if !strings.Contains(stdout, `"command":"daiku version"`) || !strings.Contains(stdout, "Print the Daiku CLI version") {
+		t.Fatalf("unexpected help envelope: %q", stdout)
+	}
+}
+
+func TestUnknownHelpTopicIsJSONUsageError(t *testing.T) {
+	exitCode, stdout, stderr := run(t, false, "help", "not-a-topic", "--json")
+
+	if exitCode != int(cli.ExitUsage) || stdout != "" || !json.Valid([]byte(stderr)) || !strings.Contains(stderr, "usage_error") {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+	}
+}
+
+func TestCompletionCommandForBash(t *testing.T) {
+	exitCode, stdout, stderr := run(t, false, "completion", "bash")
+
+	if exitCode != int(cli.ExitOK) || stderr != "" || !strings.Contains(stdout, "bash completion") || !strings.Contains(stdout, "__daiku") {
+		t.Fatalf("exit=%d stdout-prefix=%q stderr=%q", exitCode, firstBytes(stdout, 120), stderr)
+	}
+}
+
+func firstBytes(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+	return value[:limit]
+}
+
 func TestVersionHumanOutput(t *testing.T) {
 	exitCode, stdout, stderr := run(t, false, "version")
 

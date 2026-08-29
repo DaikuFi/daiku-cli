@@ -82,6 +82,9 @@ func (a *App) Run(args []string) int {
 	var helpErr error
 	root := a.rootCommand(jsonOutput, &helpErr)
 	root.SetArgs(args)
+	root.InitDefaultHelpCmd()
+	root.InitDefaultCompletionCmd(args...)
+	typeCompletionArgsAsUsage(root)
 
 	if _, _, err := root.Find(args); err != nil {
 		cliError := usageError(err.Error())
@@ -122,12 +125,50 @@ func (a *App) rootCommand(jsonOutput bool, helpErr *error) *cobra.Command {
 		return usageError(err.Error())
 	})
 	root.SetHelpFunc(a.helpFunc(jsonOutput, helpErr))
+	root.SetHelpCommand(newHelpCommand(root))
 
 	for _, module := range a.options.modules {
 		module.Register(root)
 	}
 
 	return root
+}
+
+func newHelpCommand(root *cobra.Command) *cobra.Command {
+	return &cobra.Command{
+		Use:   "help [command]",
+		Short: "Help about any command",
+		Long:  "Help provides help for any command in the application.",
+		RunE: func(_ *cobra.Command, args []string) error {
+			command, _, err := root.Find(args)
+			if err != nil || command == nil {
+				if err == nil {
+					err = fmt.Errorf("unknown help topic %q", args)
+				}
+				return usageError(err.Error())
+			}
+			command.InitDefaultHelpFlag()
+			command.InitDefaultVersionFlag()
+			return command.Help()
+		},
+	}
+}
+
+func typeCompletionArgsAsUsage(root *cobra.Command) {
+	completion, _, err := root.Find([]string{"completion"})
+	if err != nil || completion == nil || completion.Name() != "completion" {
+		return
+	}
+	var wrap func(*cobra.Command)
+	wrap = func(command *cobra.Command) {
+		if command.Args != nil {
+			command.Args = UsageArgs(command.Args)
+		}
+		for _, child := range command.Commands() {
+			wrap(child)
+		}
+	}
+	wrap(completion)
 }
 
 func (a *App) helpFunc(jsonOutput bool, helpErr *error) func(*cobra.Command, []string) {
