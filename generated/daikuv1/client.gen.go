@@ -866,26 +866,26 @@ const (
 
 // Defines values for DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency.
 const (
-	ARS DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "ARS"
-	BOB DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "BOB"
-	BRL DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "BRL"
-	CLP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "CLP"
-	COP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "COP"
-	CRC DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "CRC"
-	DOP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "DOP"
-	EUR DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "EUR"
-	GBP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "GBP"
-	GTQ DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "GTQ"
-	HNL DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "HNL"
-	MXN DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "MXN"
-	NIO DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "NIO"
-	PAB DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "PAB"
-	PEN DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "PEN"
-	PYG DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "PYG"
-	UI  DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "UI"
-	USD DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "USD"
-	UYU DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "UYU"
-	VES DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "VES"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyARS DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "ARS"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyBOB DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "BOB"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyBRL DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "BRL"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyCLP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "CLP"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyCOP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "COP"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyCRC DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "CRC"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyDOP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "DOP"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyEUR DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "EUR"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyGBP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "GBP"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyGTQ DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "GTQ"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyHNL DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "HNL"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyMXN DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "MXN"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyNIO DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "NIO"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyPAB DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "PAB"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyPEN DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "PEN"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyPYG DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "PYG"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyUI  DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "UI"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyUSD DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "USD"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyUYU DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "UYU"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyVES DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "VES"
 )
 
 // Defines values for DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatus.
@@ -895,6 +895,54 @@ const (
 	DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatusPending    DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatus = "pending"
 	DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatusSkipped    DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatus = "skipped"
 	DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatusSuperseded DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatus = "superseded"
+)
+
+// Defines values for DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency.
+const (
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyARS DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "ARS"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyBOB DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "BOB"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyBRL DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "BRL"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyCLP DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "CLP"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyCOP DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "COP"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyCRC DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "CRC"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyDOP DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "DOP"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyEUR DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "EUR"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyGBP DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "GBP"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyGTQ DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "GTQ"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyHNL DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "HNL"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyMXN DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "MXN"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyNIO DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "NIO"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyPAB DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "PAB"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyPEN DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "PEN"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyPYG DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "PYG"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyUI  DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "UI"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyUSD DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "USD"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyUYU DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "UYU"
+	DaikuPortfoliosReportsCurrencyExposureGetParamsCurrencyVES DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency = "VES"
+)
+
+// Defines values for DaikuPortfoliosReportsNetWorthGetParamsCurrency.
+const (
+	ARS DaikuPortfoliosReportsNetWorthGetParamsCurrency = "ARS"
+	BOB DaikuPortfoliosReportsNetWorthGetParamsCurrency = "BOB"
+	BRL DaikuPortfoliosReportsNetWorthGetParamsCurrency = "BRL"
+	CLP DaikuPortfoliosReportsNetWorthGetParamsCurrency = "CLP"
+	COP DaikuPortfoliosReportsNetWorthGetParamsCurrency = "COP"
+	CRC DaikuPortfoliosReportsNetWorthGetParamsCurrency = "CRC"
+	DOP DaikuPortfoliosReportsNetWorthGetParamsCurrency = "DOP"
+	EUR DaikuPortfoliosReportsNetWorthGetParamsCurrency = "EUR"
+	GBP DaikuPortfoliosReportsNetWorthGetParamsCurrency = "GBP"
+	GTQ DaikuPortfoliosReportsNetWorthGetParamsCurrency = "GTQ"
+	HNL DaikuPortfoliosReportsNetWorthGetParamsCurrency = "HNL"
+	MXN DaikuPortfoliosReportsNetWorthGetParamsCurrency = "MXN"
+	NIO DaikuPortfoliosReportsNetWorthGetParamsCurrency = "NIO"
+	PAB DaikuPortfoliosReportsNetWorthGetParamsCurrency = "PAB"
+	PEN DaikuPortfoliosReportsNetWorthGetParamsCurrency = "PEN"
+	PYG DaikuPortfoliosReportsNetWorthGetParamsCurrency = "PYG"
+	UI  DaikuPortfoliosReportsNetWorthGetParamsCurrency = "UI"
+	USD DaikuPortfoliosReportsNetWorthGetParamsCurrency = "USD"
+	UYU DaikuPortfoliosReportsNetWorthGetParamsCurrency = "UYU"
+	VES DaikuPortfoliosReportsNetWorthGetParamsCurrency = "VES"
 )
 
 // AccountAdjustNoop defines model for AccountAdjustNoop.
@@ -1911,7 +1959,24 @@ type CurrencyExposure struct {
 	// Currency * `UYU` - UYU
 	// * `USD` - USD
 	// * `EUR` - EUR
-	Currency Currency43eEnum `json:"currency"`
+	// * `BRL` - BRL
+	// * `GBP` - GBP
+	// * `ARS` - ARS
+	// * `UI` - UI
+	// * `CLP` - CLP
+	// * `COP` - COP
+	// * `MXN` - MXN
+	// * `PEN` - PEN
+	// * `PYG` - PYG
+	// * `BOB` - BOB
+	// * `VES` - VES
+	// * `GTQ` - GTQ
+	// * `HNL` - HNL
+	// * `CRC` - CRC
+	// * `NIO` - NIO
+	// * `PAB` - PAB
+	// * `DOP` - DOP
+	Currency Currency595Enum `json:"currency"`
 	Total    string          `json:"total"`
 }
 
@@ -1922,7 +1987,24 @@ type CurrencyExposureItem struct {
 	// Currency * `UYU` - UYU
 	// * `USD` - USD
 	// * `EUR` - EUR
-	Currency    Currency43eEnum `json:"currency"`
+	// * `BRL` - BRL
+	// * `GBP` - GBP
+	// * `ARS` - ARS
+	// * `UI` - UI
+	// * `CLP` - CLP
+	// * `COP` - COP
+	// * `MXN` - MXN
+	// * `PEN` - PEN
+	// * `PYG` - PYG
+	// * `BOB` - BOB
+	// * `VES` - VES
+	// * `GTQ` - GTQ
+	// * `HNL` - HNL
+	// * `CRC` - CRC
+	// * `NIO` - NIO
+	// * `PAB` - PAB
+	// * `DOP` - DOP
+	Currency    Currency595Enum `json:"currency"`
 	NativeTotal string          `json:"native_total"`
 	Pct         string          `json:"pct"`
 }
@@ -2531,7 +2613,24 @@ type NetWorthSeries struct {
 	// Currency * `UYU` - UYU
 	// * `USD` - USD
 	// * `EUR` - EUR
-	Currency Currency43eEnum `json:"currency"`
+	// * `BRL` - BRL
+	// * `GBP` - GBP
+	// * `ARS` - ARS
+	// * `UI` - UI
+	// * `CLP` - CLP
+	// * `COP` - COP
+	// * `MXN` - MXN
+	// * `PEN` - PEN
+	// * `PYG` - PYG
+	// * `BOB` - BOB
+	// * `VES` - VES
+	// * `GTQ` - GTQ
+	// * `HNL` - HNL
+	// * `CRC` - CRC
+	// * `NIO` - NIO
+	// * `PAB` - PAB
+	// * `DOP` - DOP
+	Currency Currency595Enum `json:"currency"`
 	Series   []NetWorthPoint `json:"series"`
 }
 
@@ -5165,6 +5264,33 @@ type DaikuPortfoliosExposureWatchesGetParams struct {
 	Search *string `form:"search,omitempty" json:"search,omitempty"`
 }
 
+// DaikuPortfoliosReportsCurrencyExposureGetParams defines parameters for DaikuPortfoliosReportsCurrencyExposureGet.
+type DaikuPortfoliosReportsCurrencyExposureGetParams struct {
+	// Currency Display currency. Defaults to USD.
+	Currency *DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency `form:"currency,omitempty" json:"currency,omitempty"`
+
+	// Date Snapshot date in YYYY-MM-DD format. Defaults to today.
+	Date *openapi_types.Date `form:"date,omitempty" json:"date,omitempty"`
+}
+
+// DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency defines parameters for DaikuPortfoliosReportsCurrencyExposureGet.
+type DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency string
+
+// DaikuPortfoliosReportsNetWorthGetParams defines parameters for DaikuPortfoliosReportsNetWorthGet.
+type DaikuPortfoliosReportsNetWorthGetParams struct {
+	// Currency Display currency. Defaults to USD.
+	Currency *DaikuPortfoliosReportsNetWorthGetParamsCurrency `form:"currency,omitempty" json:"currency,omitempty"`
+
+	// End Final month in YYYY-MM format. Defaults to the current month.
+	End *string `form:"end,omitempty" json:"end,omitempty"`
+
+	// Months Number of monthly snapshots (1-60). Defaults to 12.
+	Months *int `form:"months,omitempty" json:"months,omitempty"`
+}
+
+// DaikuPortfoliosReportsNetWorthGetParamsCurrency defines parameters for DaikuPortfoliosReportsNetWorthGet.
+type DaikuPortfoliosReportsNetWorthGetParamsCurrency string
+
 // DaikuAssetsIdCashflowsPostJSONRequestBody defines body for DaikuAssetsIdCashflowsPost for application/json ContentType.
 type DaikuAssetsIdCashflowsPostJSONRequestBody = AssetCashFlowRequest
 
@@ -6842,10 +6968,10 @@ type ClientInterface interface {
 	DaikuPortfoliosExposureWatchesIdGet(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DaikuPortfoliosReportsCurrencyExposureGet request
-	DaikuPortfoliosReportsCurrencyExposureGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DaikuPortfoliosReportsCurrencyExposureGet(ctx context.Context, params *DaikuPortfoliosReportsCurrencyExposureGetParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DaikuPortfoliosReportsNetWorthGet request
-	DaikuPortfoliosReportsNetWorthGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DaikuPortfoliosReportsNetWorthGet(ctx context.Context, params *DaikuPortfoliosReportsNetWorthGetParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DaikuPortfoliosIdDelete request
 	DaikuPortfoliosIdDelete(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -8554,8 +8680,8 @@ func (c *Client) DaikuPortfoliosExposureWatchesIdGet(ctx context.Context, id str
 	return c.Client.Do(req)
 }
 
-func (c *Client) DaikuPortfoliosReportsCurrencyExposureGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDaikuPortfoliosReportsCurrencyExposureGetRequest(c.Server)
+func (c *Client) DaikuPortfoliosReportsCurrencyExposureGet(ctx context.Context, params *DaikuPortfoliosReportsCurrencyExposureGetParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDaikuPortfoliosReportsCurrencyExposureGetRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -8566,8 +8692,8 @@ func (c *Client) DaikuPortfoliosReportsCurrencyExposureGet(ctx context.Context, 
 	return c.Client.Do(req)
 }
 
-func (c *Client) DaikuPortfoliosReportsNetWorthGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDaikuPortfoliosReportsNetWorthGetRequest(c.Server)
+func (c *Client) DaikuPortfoliosReportsNetWorthGet(ctx context.Context, params *DaikuPortfoliosReportsNetWorthGetParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDaikuPortfoliosReportsNetWorthGetRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -13392,7 +13518,7 @@ func NewDaikuPortfoliosExposureWatchesIdGetRequest(server string, id string) (*h
 }
 
 // NewDaikuPortfoliosReportsCurrencyExposureGetRequest generates requests for DaikuPortfoliosReportsCurrencyExposureGet
-func NewDaikuPortfoliosReportsCurrencyExposureGetRequest(server string) (*http.Request, error) {
+func NewDaikuPortfoliosReportsCurrencyExposureGetRequest(server string, params *DaikuPortfoliosReportsCurrencyExposureGetParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -13410,6 +13536,44 @@ func NewDaikuPortfoliosReportsCurrencyExposureGetRequest(server string) (*http.R
 		return nil, err
 	}
 
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Currency != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "currency", runtime.ParamLocationQuery, *params.Currency); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Date != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "date", runtime.ParamLocationQuery, *params.Date); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
@@ -13419,7 +13583,7 @@ func NewDaikuPortfoliosReportsCurrencyExposureGetRequest(server string) (*http.R
 }
 
 // NewDaikuPortfoliosReportsNetWorthGetRequest generates requests for DaikuPortfoliosReportsNetWorthGet
-func NewDaikuPortfoliosReportsNetWorthGetRequest(server string) (*http.Request, error) {
+func NewDaikuPortfoliosReportsNetWorthGetRequest(server string, params *DaikuPortfoliosReportsNetWorthGetParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -13435,6 +13599,60 @@ func NewDaikuPortfoliosReportsNetWorthGetRequest(server string) (*http.Request, 
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Currency != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "currency", runtime.ParamLocationQuery, *params.Currency); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.End != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "end", runtime.ParamLocationQuery, *params.End); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Months != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "months", runtime.ParamLocationQuery, *params.Months); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -14673,10 +14891,10 @@ type ClientWithResponsesInterface interface {
 	DaikuPortfoliosExposureWatchesIdGetWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DaikuPortfoliosExposureWatchesIdGetResponse, error)
 
 	// DaikuPortfoliosReportsCurrencyExposureGetWithResponse request
-	DaikuPortfoliosReportsCurrencyExposureGetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DaikuPortfoliosReportsCurrencyExposureGetResponse, error)
+	DaikuPortfoliosReportsCurrencyExposureGetWithResponse(ctx context.Context, params *DaikuPortfoliosReportsCurrencyExposureGetParams, reqEditors ...RequestEditorFn) (*DaikuPortfoliosReportsCurrencyExposureGetResponse, error)
 
 	// DaikuPortfoliosReportsNetWorthGetWithResponse request
-	DaikuPortfoliosReportsNetWorthGetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DaikuPortfoliosReportsNetWorthGetResponse, error)
+	DaikuPortfoliosReportsNetWorthGetWithResponse(ctx context.Context, params *DaikuPortfoliosReportsNetWorthGetParams, reqEditors ...RequestEditorFn) (*DaikuPortfoliosReportsNetWorthGetResponse, error)
 
 	// DaikuPortfoliosIdDeleteWithResponse request
 	DaikuPortfoliosIdDeleteWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DaikuPortfoliosIdDeleteResponse, error)
@@ -18995,8 +19213,8 @@ func (c *ClientWithResponses) DaikuPortfoliosExposureWatchesIdGetWithResponse(ct
 }
 
 // DaikuPortfoliosReportsCurrencyExposureGetWithResponse request returning *DaikuPortfoliosReportsCurrencyExposureGetResponse
-func (c *ClientWithResponses) DaikuPortfoliosReportsCurrencyExposureGetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DaikuPortfoliosReportsCurrencyExposureGetResponse, error) {
-	rsp, err := c.DaikuPortfoliosReportsCurrencyExposureGet(ctx, reqEditors...)
+func (c *ClientWithResponses) DaikuPortfoliosReportsCurrencyExposureGetWithResponse(ctx context.Context, params *DaikuPortfoliosReportsCurrencyExposureGetParams, reqEditors ...RequestEditorFn) (*DaikuPortfoliosReportsCurrencyExposureGetResponse, error) {
+	rsp, err := c.DaikuPortfoliosReportsCurrencyExposureGet(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -19004,8 +19222,8 @@ func (c *ClientWithResponses) DaikuPortfoliosReportsCurrencyExposureGetWithRespo
 }
 
 // DaikuPortfoliosReportsNetWorthGetWithResponse request returning *DaikuPortfoliosReportsNetWorthGetResponse
-func (c *ClientWithResponses) DaikuPortfoliosReportsNetWorthGetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DaikuPortfoliosReportsNetWorthGetResponse, error) {
-	rsp, err := c.DaikuPortfoliosReportsNetWorthGet(ctx, reqEditors...)
+func (c *ClientWithResponses) DaikuPortfoliosReportsNetWorthGetWithResponse(ctx context.Context, params *DaikuPortfoliosReportsNetWorthGetParams, reqEditors ...RequestEditorFn) (*DaikuPortfoliosReportsNetWorthGetResponse, error) {
+	rsp, err := c.DaikuPortfoliosReportsNetWorthGet(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

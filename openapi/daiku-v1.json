@@ -9974,6 +9974,48 @@
     "/api/v1/portfolios/reports/currency-exposure/": {
       "get": {
         "operationId": "daiku_portfolios_reports_currency_exposure_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "currency",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ARS",
+                "BOB",
+                "BRL",
+                "CLP",
+                "COP",
+                "CRC",
+                "DOP",
+                "EUR",
+                "GBP",
+                "GTQ",
+                "HNL",
+                "MXN",
+                "NIO",
+                "PAB",
+                "PEN",
+                "PYG",
+                "UI",
+                "USD",
+                "UYU",
+                "VES"
+              ],
+              "default": "USD"
+            },
+            "description": "Display currency. Defaults to USD."
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Snapshot date in YYYY-MM-DD format. Defaults to today."
+          }
+        ],
         "tags": [
           "Portfolios & net worth"
         ],
@@ -10064,6 +10106,59 @@
     "/api/v1/portfolios/reports/net-worth/": {
       "get": {
         "operationId": "daiku_portfolios_reports_net_worth_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "currency",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ARS",
+                "BOB",
+                "BRL",
+                "CLP",
+                "COP",
+                "CRC",
+                "DOP",
+                "EUR",
+                "GBP",
+                "GTQ",
+                "HNL",
+                "MXN",
+                "NIO",
+                "PAB",
+                "PEN",
+                "PYG",
+                "UI",
+                "USD",
+                "UYU",
+                "VES"
+              ],
+              "default": "USD"
+            },
+            "description": "Display currency. Defaults to USD."
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "description": "Final month in YYYY-MM format. Defaults to the current month."
+          },
+          {
+            "in": "query",
+            "name": "months",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60,
+              "default": 12
+            },
+            "description": "Number of monthly snapshots (1-60). Defaults to 12."
+          }
+        ],
         "tags": [
           "Portfolios & net worth"
         ],
@@ -13902,7 +13997,7 @@
         "type": "object",
         "properties": {
           "currency": {
-            "$ref": "#/components/schemas/Currency43eEnum"
+            "$ref": "#/components/schemas/Currency595Enum"
           },
           "as_of": {
             "type": "string",
@@ -13931,7 +14026,7 @@
         "type": "object",
         "properties": {
           "currency": {
-            "$ref": "#/components/schemas/Currency43eEnum"
+            "$ref": "#/components/schemas/Currency595Enum"
           },
           "native_total": {
             "type": "string",
@@ -15177,7 +15272,7 @@
         "type": "object",
         "properties": {
           "currency": {
-            "$ref": "#/components/schemas/Currency43eEnum"
+            "$ref": "#/components/schemas/Currency595Enum"
           },
           "series": {
             "type": "array",
