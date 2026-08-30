@@ -112,6 +112,19 @@ func TestBudgetRuleAcceptsPublishedCurrency(t *testing.T) {
 	}
 }
 
+func TestBudgetReportsAcceptRegionalCurrencyAndRejectUnknown(t *testing.T) {
+	api := &fakeAPI{}
+	code, _, errOut := runSimple(t, api, "budgets", "summary", "--household", "hh_1", "--month", "8", "--year", "2026", "--currency", "BRL", "--json")
+	if code != 0 || api.summary == nil || string(*api.summary.DisplayCurrency) != "BRL" {
+		t.Fatalf("BRL code=%d params=%+v stderr=%q", code, api.summary, errOut)
+	}
+	api.summary = nil
+	code, _, errOut = runSimple(t, api, "budgets", "summary", "--household", "hh_1", "--month", "8", "--year", "2026", "--currency", "BTC", "--json")
+	if code != int(cli.ExitUsage) || api.summary != nil || !strings.Contains(errOut, "not supported") {
+		t.Fatalf("BTC code=%d params=%+v stderr=%q", code, api.summary, errOut)
+	}
+}
+
 func TestPlannedAndSuggestionsPinTheirPeriods(t *testing.T) {
 	api := &fakeAPI{}
 	code, _, errOut := runSimple(t, api, "budgets", "planned", "--household", "hh_1", "--year", "2027", "--currency", "EUR", "--json")
@@ -151,7 +164,7 @@ func TestSpanishValidationAndFlagHelp(t *testing.T) {
 		t.Fatalf("code=%d out=%q stderr=%q", code, out, errOut)
 	}
 	code, out, errOut = runSimple(t, api, "budgets", "rules", "update", "--help", "--language", "es")
-	if code != 0 || errOut != "" || !strings.Contains(out, "elimina el mes fijado") || !strings.Contains(out, "moneda: UYU, USD o EUR") {
+	if code != 0 || errOut != "" || !strings.Contains(out, "elimina el mes fijado") || !strings.Contains(out, "moneda ISO admitida por Daiku") {
 		t.Fatalf("code=%d out=%q stderr=%q", code, out, errOut)
 	}
 }

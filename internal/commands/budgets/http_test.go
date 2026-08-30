@@ -89,7 +89,10 @@ func TestGeneratedBudgetAPIDecodesBackendSummaryWithUnconvertedCurrencies(t *tes
 		_, _ = io.WriteString(w, `{
 			"budgeted_spent":"80.00",
 			"category_rows":[],
-			"daily_progress":[],
+			"daily_progress":[
+				{"day":1,"ideal":3.225806451612903,"actual":0},
+				{"day":2,"ideal":"6.45","actual":null}
+			],
 			"days_elapsed":30,
 			"days_in_month":31,
 			"display_currency":"UYU",
@@ -107,6 +110,16 @@ func TestGeneratedBudgetAPIDecodesBackendSummaryWithUnconvertedCurrencies(t *tes
 	}
 	if summary.TotalMonthlyBudget != "100.00" {
 		t.Fatalf("summary=%#v", summary)
+	}
+	if len(summary.DailyProgress) != 2 || summary.DailyProgress[0].Ideal == nil || string(*summary.DailyProgress[0].Ideal) != "3.225806451612903" || summary.DailyProgress[0].Actual == nil || string(*summary.DailyProgress[0].Actual) != "0" || summary.DailyProgress[1].Ideal == nil || string(*summary.DailyProgress[1].Ideal) != "6.45" || summary.DailyProgress[1].Actual != nil {
+		t.Fatalf("daily_progress=%#v", summary.DailyProgress)
+	}
+	encoded, err := json.Marshal(summary.DailyProgress)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(encoded) != `[{"actual":"0","day":1,"ideal":"3.225806451612903"},{"actual":null,"day":2,"ideal":"6.45"}]` {
+		t.Fatalf("stable JSON=%s", encoded)
 	}
 	if summary.Unconverted == nil || summary.Unconverted.Count != 1 || strings.Join(summary.Unconverted.Currencies, ",") != "USD" {
 		t.Fatalf("unconverted=%#v", summary.Unconverted)
