@@ -97,7 +97,7 @@ func (m Module) scenarioList() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return emitList(c, "scenarios", items, scenarioRows(items))
+		return emitList(c, "scenarios", items, scenarioRows(c, items))
 	}}
 	portfolioFlag(c, &portfolio)
 	return c
@@ -195,7 +195,8 @@ func (m Module) scenarioDelete() *cobra.Command {
 	var yes bool
 	c := &cobra.Command{Use: "delete <id>", Short: "Delete a projection scenario", Args: cli.UsageArgs(cobra.ExactArgs(1)), RunE: func(c *cobra.Command, args []string) error {
 		if !yes {
-			if err := confirm(c, "Delete projection scenario "+args[0]+"."); err != nil {
+			message := cli.Human(c).Localizer.Humanf("Delete projection scenario %s.", args[0])
+			if err := confirm(c, message); err != nil {
 				return err
 			}
 		}
@@ -225,7 +226,7 @@ func (m Module) resultCommand(use, short string, run func(API, context.Context, 
 			return e
 		}
 		v, e := run(a, c.Context(), p, s)
-		return emit(c, v, short+".\n", e)
+		return emit(c, v, cli.Human(c).Localizer.Human(short)+".\n", e)
 	}}
 	portfolioFlag(c, &p)
 	scenarioFlag(c, &s)
@@ -248,7 +249,7 @@ func (m Module) ruleList() *cobra.Command {
 		if e != nil {
 			return e
 		}
-		return emitList(c, "rules", v, ruleRows(v))
+		return emitList(c, "rules", v, ruleRows(c, v))
 	}}
 	scenarioFlag(c, &s)
 	return c
@@ -368,7 +369,8 @@ func (m Module) ruleDelete() *cobra.Command {
 	var yes bool
 	c := &cobra.Command{Use: "delete <id>", Short: "Delete a projection rule", Args: cli.UsageArgs(cobra.ExactArgs(1)), RunE: func(c *cobra.Command, args []string) error {
 		if !yes {
-			if e := confirm(c, "Delete projection rule "+args[0]+"."); e != nil {
+			message := cli.Human(c).Localizer.Humanf("Delete projection rule %s.", args[0])
+			if e := confirm(c, message); e != nil {
 				return e
 			}
 		}
@@ -385,38 +387,38 @@ func (m Module) ruleDelete() *cobra.Command {
 }
 
 func (m Module) netWorth() *cobra.Command {
-	return reportCommand(m, "net-worth", "Show the server-calculated net worth series", func(a API, c context.Context) (any, []output.Row, error) {
-		v, e := a.NetWorth(c)
+	return reportCommand(m, "net-worth", "Show the server-calculated net worth series", func(a API, c *cobra.Command) (any, []output.Row, error) {
+		v, e := a.NetWorth(c.Context())
 		if e != nil {
 			return nil, nil, e
 		}
 		rows := make([]output.Row, 0, len(v.Series))
 		for _, p := range v.Series {
-			rows = append(rows, output.Row{{Label: "DATE", Value: p.Date.String()}, {Label: "NET WORTH", Value: p.NetWorth}, {Label: "ASSETS", Value: p.Assets}, {Label: "LIABILITIES", Value: p.Liabilities}, {Label: "CURRENCY", Value: string(v.Currency)}})
+			rows = append(rows, output.Row{{Label: label(c, "DATE"), Value: p.Date.String()}, {Label: label(c, "NET WORTH"), Value: p.NetWorth}, {Label: label(c, "ASSETS"), Value: p.Assets}, {Label: label(c, "LIABILITIES"), Value: p.Liabilities}, {Label: label(c, "CURRENCY"), Value: string(v.Currency)}})
 		}
 		return v, rows, nil
 	})
 }
 func (m Module) currencyExposure() *cobra.Command {
-	return reportCommand(m, "currency-exposure", "Show server-calculated currency exposure", func(a API, c context.Context) (any, []output.Row, error) {
-		v, e := a.CurrencyExposure(c)
+	return reportCommand(m, "currency-exposure", "Show server-calculated currency exposure", func(a API, c *cobra.Command) (any, []output.Row, error) {
+		v, e := a.CurrencyExposure(c.Context())
 		if e != nil {
 			return nil, nil, e
 		}
 		rows := make([]output.Row, 0, len(v.ByCurrency))
 		for _, p := range v.ByCurrency {
-			rows = append(rows, output.Row{{Label: "CURRENCY", Value: string(p.Currency)}, {Label: "NATIVE", Value: p.NativeTotal}, {Label: "CONVERTED", Value: p.ConvertedTotal}, {Label: "PERCENT", Value: p.Pct}, {Label: "AS OF", Value: v.AsOf.String()}})
+			rows = append(rows, output.Row{{Label: label(c, "CURRENCY"), Value: string(p.Currency)}, {Label: label(c, "NATIVE"), Value: p.NativeTotal}, {Label: label(c, "CONVERTED"), Value: p.ConvertedTotal}, {Label: label(c, "PERCENT"), Value: p.Pct}, {Label: label(c, "AS OF"), Value: v.AsOf.String()}})
 		}
 		return v, rows, nil
 	})
 }
-func reportCommand(m Module, use, short string, run func(API, context.Context) (any, []output.Row, error)) *cobra.Command {
+func reportCommand(m Module, use, short string, run func(API, *cobra.Command) (any, []output.Row, error)) *cobra.Command {
 	return &cobra.Command{Use: use, Short: short, Args: cli.UsageArgs(cobra.NoArgs), RunE: func(c *cobra.Command, _ []string) error {
 		a, e := m.Factory(c.Context())
 		if e != nil {
 			return e
 		}
-		v, rows, e := run(a, c.Context())
+		v, rows, e := run(a, c)
 		if e != nil {
 			return e
 		}
@@ -453,31 +455,31 @@ func (m Module) runRates(c *cobra.Command) func(*cobra.Command, []string) error 
 			if r.Date != nil {
 				resolved = r.Date.String()
 			}
-			rows = append(rows, output.Row{{Label: "DATE", Value: resolved}, {Label: "FROM", Value: string(r.FromCurrency)}, {Label: "TO", Value: string(r.ToCurrency)}, {Label: "RATE", Value: r.Rate}})
+			rows = append(rows, output.Row{{Label: label(c, "DATE"), Value: resolved}, {Label: label(c, "FROM"), Value: string(r.FromCurrency)}, {Label: label(c, "TO"), Value: string(r.ToCurrency)}, {Label: label(c, "RATE"), Value: r.Rate}})
 		}
 		return emitList(c, "rates", rates, rows)
 	}
 }
 
-func scenarioRows(v []daikuv1.ProjectionScenario) []output.Row {
+func scenarioRows(c *cobra.Command, v []daikuv1.ProjectionScenario) []output.Row {
 	rows := make([]output.Row, 0, len(v))
 	for _, x := range v {
 		id := ""
 		if x.Id != nil {
 			id = *x.Id
 		}
-		rows = append(rows, output.Row{{Label: "ID", Value: id}, {Label: "NAME", Value: x.Name}})
+		rows = append(rows, output.Row{{Label: label(c, "ID"), Value: id}, {Label: label(c, "NAME"), Value: x.Name}})
 	}
 	return rows
 }
-func ruleRows(v []daikuv1.ProjectionRule) []output.Row {
+func ruleRows(c *cobra.Command, v []daikuv1.ProjectionRule) []output.Row {
 	rows := make([]output.Row, 0, len(v))
 	for _, x := range v {
 		id := ""
 		if x.Id != nil {
 			id = *x.Id
 		}
-		rows = append(rows, output.Row{{Label: "ID", Value: id}, {Label: "CATEGORY", Value: string(x.Category)}, {Label: "TYPE", Value: x.RuleType}})
+		rows = append(rows, output.Row{{Label: label(c, "ID"), Value: id}, {Label: label(c, "CATEGORY"), Value: string(x.Category)}, {Label: label(c, "TYPE"), Value: x.RuleType}})
 	}
 	return rows
 }
@@ -491,6 +493,7 @@ func renderer(c *cobra.Command) output.Renderer {
 	h := cli.Human(c)
 	return output.Renderer{Writer: c.OutOrStdout(), Localize: h.Localizer, Terminal: h.Terminal, Width: h.Width, NoColor: h.NoColor}
 }
+func label(c *cobra.Command, value string) string { return cli.Human(c).Localizer.Human(value) }
 func emit(c *cobra.Command, data any, message string, err error) error {
 	if err != nil {
 		return err

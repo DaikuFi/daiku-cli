@@ -173,3 +173,12 @@ func TestTTYAndJSONCarrySameBackendValues(t *testing.T) {
 		}
 	}
 }
+
+func TestSpanishHumanOutputLocalizesHeadingsButNotValues(t *testing.T) {
+	date := types.Date{Time: time.Date(2026, 8, 29, 0, 0, 0, 0, time.UTC)}
+	api := &fakeAPI{series: &daikuv1.NetWorthSeries{Currency: "EUR", Series: []daikuv1.NetWorthPoint{{Date: date, NetWorth: "99.10", Assets: "120.20", Liabilities: "21.10"}}}}
+	code, out, _ := run(t, api, true, "reports", "net-worth", "--language", "es")
+	if code != 0 || !strings.Contains(out, "PATRIMONIO") || !strings.Contains(out, "ACTIVOS") || !strings.Contains(out, "99.10") || !strings.Contains(out, "EUR") {
+		t.Fatalf("code=%d out=%q", code, out)
+	}
+}
