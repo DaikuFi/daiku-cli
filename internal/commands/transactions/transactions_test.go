@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/DaikuFi/daiku-cli/generated/daikuv1"
@@ -12,13 +13,18 @@ import (
 )
 
 type fakeService struct {
-	created     *daikuv1.ExpenseRequest
-	transfer    *daikuv1.TransferCreateRequestRequest
-	installment *daikuv1.InstallmentCreateRequestRequest
-	bulk        *daikuv1.ExpenseBulkCreateRequestRequest
-	deleted     bool
-	bulkDeleted bool
-	listed      *daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams
+	created            *daikuv1.ExpenseRequest
+	transfer           *daikuv1.TransferCreateRequestRequest
+	installment        *daikuv1.InstallmentCreateRequestRequest
+	bulk               *daikuv1.ExpenseBulkCreateRequestRequest
+	updated            PatchBody
+	installmentUpdated PatchBody
+	bulkUpdated        *BulkUpdateBody
+	deleted            bool
+	bulkDeleted        bool
+	converted          bool
+	unlinked           bool
+	listed             *daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams
 }
 
 func (f *fakeService) List(_ context.Context, _ string, p *daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams) (any, error) {
@@ -29,7 +35,8 @@ func (f *fakeService) Create(_ context.Context, _ string, b daikuv1.ExpenseReque
 	f.created = &b
 	return daikuv1.Expense{Amount: b.Amount, Description: b.Description}, nil
 }
-func (*fakeService) Update(context.Context, string, string, daikuv1.PatchedExpenseRequest) (any, error) {
+func (f *fakeService) Update(_ context.Context, _, _ string, body PatchBody) (any, error) {
+	f.updated = body
 	return daikuv1.Expense{}, nil
 }
 func (f *fakeService) Delete(context.Context, string, string, *daikuv1.DaikuHouseholdsHouseholdPkExpensesIdDeleteParams) error {
@@ -40,7 +47,8 @@ func (f *fakeService) BulkCreate(_ context.Context, _ string, body daikuv1.Expen
 	f.bulk = &body
 	return []daikuv1.Expense{}, nil
 }
-func (*fakeService) BulkUpdate(context.Context, string, daikuv1.PatchedExpenseBulkUpdateRequestRequest) (any, error) {
+func (f *fakeService) BulkUpdate(_ context.Context, _ string, body BulkUpdateBody) (any, error) {
+	f.bulkUpdated = &body
 	return daikuv1.ExpenseBulkUpdateResponse{}, nil
 }
 func (f *fakeService) BulkDelete(context.Context, string) (any, error) {
@@ -51,13 +59,15 @@ func (f *fakeService) CreateTransfer(_ context.Context, _ string, b daikuv1.Tran
 	f.transfer = &b
 	return daikuv1.TransferResponse{}, nil
 }
-func (*fakeService) ConvertTransfer(context.Context, string, string, daikuv1.TransferConvertRequestRequest) (any, error) {
+func (f *fakeService) ConvertTransfer(context.Context, string, string, daikuv1.TransferConvertRequestRequest) (any, error) {
+	f.converted = true
 	return daikuv1.TransferResponse{}, nil
 }
 func (*fakeService) TransferCandidates(context.Context, string, string) (any, error) {
 	return []daikuv1.Expense{}, nil
 }
-func (*fakeService) UnlinkTransfer(context.Context, string, string) (any, error) {
+func (f *fakeService) UnlinkTransfer(context.Context, string, string) (any, error) {
+	f.unlinked = true
 	return daikuv1.TransferUnlinkResponse{}, nil
 }
 func (f *fakeService) CreateInstallments(_ context.Context, _ string, body daikuv1.InstallmentCreateRequestRequest) (any, error) {
@@ -67,14 +77,15 @@ func (f *fakeService) CreateInstallments(_ context.Context, _ string, body daiku
 func (*fakeService) GetInstallment(context.Context, string, string) (any, error) {
 	return daikuv1.InstallmentPlan{}, nil
 }
-func (*fakeService) UpdateInstallment(context.Context, string, string, daikuv1.PatchedInstallmentPlanUpdateRequest) (any, error) {
+func (f *fakeService) UpdateInstallment(_ context.Context, _, _ string, body PatchBody) (any, error) {
+	f.installmentUpdated = body
 	return daikuv1.InstallmentPlan{}, nil
 }
 
 func run(t *testing.T, svc *fakeService, input string, args ...string) (int, string, string) {
 	t.Helper()
 	var out, errOut bytes.Buffer
-	app := cli.New(cli.WithIO(bytes.NewBufferString(input), &out, &errOut), cli.WithInteractiveDetector(func(_ io.Reader, _ io.Writer) bool { return false }), cli.WithModule(New(func() (Service, error) { return svc, nil })))
+	app := cli.New(cli.WithIO(bytes.NewBufferString(input), &out, &errOut), cli.WithInteractiveDetector(func(_ io.Reader, _ io.Writer) bool { return false }), cli.WithModule(New(func(context.Context) (Service, error) { return svc, nil })))
 	code := app.Run(args)
 	return code, out.String(), errOut.String()
 }
@@ -169,5 +180,103 @@ func TestBulkDeleteRequiresExplicitConfirmation(t *testing.T) {
 	code, _, _ = run(t, svc, "", "transactions", "delete-all", "--household", "hh_1", "--yes", "--json")
 	if code != 0 || !svc.bulkDeleted {
 		t.Fatalf("code=%d deleted=%v", code, svc.bulkDeleted)
+	}
+}
+
+func TestTransactionPatchPreservesOmittedAndExplicitNull(t *testing.T) {
+	svc := &fakeService{}
+	code, _, stderr := run(t, svc, "", "transactions", "update", "exp_1", "--household", "hh_1", "--description", "Changed", "--clear-account", "--clear-tags", "--type", "income", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d err=%s", code, stderr)
+	}
+	if len(svc.updated) != 4 || svc.updated["account"] != nil {
+		t.Fatalf("payload=%#v", svc.updated)
+	}
+	if _, exists := svc.updated["category"]; exists {
+		t.Fatalf("omitted category was sent: %#v", svc.updated)
+	}
+	if tags, ok := svc.updated["tag_ids"].([]string); !ok || len(tags) != 0 {
+		t.Fatalf("tags=%#v", svc.updated["tag_ids"])
+	}
+}
+
+func TestBulkUpdateRequiresConfirmationAndKeepsContractBody(t *testing.T) {
+	svc := &fakeService{}
+	input := `{"ids":["exp_1"],"updates":{"category":null,"account":"acc_2"}}`
+	code, _, _ := run(t, svc, input, "transactions", "bulk-update", "--household", "hh_1", "--file", "-", "--json")
+	if code != int(cli.ExitUsage) || svc.bulkUpdated != nil {
+		t.Fatalf("code=%d body=%#v", code, svc.bulkUpdated)
+	}
+	code, _, stderr := run(t, svc, input, "transactions", "bulk-update", "--household", "hh_1", "--file", "-", "--yes", "--json")
+	if code != 0 || svc.bulkUpdated == nil {
+		t.Fatalf("code=%d body=%#v err=%s", code, svc.bulkUpdated, stderr)
+	}
+}
+
+func TestInstallmentPatchOnlySendsChangedAndClearedFields(t *testing.T) {
+	svc := &fakeService{}
+	code, _, stderr := run(t, svc, "", "installments", "update", "ipl_1", "--household", "hh_1", "--amount", "600.00", "--clear-category", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d err=%s", code, stderr)
+	}
+	if len(svc.installmentUpdated) != 2 || svc.installmentUpdated["category"] != nil {
+		t.Fatalf("payload=%#v", svc.installmentUpdated)
+	}
+	if _, exists := svc.installmentUpdated["account"]; exists {
+		t.Fatalf("omitted account was sent: %#v", svc.installmentUpdated)
+	}
+}
+
+func TestTransactionAcceptsContractCurrencyBeyondLegacyThree(t *testing.T) {
+	svc := &fakeService{}
+	code, _, stderr := run(t, svc, "", "transactions", "create", "--household", "hh_1", "--amount", "1.00", "--description", "Coffee", "--currency", "BRL", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d err=%s", code, stderr)
+	}
+	code, _, _ = run(t, svc, "", "transactions", "create", "--household", "hh_1", "--amount", "1.00", "--description", "Coffee", "--currency", "ZZZ", "--json")
+	if code != int(cli.ExitUsage) {
+		t.Fatalf("code=%d", code)
+	}
+}
+
+func TestConvertAndUnlinkRequireConfirmation(t *testing.T) {
+	svc := &fakeService{}
+	code, _, _ := run(t, svc, "", "transfers", "convert", "exp_1", "--household", "hh_1", "--to-account", "acc_2", "--json")
+	if code != int(cli.ExitUsage) || svc.converted {
+		t.Fatalf("convert code=%d called=%v", code, svc.converted)
+	}
+	code, _, _ = run(t, svc, "", "transfers", "convert", "exp_1", "--household", "hh_1", "--to-account", "acc_2", "--yes", "--json")
+	if code != 0 || !svc.converted {
+		t.Fatalf("convert code=%d called=%v", code, svc.converted)
+	}
+	code, _, _ = run(t, svc, "", "transfers", "unlink", "exp_1", "--household", "hh_1", "--json")
+	if code != int(cli.ExitUsage) || svc.unlinked {
+		t.Fatalf("unlink code=%d called=%v", code, svc.unlinked)
+	}
+	code, _, _ = run(t, svc, "", "transfers", "unlink", "exp_1", "--household", "hh_1", "--yes", "--json")
+	if code != 0 || !svc.unlinked {
+		t.Fatalf("unlink code=%d called=%v", code, svc.unlinked)
+	}
+}
+
+func TestSpanishDestructivePromptAndStableJSONError(t *testing.T) {
+	svc := &fakeService{}
+	var out, errOut bytes.Buffer
+	app := cli.New(cli.WithIO(strings.NewReader("sí\n"), &out, &errOut), cli.WithInteractiveDetector(func(io.Reader, io.Writer) bool { return true }), cli.WithModule(New(func(context.Context) (Service, error) { return svc, nil })))
+	if code := app.Run([]string{"transactions", "delete", "exp_1", "--household", "hh_1", "--language", "es"}); code != 0 || !svc.deleted {
+		t.Fatalf("code=%d deleted=%v err=%s", code, svc.deleted, errOut.String())
+	}
+	if !strings.Contains(errOut.String(), "Eliminar la transacción exp_1") {
+		t.Fatalf("prompt=%q", errOut.String())
+	}
+	out.Reset()
+	errOut.Reset()
+	svc = &fakeService{}
+	app = cli.New(cli.WithIO(strings.NewReader(""), &out, &errOut), cli.WithInteractiveDetector(func(io.Reader, io.Writer) bool { return false }), cli.WithModule(New(func(context.Context) (Service, error) { return svc, nil })))
+	if code := app.Run([]string{"transactions", "create", "--household", "hh_1", "--amount", "1.00", "--description", "x", "--currency", "ZZZ", "--language", "es", "--json"}); code != int(cli.ExitUsage) {
+		t.Fatalf("code=%d", code)
+	}
+	if !strings.Contains(errOut.String(), `"code":"invalid_currency"`) || strings.Contains(errOut.String(), "moneda") {
+		t.Fatalf("json error=%q", errOut.String())
 	}
 }

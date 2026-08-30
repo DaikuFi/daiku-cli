@@ -8,17 +8,17 @@ import (
 	"strings"
 
 	"github.com/DaikuFi/daiku-cli/generated/daikuv1"
-	"github.com/DaikuFi/daiku-cli/internal/credentials"
+	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
 	"github.com/DaikuFi/daiku-cli/internal/profiles"
 )
 
 type Service interface {
 	List(context.Context, string, *daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams) (any, error)
 	Create(context.Context, string, daikuv1.ExpenseRequest) (any, error)
-	Update(context.Context, string, string, daikuv1.PatchedExpenseRequest) (any, error)
+	Update(context.Context, string, string, PatchBody) (any, error)
 	Delete(context.Context, string, string, *daikuv1.DaikuHouseholdsHouseholdPkExpensesIdDeleteParams) error
 	BulkCreate(context.Context, string, daikuv1.ExpenseBulkCreateRequestRequest) (any, error)
-	BulkUpdate(context.Context, string, daikuv1.PatchedExpenseBulkUpdateRequestRequest) (any, error)
+	BulkUpdate(context.Context, string, BulkUpdateBody) (any, error)
 	BulkDelete(context.Context, string) (any, error)
 	CreateTransfer(context.Context, string, daikuv1.TransferCreateRequestRequest) (any, error)
 	ConvertTransfer(context.Context, string, string, daikuv1.TransferConvertRequestRequest) (any, error)
@@ -26,13 +26,19 @@ type Service interface {
 	UnlinkTransfer(context.Context, string, string) (any, error)
 	CreateInstallments(context.Context, string, daikuv1.InstallmentCreateRequestRequest) (any, error)
 	GetInstallment(context.Context, string, string) (any, error)
-	UpdateInstallment(context.Context, string, string, daikuv1.PatchedInstallmentPlanUpdateRequest) (any, error)
+	UpdateInstallment(context.Context, string, string, PatchBody) (any, error)
 }
 
-type ServiceFactory func() (Service, error)
+type PatchBody map[string]any
+type BulkUpdateBody struct {
+	IDs     []string  `json:"ids"`
+	Updates PatchBody `json:"updates"`
+}
 
-func GeneratedServiceFactory(profileStore profiles.Store, credentialStore credentials.Store) ServiceFactory {
-	return func() (Service, error) {
+type ServiceFactory func(context.Context) (Service, error)
+
+func GeneratedServiceFactory(profileStore profiles.Store, manager *authcore.Manager) ServiceFactory {
+	return func(ctx context.Context) (Service, error) {
 		config, err := profileStore.Load()
 		if err != nil {
 			return nil, safe("config_error", "profile configuration could not be read")
@@ -41,7 +47,10 @@ func GeneratedServiceFactory(profileStore profiles.Store, credentialStore creden
 		if config.Current == "" || !ok {
 			return nil, safe("profile_required", "select a profile before using transactions")
 		}
-		token, err := credentialStore.Get(config.Current)
+		if manager == nil {
+			return nil, safe("client_error", "authentication manager is not configured")
+		}
+		token, err := manager.AccessToken(ctx, config.Current)
 		if err != nil {
 			return nil, safe("authentication_required", "authenticate this profile before using transactions")
 		}
@@ -51,7 +60,7 @@ func GeneratedServiceFactory(profileStore profiles.Store, credentialStore creden
 		}
 		server := strings.TrimSuffix(apiURL, "/api/v1/")
 		client, err := daikuv1.NewClientWithResponses(server, daikuv1.WithRequestEditorFn(func(_ context.Context, request *http.Request) error {
-			request.Header.Set("Authorization", "Bearer "+token.AccessToken)
+			request.Header.Set("Authorization", "Bearer "+token)
 			return nil
 		}))
 		if err != nil {
@@ -100,8 +109,12 @@ func (s generatedService) Create(ctx context.Context, hh string, b daikuv1.Expen
 	}
 	return *r.JSON201, nil
 }
-func (s generatedService) Update(ctx context.Context, hh, id string, b daikuv1.PatchedExpenseRequest) (any, error) {
-	r, e := s.client.DaikuHouseholdsHouseholdPkExpensesIdPatchWithResponse(ctx, hh, id, b)
+func (s generatedService) Update(ctx context.Context, hh, id string, b PatchBody) (any, error) {
+	payload, err := json.Marshal(b)
+	if err != nil {
+		return nil, safe("invalid_request", "transaction update could not be encoded")
+	}
+	r, e := s.client.DaikuHouseholdsHouseholdPkExpensesIdPatchWithBodyWithResponse(ctx, hh, id, "application/json", strings.NewReader(string(payload)))
 	if e != nil {
 		return nil, e
 	}
@@ -130,8 +143,12 @@ func (s generatedService) BulkCreate(ctx context.Context, hh string, b daikuv1.E
 	}
 	return *r.JSON201, nil
 }
-func (s generatedService) BulkUpdate(ctx context.Context, hh string, b daikuv1.PatchedExpenseBulkUpdateRequestRequest) (any, error) {
-	r, e := s.client.DaikuHouseholdsHouseholdPkExpensesBulkPatchWithResponse(ctx, hh, b)
+func (s generatedService) BulkUpdate(ctx context.Context, hh string, b BulkUpdateBody) (any, error) {
+	payload, err := json.Marshal(b)
+	if err != nil {
+		return nil, safe("invalid_request", "bulk update could not be encoded")
+	}
+	r, e := s.client.DaikuHouseholdsHouseholdPkExpensesBulkPatchWithBodyWithResponse(ctx, hh, "application/json", strings.NewReader(string(payload)))
 	if e != nil {
 		return nil, e
 	}
@@ -210,8 +227,12 @@ func (s generatedService) GetInstallment(ctx context.Context, hh, id string) (an
 	}
 	return *r.JSON200, nil
 }
-func (s generatedService) UpdateInstallment(ctx context.Context, hh, id string, b daikuv1.PatchedInstallmentPlanUpdateRequest) (any, error) {
-	r, e := s.client.DaikuHouseholdsHouseholdPkInstallmentPlansIdPatchWithResponse(ctx, hh, id, b)
+func (s generatedService) UpdateInstallment(ctx context.Context, hh, id string, b PatchBody) (any, error) {
+	payload, err := json.Marshal(b)
+	if err != nil {
+		return nil, safe("invalid_request", "installment update could not be encoded")
+	}
+	r, e := s.client.DaikuHouseholdsHouseholdPkInstallmentPlansIdPatchWithBodyWithResponse(ctx, hh, id, "application/json", strings.NewReader(string(payload)))
 	if e != nil {
 		return nil, e
 	}

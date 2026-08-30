@@ -1,6 +1,7 @@
 package transactions
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,11 +45,11 @@ func optionalString(cmd *cobra.Command, name, usage string) *string {
 	cmd.Flags().StringVar(value, name, "", usage)
 	return value
 }
-func service(m Module) (Service, error) {
+func service(ctx context.Context, m Module) (Service, error) {
 	if m.Factory == nil {
 		return nil, safe("client_error", "transaction service is not configured")
 	}
-	return m.Factory()
+	return m.Factory(ctx)
 }
 func dateValue(raw string) (*openapi_types.Date, error) {
 	if raw == "" {
@@ -83,10 +84,27 @@ func currency(raw string) (*daikuv1.Currency3e8Enum, error) {
 	if raw == "" {
 		return nil, nil
 	}
-	if raw != "UYU" && raw != "USD" && raw != "EUR" {
-		return nil, &cli.Error{Code: "invalid_currency", Message: "currency must be UYU, USD, or EUR", ExitCode: cli.ExitUsage}
+	allowed := map[string]daikuv1.Currency3e8Enum{
+		"ARS": daikuv1.Currency3e8EnumARS, "BOB": daikuv1.Currency3e8EnumBOB, "BRL": daikuv1.Currency3e8EnumBRL,
+		"CLP": daikuv1.Currency3e8EnumCLP, "COP": daikuv1.Currency3e8EnumCOP, "CRC": daikuv1.Currency3e8EnumCRC,
+		"DOP": daikuv1.Currency3e8EnumDOP, "EUR": daikuv1.Currency3e8EnumEUR, "GBP": daikuv1.Currency3e8EnumGBP,
+		"GTQ": daikuv1.Currency3e8EnumGTQ, "HNL": daikuv1.Currency3e8EnumHNL, "MXN": daikuv1.Currency3e8EnumMXN,
+		"NIO": daikuv1.Currency3e8EnumNIO, "PAB": daikuv1.Currency3e8EnumPAB, "PEN": daikuv1.Currency3e8EnumPEN,
+		"PYG": daikuv1.Currency3e8EnumPYG, "UI": daikuv1.Currency3e8EnumUI, "USD": daikuv1.Currency3e8EnumUSD,
+		"UYU": daikuv1.Currency3e8EnumUYU, "VES": daikuv1.Currency3e8EnumVES,
 	}
-	v := daikuv1.Currency3e8Enum(raw)
+	v, ok := allowed[raw]
+	if !ok {
+		return nil, &cli.Error{Code: "invalid_currency", Message: "currency is not supported by the transaction API contract", ExitCode: cli.ExitUsage}
+	}
+	return &v, nil
+}
+func installmentCurrency(raw string) (*daikuv1.Currency43eEnum, error) {
+	allowed := map[string]daikuv1.Currency43eEnum{"EUR": daikuv1.Currency43eEnumEUR, "USD": daikuv1.Currency43eEnumUSD, "UYU": daikuv1.Currency43eEnumUYU}
+	v, ok := allowed[raw]
+	if !ok {
+		return nil, &cli.Error{Code: "invalid_currency", Message: "currency is not supported by the installment API contract", ExitCode: cli.ExitUsage}
+	}
 	return &v, nil
 }
 func printResult(cmd *cobra.Command, value any) error {
@@ -151,6 +169,13 @@ func value(v *string) string {
 		return ""
 	}
 	return *v
+}
+func humanText(cmd *cobra.Command, english, spanish string) string {
+	h := cli.Human(cmd)
+	if !h.JSON && h.Localizer.Language == "es" {
+		return spanish
+	}
+	return english
 }
 func confirm(cmd *cobra.Command, yes bool, action string) error {
 	if yes {
@@ -234,7 +259,7 @@ func (m Module) list(search bool) *cobra.Command {
 		if len(tags) > 0 {
 			p.Tag = &tags
 		}
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -256,7 +281,7 @@ func expenseFlags(cmd *cobra.Command, required bool) (amount, accountAmount, des
 		description = optionalString(cmd, "description", "description")
 	}
 	accountAmount = optionalString(cmd, "account-amount", "amount posted to the selected account")
-	cur = optionalString(cmd, "currency", "UYU, USD, or EUR")
+	cur = optionalString(cmd, "currency", "currency code published by the transaction API contract")
 	date = optionalString(cmd, "date", "transaction date (YYYY-MM-DD)")
 	account = optionalString(cmd, "account", "account ID")
 	category = optionalString(cmd, "category", "category ID")
@@ -306,7 +331,7 @@ func (m Module) create() *cobra.Command {
 			v := daikuv1.ExpenseTransactionTypeEnum(*kind)
 			b.TransactionType = &v
 		}
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -322,61 +347,88 @@ func (m Module) update() *cobra.Command {
 	cmd := &cobra.Command{Use: "update ID", Short: "Update a transaction", Args: cli.UsageArgs(cobra.ExactArgs(1))}
 	hh := requiredString(cmd, "household", "household ID")
 	amount, accountAmount, description, cur, date, account, category, tags := expenseFlags(cmd, false)
+	recurring := optionalString(cmd, "recurring", "recurring expense ID")
+	typ := optionalString(cmd, "type", "expense, income, transfer, or adjustment")
+	var clearAccount, clearAccountAmount, clearCategory, clearRecurring, clearTags bool
+	cmd.Flags().BoolVar(&clearAccount, "clear-account", false, "set account to null")
+	cmd.Flags().BoolVar(&clearAccountAmount, "clear-account-amount", false, "set account_amount to null")
+	cmd.Flags().BoolVar(&clearCategory, "clear-category", false, "set category to null")
+	cmd.Flags().BoolVar(&clearRecurring, "clear-recurring", false, "set recurring_expense to null")
+	cmd.Flags().BoolVar(&clearTags, "clear-tags", false, "replace tag_ids with an empty list")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		b := daikuv1.PatchedExpenseRequest{Account: nil, Category: nil, RecurringExpense: nil}
-		changed := false
+		b := PatchBody{}
+		if (*account != "" && clearAccount) || (*accountAmount != "" && clearAccountAmount) || (*category != "" && clearCategory) || (*recurring != "" && clearRecurring) || (len(*tags) > 0 && clearTags) {
+			return usage("a value flag cannot be combined with its clear flag")
+		}
 		if *accountAmount != "" {
 			aa, err := expenseDecimal(*accountAmount, true)
 			if err != nil {
 				return err
 			}
-			b.AccountAmount = aa
-			changed = true
+			b["account_amount"] = *aa
+		}
+		if clearAccountAmount {
+			b["account_amount"] = nil
 		}
 		if *amount != "" {
 			a, e := expenseDecimal(*amount, true)
 			if e != nil {
 				return e
 			}
-			b.Amount = a
-			changed = true
+			b["amount"] = *a
 		}
 		if *description != "" {
-			b.Description = description
-			changed = true
+			b["description"] = *description
 		}
 		if *cur != "" {
 			c, e := currency(*cur)
 			if e != nil {
 				return e
 			}
-			b.Currency = c
-			changed = true
+			b["currency"] = string(*c)
 		}
 		if *date != "" {
 			d, e := dateValue(*date)
 			if e != nil {
 				return e
 			}
-			b.ExpenseDate = d
-			changed = true
+			b["expense_date"] = d.Format("2006-01-02")
 		}
 		if *account != "" {
-			b.Account = account
-			changed = true
+			b["account"] = *account
+		}
+		if clearAccount {
+			b["account"] = nil
 		}
 		if *category != "" {
-			b.Category = category
-			changed = true
+			b["category"] = *category
+		}
+		if clearCategory {
+			b["category"] = nil
+		}
+		if *recurring != "" {
+			b["recurring_expense"] = *recurring
+		}
+		if clearRecurring {
+			b["recurring_expense"] = nil
 		}
 		if len(*tags) > 0 {
-			b.TagIds = tags
-			changed = true
+			b["tag_ids"] = *tags
 		}
-		if !changed {
+		if clearTags {
+			b["tag_ids"] = []string{}
+		}
+		if *typ != "" {
+			allowed := map[string]bool{"expense": true, "income": true, "transfer": true, "adjustment": true}
+			if !allowed[*typ] {
+				return usage("invalid transaction type")
+			}
+			b["transaction_type"] = *typ
+		}
+		if len(b) == 0 {
 			return usage("at least one update flag is required")
 		}
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -398,14 +450,14 @@ func (m Module) delete() *cobra.Command {
 		if *scope != "" && *scope != "this" && *scope != "future" && *scope != "plan" {
 			return usage("scope must be this, future, or plan")
 		}
-		if e := confirm(cmd, yes, "Delete transaction "+args[0]+"."); e != nil {
+		if e := confirm(cmd, yes, humanText(cmd, "Delete transaction "+args[0]+".", "Eliminar la transacción "+args[0]+".")); e != nil {
 			return e
 		}
 		p := &daikuv1.DaikuHouseholdsHouseholdPkExpensesIdDeleteParams{}
 		if *scope != "" {
 			p.Scope = scope
 		}
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -461,7 +513,7 @@ func (m Module) bulkCreate() *cobra.Command {
 				}
 			}
 		}
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -480,17 +532,17 @@ func (m Module) bulkUpdate() *cobra.Command {
 	file := requiredString(cmd, "file", "JSON file, or - for stdin")
 	cmd.Flags().BoolVar(&yes, "yes", false, "skip the interactive confirmation")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		var b daikuv1.PatchedExpenseBulkUpdateRequestRequest
+		var b BulkUpdateBody
 		if e := readJSON(cmd, *file, &b); e != nil {
 			return e
 		}
-		if b.Ids == nil || len(*b.Ids) == 0 || b.Updates == nil {
+		if len(b.IDs) == 0 || len(b.Updates) == 0 {
 			return usage("ids and updates are required")
 		}
-		if e := confirm(cmd, yes, fmt.Sprintf("Update %d transactions.", len(*b.Ids))); e != nil {
+		if e := confirm(cmd, yes, humanText(cmd, fmt.Sprintf("Update %d transactions.", len(b.IDs)), fmt.Sprintf("Actualizar %d transacciones.", len(b.IDs)))); e != nil {
 			return e
 		}
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -509,10 +561,10 @@ func (m Module) bulkDelete() *cobra.Command {
 	hh := requiredString(cmd, "household", "household ID")
 	cmd.Flags().BoolVar(&yes, "yes", false, "skip the interactive confirmation")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		if e := confirm(cmd, yes, "Delete every transaction in household "+*hh+"."); e != nil {
+		if e := confirm(cmd, yes, humanText(cmd, "Delete every transaction in household "+*hh+".", "Eliminar todas las transacciones del hogar "+*hh+".")); e != nil {
 			return e
 		}
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -554,7 +606,7 @@ func (m Module) transferCreate() *cobra.Command {
 		if *description != "" {
 			b.Description = description
 		}
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -578,7 +630,7 @@ func (m Module) transferConvert() *cobra.Command {
 		if (*to == "") == (*peer == "") {
 			return usage("exactly one of --to-account or --peer is required")
 		}
-		if e := confirm(cmd, yes, "Convert transaction "+args[0]+" to a transfer."); e != nil {
+		if e := confirm(cmd, yes, humanText(cmd, "Convert transaction "+args[0]+" to a transfer.", "Convertir la transacción "+args[0]+" en una transferencia.")); e != nil {
 			return e
 		}
 		pa, e := decimal(*peerAmount, false)
@@ -592,7 +644,7 @@ func (m Module) transferConvert() *cobra.Command {
 		if *peer != "" {
 			b.Peer = peer
 		}
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -608,7 +660,7 @@ func (m Module) transferCandidates() *cobra.Command {
 	cmd := &cobra.Command{Use: "candidates TRANSACTION_ID", Short: "List transfer candidates", Args: cli.UsageArgs(cobra.ExactArgs(1))}
 	hh := requiredString(cmd, "household", "household ID")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -626,10 +678,10 @@ func (m Module) transferUnlink() *cobra.Command {
 	hh := requiredString(cmd, "household", "household ID")
 	cmd.Flags().BoolVar(&yes, "yes", false, "skip the interactive confirmation")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if e := confirm(cmd, yes, "Unlink transfer "+args[0]+"."); e != nil {
+		if e := confirm(cmd, yes, humanText(cmd, "Unlink transfer "+args[0]+".", "Desvincular la transferencia "+args[0]+".")); e != nil {
 			return e
 		}
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -647,7 +699,7 @@ func (m Module) installmentCreate() *cobra.Command {
 	hh := requiredString(cmd, "household", "household ID")
 	amount := requiredString(cmd, "amount", "purchase total as decimal string")
 	description := requiredString(cmd, "description", "description")
-	cur := requiredString(cmd, "currency", "UYU, USD, or EUR")
+	cur := requiredString(cmd, "currency", "currency code published by the installment API contract")
 	date := requiredString(cmd, "date", "purchase date")
 	var count int
 	cmd.Flags().IntVar(&count, "count", 0, "number of installments")
@@ -655,12 +707,14 @@ func (m Module) installmentCreate() *cobra.Command {
 	account := optionalString(cmd, "account", "account ID")
 	accountAmount := optionalString(cmd, "account-amount", "amount posted to the selected account")
 	category := optionalString(cmd, "category", "category ID")
+	var tagIDs []string
+	cmd.Flags().StringSliceVar(&tagIDs, "tag-ids", nil, "tag ID (repeatable)")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		a, e := decimal(*amount, true)
 		if e != nil {
 			return e
 		}
-		c, e := currency(*cur)
+		c, e := installmentCurrency(*cur)
 		if e != nil {
 			return e
 		}
@@ -671,7 +725,7 @@ func (m Module) installmentCreate() *cobra.Command {
 		if count < 2 || count > 60 {
 			return usage("count must be between 2 and 60")
 		}
-		b := daikuv1.InstallmentCreateRequestRequest{Amount: *a, Description: *description, Currency: daikuv1.Currency43eEnum(*c), ExpenseDate: *d, Installments: count, Account: nil, Category: nil}
+		b := daikuv1.InstallmentCreateRequestRequest{Amount: *a, Description: *description, Currency: *c, ExpenseDate: *d, Installments: count, Account: nil, Category: nil}
 		if *accountAmount != "" {
 			aa, err := expenseDecimal(*accountAmount, true)
 			if err != nil {
@@ -685,7 +739,10 @@ func (m Module) installmentCreate() *cobra.Command {
 		if *category != "" {
 			b.Category = category
 		}
-		s, e := service(m)
+		if len(tagIDs) > 0 {
+			b.TagIds = &tagIDs
+		}
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -701,7 +758,7 @@ func (m Module) installmentGet() *cobra.Command {
 	cmd := &cobra.Command{Use: "get ID", Short: "Show an installment plan", Args: cli.UsageArgs(cobra.ExactArgs(1))}
 	hh := requiredString(cmd, "household", "household ID")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
@@ -721,40 +778,46 @@ func (m Module) installmentUpdate() *cobra.Command {
 	cur := optionalString(cmd, "currency", "UYU, USD, or EUR")
 	account := optionalString(cmd, "account", "account ID")
 	category := optionalString(cmd, "category", "category ID")
+	var clearAccount, clearCategory bool
+	cmd.Flags().BoolVar(&clearAccount, "clear-account", false, "set account to null")
+	cmd.Flags().BoolVar(&clearCategory, "clear-category", false, "set category to null")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		b := daikuv1.PatchedInstallmentPlanUpdateRequest{Account: nil, Category: nil}
-		changed := false
+		b := PatchBody{}
+		if (*account != "" && clearAccount) || (*category != "" && clearCategory) {
+			return usage("a value flag cannot be combined with its clear flag")
+		}
 		if *amount != "" {
 			a, e := decimal(*amount, true)
 			if e != nil {
 				return e
 			}
-			b.Amount = a
-			changed = true
+			b["amount"] = *a
 		}
 		if *description != "" {
-			b.Description = description
-			changed = true
+			b["description"] = *description
 		}
 		if *cur != "" {
-			if _, e := currency(*cur); e != nil {
+			if _, e := installmentCurrency(*cur); e != nil {
 				return e
 			}
-			b.Currency = cur
-			changed = true
+			b["currency"] = *cur
 		}
 		if *account != "" {
-			b.Account = account
-			changed = true
+			b["account"] = *account
+		}
+		if clearAccount {
+			b["account"] = nil
 		}
 		if *category != "" {
-			b.Category = category
-			changed = true
+			b["category"] = *category
 		}
-		if !changed {
+		if clearCategory {
+			b["category"] = nil
+		}
+		if len(b) == 0 {
 			return usage("at least one update flag is required")
 		}
-		s, e := service(m)
+		s, e := service(cmd.Context(), m)
 		if e != nil {
 			return e
 		}
