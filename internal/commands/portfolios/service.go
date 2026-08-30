@@ -1,6 +1,7 @@
 package portfolios
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -20,25 +21,25 @@ type Service interface {
 	PortfolioList(context.Context) ([]daikuv1.PortfolioList, error)
 	PortfolioGet(context.Context, string) (*daikuv1.PublicPortfolio, error)
 	PortfolioCreate(context.Context, daikuv1.PortfolioListRequest) (*daikuv1.PortfolioList, error)
-	PortfolioUpdate(context.Context, string, daikuv1.PatchedPortfolioListRequest) (*daikuv1.PortfolioList, error)
+	PortfolioUpdate(context.Context, string, map[string]any) (*daikuv1.PortfolioList, error)
 	PortfolioDelete(context.Context, string) error
 	Totals(context.Context, string) (*daikuv1.PortfolioTotals, error)
 	Holdings(context.Context, string) (*daikuv1.PortfolioHoldings, error)
 	BucketList(context.Context, string) ([]daikuv1.BucketList, error)
 	BucketCreate(context.Context, string, daikuv1.BucketListRequest) (*daikuv1.BucketList, error)
-	BucketUpdate(context.Context, string, string, daikuv1.PatchedBucketListRequest) (*daikuv1.BucketList, error)
+	BucketUpdate(context.Context, string, string, map[string]any) (*daikuv1.BucketList, error)
 	BucketDelete(context.Context, string, string) error
 	AssetList(context.Context, string) ([]daikuv1.PublicAsset, error)
 	AssetCreate(context.Context, string, daikuv1.PublicAssetRequest) (*daikuv1.PublicAsset, error)
-	AssetUpdate(context.Context, string, string, daikuv1.PatchedPublicAssetRequest) (*daikuv1.PublicAsset, error)
+	AssetUpdate(context.Context, string, string, map[string]any) (*daikuv1.PublicAsset, error)
 	AssetDelete(context.Context, string, string) error
 	CashflowList(context.Context, string) ([]daikuv1.AssetCashFlow, error)
 	CashflowCreate(context.Context, string, daikuv1.AssetCashFlowRequest) (*daikuv1.AssetCashFlow, error)
-	CashflowUpdate(context.Context, string, string, daikuv1.PatchedAssetCashFlowRequest) (*daikuv1.AssetCashFlow, error)
+	CashflowUpdate(context.Context, string, string, map[string]any) (*daikuv1.AssetCashFlow, error)
 	CashflowDelete(context.Context, string, string) error
 	HistoryList(context.Context, string) ([]daikuv1.AssetValueHistory, error)
 	HistoryCreate(context.Context, string, daikuv1.AssetValueHistoryRequest) (*daikuv1.AssetValueHistory, error)
-	HistoryUpdate(context.Context, string, string, daikuv1.PatchedAssetValueHistoryRequest) (*daikuv1.AssetValueHistory, error)
+	HistoryUpdate(context.Context, string, string, map[string]any) (*daikuv1.AssetValueHistory, error)
 	HistoryDelete(context.Context, string, string) error
 }
 
@@ -79,6 +80,11 @@ func GeneratedFactory(store profiles.Store, tokens tokenSource, httpClient *http
 }
 
 type generatedService struct{ c *daikuv1.ClientWithResponses }
+
+func bodyReader(value map[string]any) (*bytes.Reader, error) {
+	encoded, err := json.Marshal(value)
+	return bytes.NewReader(encoded), err
+}
 
 func apiError(status int, body []byte) error {
 	var public daikuv1.PublicError
@@ -135,8 +141,12 @@ func (s generatedService) PortfolioCreate(ctx context.Context, b daikuv1.Portfol
 	}
 	return r.JSON201, nil
 }
-func (s generatedService) PortfolioUpdate(ctx context.Context, id string, b daikuv1.PatchedPortfolioListRequest) (*daikuv1.PortfolioList, error) {
-	r, e := s.c.DaikuPortfoliosIdPatchWithResponse(ctx, id, b)
+func (s generatedService) PortfolioUpdate(ctx context.Context, id string, b map[string]any) (*daikuv1.PortfolioList, error) {
+	body, e := bodyReader(b)
+	if e != nil {
+		return nil, commandError("invalid_request", "the request body could not be encoded", cli.ExitFailure)
+	}
+	r, e := s.c.DaikuPortfoliosIdPatchWithBodyWithResponse(ctx, id, "application/json", body)
 	if e != nil {
 		return nil, e
 	}
@@ -195,8 +205,12 @@ func (s generatedService) BucketCreate(ctx context.Context, p string, b daikuv1.
 	}
 	return r.JSON201, nil
 }
-func (s generatedService) BucketUpdate(ctx context.Context, p, id string, b daikuv1.PatchedBucketListRequest) (*daikuv1.BucketList, error) {
-	r, e := s.c.DaikuPortfoliosPortfolioPkBucketsIdPatchWithResponse(ctx, p, id, b)
+func (s generatedService) BucketUpdate(ctx context.Context, p, id string, b map[string]any) (*daikuv1.BucketList, error) {
+	body, e := bodyReader(b)
+	if e != nil {
+		return nil, commandError("invalid_request", "the request body could not be encoded", cli.ExitFailure)
+	}
+	r, e := s.c.DaikuPortfoliosPortfolioPkBucketsIdPatchWithBodyWithResponse(ctx, p, id, "application/json", body)
 	if e != nil {
 		return nil, e
 	}
@@ -235,8 +249,12 @@ func (s generatedService) AssetCreate(ctx context.Context, b string, v daikuv1.P
 	}
 	return r.JSON201, nil
 }
-func (s generatedService) AssetUpdate(ctx context.Context, b, id string, v daikuv1.PatchedPublicAssetRequest) (*daikuv1.PublicAsset, error) {
-	r, e := s.c.DaikuBucketsBucketPkAssetsIdPatchWithResponse(ctx, b, id, v)
+func (s generatedService) AssetUpdate(ctx context.Context, b, id string, v map[string]any) (*daikuv1.PublicAsset, error) {
+	body, e := bodyReader(v)
+	if e != nil {
+		return nil, commandError("invalid_request", "the request body could not be encoded", cli.ExitFailure)
+	}
+	r, e := s.c.DaikuBucketsBucketPkAssetsIdPatchWithBodyWithResponse(ctx, b, id, "application/json", body)
 	if e != nil {
 		return nil, e
 	}
@@ -275,8 +293,12 @@ func (s generatedService) CashflowCreate(ctx context.Context, a string, v daikuv
 	}
 	return r.JSON201, nil
 }
-func (s generatedService) CashflowUpdate(ctx context.Context, a, id string, v daikuv1.PatchedAssetCashFlowRequest) (*daikuv1.AssetCashFlow, error) {
-	r, e := s.c.DaikuAssetsIdCashflowsCfPkPatchWithResponse(ctx, a, id, v)
+func (s generatedService) CashflowUpdate(ctx context.Context, a, id string, v map[string]any) (*daikuv1.AssetCashFlow, error) {
+	body, e := bodyReader(v)
+	if e != nil {
+		return nil, commandError("invalid_request", "the request body could not be encoded", cli.ExitFailure)
+	}
+	r, e := s.c.DaikuAssetsIdCashflowsCfPkPatchWithBodyWithResponse(ctx, a, id, "application/json", body)
 	if e != nil {
 		return nil, e
 	}
@@ -318,8 +340,12 @@ func (s generatedService) HistoryCreate(ctx context.Context, a string, v daikuv1
 	}
 	return nil, apiError(r.StatusCode(), r.Body)
 }
-func (s generatedService) HistoryUpdate(ctx context.Context, a, id string, v daikuv1.PatchedAssetValueHistoryRequest) (*daikuv1.AssetValueHistory, error) {
-	r, e := s.c.DaikuAssetsIdValueHistoryVhPkPatchWithResponse(ctx, a, id, v)
+func (s generatedService) HistoryUpdate(ctx context.Context, a, id string, v map[string]any) (*daikuv1.AssetValueHistory, error) {
+	body, e := bodyReader(v)
+	if e != nil {
+		return nil, commandError("invalid_request", "the request body could not be encoded", cli.ExitFailure)
+	}
+	r, e := s.c.DaikuAssetsIdValueHistoryVhPkPatchWithBodyWithResponse(ctx, a, id, "application/json", body)
 	if e != nil {
 		return nil, e
 	}

@@ -59,7 +59,7 @@ func emitObject(cmd *cobra.Command, data any, label string) error {
 	if err = json.Unmarshal(encoded, &decoded); err != nil {
 		return err
 	}
-	rows := humanRows(decoded)
+	rows := humanRows(cmd, decoded)
 	if _, err = fmt.Fprintln(cmd.OutOrStdout(), humanText(cmd, label)); err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func emitObject(cmd *cobra.Command, data any, label string) error {
 	return (output.Renderer{Writer: cmd.OutOrStdout(), Localize: h.Localizer, Terminal: h.Terminal, Width: h.Width, NoColor: h.NoColor}).Table(rows)
 }
 
-func humanRows(value any) []output.Row {
+func humanRows(cmd *cobra.Command, value any) []output.Row {
 	if wrapper, ok := value.(map[string]any); ok && len(wrapper) == 1 {
 		for _, nested := range wrapper {
 			if list, ok := nested.([]any); ok {
@@ -108,11 +108,23 @@ func humanRows(value any) []output.Row {
 				nested, _ := json.Marshal(item)
 				rendered = string(nested)
 			}
-			row = append(row, output.Cell{Label: strings.ToUpper(strings.ReplaceAll(key, "_", " ")), Value: rendered})
+			row = append(row, output.Cell{Label: humanHeader(cmd, key), Value: rendered})
 		}
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+func humanHeader(cmd *cobra.Command, key string) string {
+	english := strings.ToUpper(strings.ReplaceAll(key, "_", " "))
+	if cli.Human(cmd).Localizer.Language != i18n.Spanish {
+		return english
+	}
+	translated := map[string]string{"display_currency": "MONEDA", "net_worth": "PATRIMONIO", "total_assets": "ACTIVOS TOTALES", "total_liabilities": "PASIVOS TOTALES", "name": "NOMBRE", "asset_type": "TIPO DE ACTIVO", "current_value": "VALOR ACTUAL", "is_liability": "ES PASIVO", "currency": "MONEDA", "quantity": "CANTIDAD", "price_per_unit": "PRECIO POR UNIDAD", "ticker_symbol": "SÍMBOLO", "date": "FECHA", "cash_in": "ENTRADA", "cash_out": "SALIDA", "cash_in_currency": "MONEDA DE ENTRADA", "cash_out_currency": "MONEDA DE SALIDA", "notes": "NOTAS", "transaction_links": "VÍNCULOS A TRANSACCIONES", "id": "ID", "bucket_type": "TIPO DE GRUPO", "sort_order": "ORDEN"}
+	if value, ok := translated[key]; ok {
+		return value
+	}
+	return english
 }
 
 func humanText(cmd *cobra.Command, english string) string {
@@ -155,7 +167,13 @@ func confirm(cmd *cobra.Command, yes bool, action string) error {
 	}
 	return nil
 }
-func validCurrency(v string) bool { return v == "UYU" || v == "USD" || v == "EUR" }
+func validCurrency(v string) bool {
+	switch v {
+	case "UYU", "USD", "EUR", "BRL", "GBP", "ARS", "UI", "CLP", "COP", "MXN", "PEN", "PYG", "BOB", "VES", "GTQ", "HNL", "CRC", "NIO", "PAB", "DOP":
+		return true
+	}
+	return false
+}
 
 func (m Module) portfolioList() *cobra.Command {
 	return run("list", "List portfolios", cobra.NoArgs, func(c *cobra.Command, _ []string) error {
@@ -191,7 +209,7 @@ type portfolioFlags struct {
 
 func addPortfolioFlags(c *cobra.Command, f *portfolioFlags, create bool) {
 	c.Flags().StringVar(&f.name, "name", "", "portfolio name")
-	c.Flags().StringVar(&f.currency, "display-currency", "", "display currency: UYU, USD or EUR")
+	c.Flags().StringVar(&f.currency, "display-currency", "", "ISO currency supported by Daiku")
 	c.Flags().StringVar(&f.emoji, "emoji", "", "portfolio emoji")
 	c.Flags().BoolVar(&f.isDefault, "default", false, "make this the default portfolio")
 	if create {
@@ -202,7 +220,7 @@ func (m Module) portfolioCreate() *cobra.Command {
 	var f portfolioFlags
 	c := run("create", "Create a portfolio", cobra.NoArgs, func(c *cobra.Command, _ []string) error {
 		if f.currency != "" && !validCurrency(f.currency) {
-			return usage("display currency must be UYU, USD or EUR")
+			return usage("unsupported currency")
 		}
 		b := daikuv1.PortfolioListRequest{Name: f.name}
 		if f.currency != "" {
@@ -235,21 +253,21 @@ func (m Module) portfolioUpdate() *cobra.Command {
 			return usage("provide at least one field to update")
 		}
 		if f.currency != "" && !validCurrency(f.currency) {
-			return usage("display currency must be UYU, USD or EUR")
+			return usage("unsupported currency")
 		}
-		b := daikuv1.PatchedPortfolioListRequest{}
+		b := map[string]any{}
 		if c.Flags().Changed("name") {
-			b.Name = &f.name
+			b["name"] = f.name
 		}
 		if c.Flags().Changed("display-currency") {
 			v := daikuv1.DisplayCurrency3e8Enum(f.currency)
-			b.DisplayCurrency = &v
+			b["display_currency"] = v
 		}
 		if c.Flags().Changed("emoji") {
-			b.Emoji = &f.emoji
+			b["emoji"] = f.emoji
 		}
 		if c.Flags().Changed("default") {
-			b.IsDefault = &f.isDefault
+			b["is_default"] = f.isDefault
 		}
 		s, e := m.service(c)
 		if e != nil {
@@ -400,19 +418,19 @@ func (m Module) bucketUpdate() *cobra.Command {
 		if f.kind != "" && !validBucket(f.kind) {
 			return usage("invalid bucket type")
 		}
-		b := daikuv1.PatchedBucketListRequest{}
+		b := map[string]any{}
 		if c.Flags().Changed("name") {
-			b.Name = &f.name
+			b["name"] = f.name
 		}
 		if c.Flags().Changed("type") {
 			v := daikuv1.BucketTypeEnum(f.kind)
-			b.BucketType = &v
+			b["bucket_type"] = v
 		}
 		if c.Flags().Changed("emoji") {
-			b.Emoji = &f.emoji
+			b["emoji"] = f.emoji
 		}
 		if c.Flags().Changed("sort-order") {
-			b.SortOrder = &f.order
+			b["sort_order"] = f.order
 		}
 		s, e := m.service(c)
 		if e != nil {
@@ -475,23 +493,30 @@ func (m Module) assetList() *cobra.Command {
 }
 
 type assetFlags struct {
-	bucket, name, kind, currency, value, quantity, price, ticker, institution, notes string
-	liability, exclude                                                               bool
+	bucket, name, kind, currency, value, quantity, price, ticker, institution, notes, lastPrice string
+	liability, exclude, clearQuantity, clearPrice, clearTicker, clearLastPrice                  bool
 }
 
 func addAssetFlags(c *cobra.Command, f *assetFlags, create bool) {
 	bucketFlag(c, &f.bucket)
 	c.Flags().StringVar(&f.name, "name", "", "asset name")
 	c.Flags().StringVar(&f.kind, "type", "", "asset type")
-	c.Flags().StringVar(&f.currency, "currency", "", "currency: UYU, USD or EUR")
+	c.Flags().StringVar(&f.currency, "currency", "", "ISO currency supported by Daiku")
 	c.Flags().StringVar(&f.value, "current-value", "", "current value (sent verbatim to Daiku)")
 	c.Flags().StringVar(&f.quantity, "quantity", "", "quantity")
 	c.Flags().StringVar(&f.price, "price-per-unit", "", "price per unit")
 	c.Flags().StringVar(&f.ticker, "ticker", "", "ticker symbol")
+	c.Flags().StringVar(&f.lastPrice, "last-price-update", "", "last price update (RFC3339)")
 	c.Flags().StringVar(&f.institution, "institution", "", "institution ID")
 	c.Flags().StringVar(&f.notes, "notes", "", "notes")
 	c.Flags().BoolVar(&f.liability, "liability", false, "mark as liability")
 	c.Flags().BoolVar(&f.exclude, "exclude-from-projections", false, "exclude from projections")
+	if !create {
+		c.Flags().BoolVar(&f.clearQuantity, "clear-quantity", false, "clear quantity")
+		c.Flags().BoolVar(&f.clearPrice, "clear-price-per-unit", false, "clear price per unit")
+		c.Flags().BoolVar(&f.clearTicker, "clear-ticker", false, "clear ticker symbol")
+		c.Flags().BoolVar(&f.clearLastPrice, "clear-last-price-update", false, "clear last price update")
+	}
 	if create {
 		_ = c.MarkFlagRequired("name")
 		_ = c.MarkFlagRequired("type")
@@ -504,7 +529,12 @@ func (m Module) assetCreate() *cobra.Command {
 			return usage("invalid asset type")
 		}
 		if f.currency != "" && !validCurrency(f.currency) {
-			return usage("currency must be UYU, USD or EUR")
+			return usage("unsupported currency")
+		}
+		if c.Flags().Changed("last-price-update") {
+			if _, err := time.Parse(time.RFC3339, f.lastPrice); err != nil {
+				return usage("last-price-update must use RFC3339")
+			}
 		}
 		b := daikuv1.PublicAssetRequest{Name: f.name, AssetType: daikuv1.AssetTypeEnum(f.kind)}
 		fillAssetCreate(c, &b, f)
@@ -538,6 +568,11 @@ func fillAssetCreate(c *cobra.Command, b *daikuv1.PublicAssetRequest, f assetFla
 	if c.Flags().Changed("ticker") {
 		b.TickerSymbol = &f.ticker
 	}
+	if c.Flags().Changed("last-price-update") {
+		if parsed, err := time.Parse(time.RFC3339, f.lastPrice); err == nil {
+			b.LastPriceUpdate = &parsed
+		}
+	}
 	if c.Flags().Changed("institution") {
 		b.Institution = &f.institution
 	}
@@ -554,17 +589,24 @@ func fillAssetCreate(c *cobra.Command, b *daikuv1.PublicAssetRequest, f assetFla
 func (m Module) assetUpdate() *cobra.Command {
 	var f assetFlags
 	c := run("update <id>", "Update an asset", cobra.ExactArgs(1), func(c *cobra.Command, a []string) error {
-		if !anyChanged(c, "name", "type", "currency", "current-value", "quantity", "price-per-unit", "ticker", "institution", "notes", "liability", "exclude-from-projections") {
+		if !anyChanged(c, "name", "type", "currency", "current-value", "quantity", "price-per-unit", "ticker", "last-price-update", "institution", "notes", "liability", "exclude-from-projections", "clear-quantity", "clear-price-per-unit", "clear-ticker", "clear-last-price-update") {
 			return usage("provide at least one field to update")
 		}
 		if f.currency != "" && !validCurrency(f.currency) {
-			return usage("currency must be UYU, USD or EUR")
+			return usage("unsupported currency")
 		}
 		if c.Flags().Changed("type") && !validAssetType(f.kind) {
 			return usage("invalid asset type")
 		}
-		b := daikuv1.PatchedPublicAssetRequest{}
-		fillAssetPatch(c, &b, f)
+		for _, pair := range [][2]string{{"quantity", "clear-quantity"}, {"price-per-unit", "clear-price-per-unit"}, {"ticker", "clear-ticker"}, {"last-price-update", "clear-last-price-update"}} {
+			if c.Flags().Changed(pair[0]) && c.Flags().Changed(pair[1]) {
+				return usage("cannot set and clear " + pair[0] + " together")
+			}
+		}
+		b := map[string]any{}
+		if err := fillAssetPatch(c, b, f); err != nil {
+			return err
+		}
 		s, e := m.service(c)
 		if e != nil {
 			return e
@@ -578,42 +620,62 @@ func (m Module) assetUpdate() *cobra.Command {
 	addAssetFlags(c, &f, false)
 	return c
 }
-func fillAssetPatch(c *cobra.Command, b *daikuv1.PatchedPublicAssetRequest, f assetFlags) {
+func fillAssetPatch(c *cobra.Command, b map[string]any, f assetFlags) error {
 	if c.Flags().Changed("name") {
-		b.Name = &f.name
+		b["name"] = f.name
 	}
 	if c.Flags().Changed("type") {
 		v := daikuv1.AssetTypeEnum(f.kind)
-		b.AssetType = &v
+		b["asset_type"] = v
 	}
 	if c.Flags().Changed("currency") {
 		v := daikuv1.Currency3e8Enum(f.currency)
-		b.Currency = &v
+		b["currency"] = v
 	}
 	if c.Flags().Changed("current-value") {
-		b.CurrentValue = &f.value
+		b["current_value"] = f.value
 	}
 	if c.Flags().Changed("quantity") {
-		b.Quantity = &f.quantity
+		b["quantity"] = f.quantity
 	}
 	if c.Flags().Changed("price-per-unit") {
-		b.PricePerUnit = &f.price
+		b["price_per_unit"] = f.price
 	}
 	if c.Flags().Changed("ticker") {
-		b.TickerSymbol = &f.ticker
+		b["ticker_symbol"] = f.ticker
+	}
+	if c.Flags().Changed("last-price-update") {
+		parsed, err := time.Parse(time.RFC3339, f.lastPrice)
+		if err != nil {
+			return usage("last-price-update must use RFC3339")
+		}
+		b["last_price_update"] = parsed.Format(time.RFC3339)
 	}
 	if c.Flags().Changed("institution") {
-		b.Institution = &f.institution
+		b["institution"] = f.institution
 	}
 	if c.Flags().Changed("notes") {
-		b.Notes = &f.notes
+		b["notes"] = f.notes
 	}
 	if c.Flags().Changed("liability") {
-		b.IsLiability = &f.liability
+		b["is_liability"] = f.liability
 	}
 	if c.Flags().Changed("exclude-from-projections") {
-		b.ExcludeFromProjections = &f.exclude
+		b["exclude_from_projections"] = f.exclude
 	}
+	if f.clearQuantity {
+		b["quantity"] = nil
+	}
+	if f.clearPrice {
+		b["price_per_unit"] = nil
+	}
+	if f.clearTicker {
+		b["ticker_symbol"] = nil
+	}
+	if f.clearLastPrice {
+		b["last_price_update"] = nil
+	}
+	return nil
 }
 func (m Module) assetDelete() *cobra.Command {
 	var b string
@@ -662,7 +724,10 @@ func (m Module) cashflowList() *cobra.Command {
 	return c
 }
 
-type flowFlags struct{ asset, date, in, out, inCurrency, outCurrency, notes string }
+type flowFlags struct {
+	asset, date, in, out, inCurrency, outCurrency, notes string
+	clearIn, clearOut, clearInCurrency, clearOutCurrency bool
+}
 
 func addFlowFlags(c *cobra.Command, f *flowFlags, create bool) {
 	assetFlag(c, &f.asset)
@@ -674,6 +739,11 @@ func addFlowFlags(c *cobra.Command, f *flowFlags, create bool) {
 	c.Flags().StringVar(&f.notes, "notes", "", "notes")
 	if create {
 		_ = c.MarkFlagRequired("date")
+	} else {
+		c.Flags().BoolVar(&f.clearIn, "clear-cash-in", false, "clear cash in amount")
+		c.Flags().BoolVar(&f.clearOut, "clear-cash-out", false, "clear cash out amount")
+		c.Flags().BoolVar(&f.clearInCurrency, "clear-cash-in-currency", false, "clear cash in currency")
+		c.Flags().BoolVar(&f.clearOutCurrency, "clear-cash-out-currency", false, "clear cash out currency")
 	}
 }
 func parseDate(v string) (openapi_types.Date, error) {
@@ -682,7 +752,7 @@ func parseDate(v string) (openapi_types.Date, error) {
 }
 func flowCurrency(v string) (*daikuv1.AssetCashFlowRequest_CashInCurrency, error) {
 	if !validCurrency(v) {
-		return nil, usage("currency must be UYU, USD or EUR")
+		return nil, usage("unsupported currency")
 	}
 	u := daikuv1.AssetCashFlowRequest_CashInCurrency{}
 	e := u.FromCashInCurrencyEnum(daikuv1.CashInCurrencyEnum(v))
@@ -690,7 +760,7 @@ func flowCurrency(v string) (*daikuv1.AssetCashFlowRequest_CashInCurrency, error
 }
 func outFlowCurrency(v string) (*daikuv1.AssetCashFlowRequest_CashOutCurrency, error) {
 	if !validCurrency(v) {
-		return nil, usage("currency must be UYU, USD or EUR")
+		return nil, usage("unsupported currency")
 	}
 	u := daikuv1.AssetCashFlowRequest_CashOutCurrency{}
 	e := u.FromCashOutCurrencyEnum(daikuv1.CashOutCurrencyEnum(v))
@@ -741,40 +811,55 @@ func (m Module) cashflowCreate() *cobra.Command {
 func (m Module) cashflowUpdate() *cobra.Command {
 	var f flowFlags
 	c := run("update <id>", "Update a cashflow", cobra.ExactArgs(1), func(c *cobra.Command, a []string) error {
-		if !anyChanged(c, "date", "cash-in", "cash-out", "cash-in-currency", "cash-out-currency", "notes") {
+		if !anyChanged(c, "date", "cash-in", "cash-out", "cash-in-currency", "cash-out-currency", "notes", "clear-cash-in", "clear-cash-out", "clear-cash-in-currency", "clear-cash-out-currency") {
 			return usage("provide at least one field to update")
 		}
-		b := daikuv1.PatchedAssetCashFlowRequest{}
+		for _, pair := range [][2]string{{"cash-in", "clear-cash-in"}, {"cash-out", "clear-cash-out"}, {"cash-in-currency", "clear-cash-in-currency"}, {"cash-out-currency", "clear-cash-out-currency"}} {
+			if c.Flags().Changed(pair[0]) && c.Flags().Changed(pair[1]) {
+				return usage("cannot set and clear " + pair[0] + " together")
+			}
+		}
+		b := map[string]any{}
 		var e error
 		if c.Flags().Changed("date") {
 			d, x := parseDate(f.date)
 			if x != nil {
 				return usage("date must use YYYY-MM-DD")
 			}
-			b.Date = &d
+			b["date"] = d.Time.Format("2006-01-02")
 		}
 		if c.Flags().Changed("cash-in") {
-			b.CashIn = &f.in
+			b["cash_in"] = f.in
 		}
 		if c.Flags().Changed("cash-out") {
-			b.CashOut = &f.out
+			b["cash_out"] = f.out
 		}
 		if c.Flags().Changed("notes") {
-			b.Notes = &f.notes
+			b["notes"] = f.notes
 		}
 		if c.Flags().Changed("cash-in-currency") {
-			u, x := patchInCurrency(f.inCurrency)
-			if x != nil {
-				return x
+			if !validCurrency(f.inCurrency) {
+				return usage("unsupported currency")
 			}
-			b.CashInCurrency = u
+			b["cash_in_currency"] = f.inCurrency
 		}
 		if c.Flags().Changed("cash-out-currency") {
-			u, x := patchOutCurrency(f.outCurrency)
-			if x != nil {
-				return x
+			if !validCurrency(f.outCurrency) {
+				return usage("unsupported currency")
 			}
-			b.CashOutCurrency = u
+			b["cash_out_currency"] = f.outCurrency
+		}
+		if f.clearIn {
+			b["cash_in"] = nil
+		}
+		if f.clearOut {
+			b["cash_out"] = nil
+		}
+		if f.clearInCurrency {
+			b["cash_in_currency"] = nil
+		}
+		if f.clearOutCurrency {
+			b["cash_out_currency"] = nil
 		}
 		s, e := m.service(c)
 		if e != nil {
@@ -788,22 +873,6 @@ func (m Module) cashflowUpdate() *cobra.Command {
 	})
 	addFlowFlags(c, &f, false)
 	return c
-}
-func patchInCurrency(v string) (*daikuv1.PatchedAssetCashFlowRequest_CashInCurrency, error) {
-	if !validCurrency(v) {
-		return nil, usage("currency must be UYU, USD or EUR")
-	}
-	u := daikuv1.PatchedAssetCashFlowRequest_CashInCurrency{}
-	e := u.FromCashInCurrencyEnum(daikuv1.CashInCurrencyEnum(v))
-	return &u, e
-}
-func patchOutCurrency(v string) (*daikuv1.PatchedAssetCashFlowRequest_CashOutCurrency, error) {
-	if !validCurrency(v) {
-		return nil, usage("currency must be UYU, USD or EUR")
-	}
-	u := daikuv1.PatchedAssetCashFlowRequest_CashOutCurrency{}
-	e := u.FromCashOutCurrencyEnum(daikuv1.CashOutCurrencyEnum(v))
-	return &u, e
 }
 func (m Module) cashflowDelete() *cobra.Command {
 	var a string
@@ -848,18 +917,24 @@ func (m Module) historyList() *cobra.Command {
 	return c
 }
 
-type historyFlags struct{ asset, date, value, quantity, currency, notes string }
+type historyFlags struct {
+	asset, date, value, quantity, currency, notes string
+	clearQuantity, clearValue                     bool
+}
 
 func addHistoryFlags(c *cobra.Command, f *historyFlags, create bool) {
 	assetFlag(c, &f.asset)
 	c.Flags().StringVar(&f.date, "date", "", "date (YYYY-MM-DD)")
 	c.Flags().StringVar(&f.value, "value", "", "recorded value")
 	c.Flags().StringVar(&f.quantity, "quantity", "", "recorded quantity")
-	c.Flags().StringVar(&f.currency, "currency", "", "currency: UYU, USD or EUR")
+	c.Flags().StringVar(&f.currency, "currency", "", "ISO currency supported by Daiku")
 	c.Flags().StringVar(&f.notes, "notes", "", "notes")
 	if create {
 		_ = c.MarkFlagRequired("date")
 		_ = c.MarkFlagRequired("quantity")
+	} else {
+		c.Flags().BoolVar(&f.clearQuantity, "clear-quantity", false, "clear recorded quantity")
+		c.Flags().BoolVar(&f.clearValue, "clear-value", false, "clear recorded value")
 	}
 }
 func (m Module) historyCreate() *cobra.Command {
@@ -870,7 +945,7 @@ func (m Module) historyCreate() *cobra.Command {
 			return usage("date must use YYYY-MM-DD")
 		}
 		if f.currency != "" && !validCurrency(f.currency) {
-			return usage("currency must be UYU, USD or EUR")
+			return usage("unsupported currency")
 		}
 		b := daikuv1.AssetValueHistoryRequest{Date: d, Quantity: &f.quantity}
 		if f.value != "" {
@@ -899,32 +974,44 @@ func (m Module) historyCreate() *cobra.Command {
 func (m Module) historyUpdate() *cobra.Command {
 	var f historyFlags
 	c := run("update <id>", "Update a value-history point", cobra.ExactArgs(1), func(c *cobra.Command, a []string) error {
-		if !anyChanged(c, "date", "value", "quantity", "currency", "notes") {
+		if !anyChanged(c, "date", "value", "quantity", "currency", "notes", "clear-quantity", "clear-value") {
 			return usage("provide at least one field to update")
 		}
 		if f.currency != "" && !validCurrency(f.currency) {
-			return usage("currency must be UYU, USD or EUR")
+			return usage("unsupported currency")
 		}
-		b := daikuv1.PatchedAssetValueHistoryRequest{}
+		if c.Flags().Changed("quantity") && f.clearQuantity {
+			return usage("cannot set and clear quantity together")
+		}
+		if c.Flags().Changed("value") && f.clearValue {
+			return usage("cannot set and clear value together")
+		}
+		b := map[string]any{}
 		if c.Flags().Changed("date") {
 			d, e := parseDate(f.date)
 			if e != nil {
 				return usage("date must use YYYY-MM-DD")
 			}
-			b.Date = &d
+			b["date"] = d.Time.Format("2006-01-02")
 		}
 		if c.Flags().Changed("value") {
-			b.Value = &f.value
+			b["value"] = f.value
 		}
 		if c.Flags().Changed("quantity") {
-			b.Quantity = &f.quantity
+			b["quantity"] = f.quantity
 		}
 		if c.Flags().Changed("currency") {
 			v := daikuv1.Currency3e8Enum(f.currency)
-			b.Currency = &v
+			b["currency"] = v
 		}
 		if c.Flags().Changed("notes") {
-			b.Notes = &f.notes
+			b["notes"] = f.notes
+		}
+		if f.clearQuantity {
+			b["quantity"] = nil
+		}
+		if f.clearValue {
+			b["value"] = nil
 		}
 		s, e := m.service(c)
 		if e != nil {

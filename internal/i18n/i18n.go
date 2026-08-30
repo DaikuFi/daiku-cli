@@ -336,6 +336,26 @@ var humanSpanish = map[string]string{
 	"cash out currency":                                                                  "moneda de salida",
 	"recorded value":                                                                     "valor registrado",
 	"recorded quantity":                                                                  "cantidad registrada",
+	"ISO currency supported by Daiku":                                                    "moneda ISO admitida por Daiku",
+	"last price update (RFC3339)":                                                        "última actualización de precio (RFC3339)",
+	"clear quantity":                                                                     "borra la cantidad",
+	"clear price per unit":                                                               "borra el precio por unidad",
+	"clear ticker symbol":                                                                "borra el símbolo bursátil",
+	"clear last price update":                                                            "borra la última actualización de precio",
+	"clear cash in amount":                                                               "borra el monto de entrada",
+	"clear cash out amount":                                                              "borra el monto de salida",
+	"clear cash in currency":                                                             "borra la moneda de entrada",
+	"clear cash out currency":                                                            "borra la moneda de salida",
+	"clear recorded quantity":                                                            "borra la cantidad registrada",
+	"clear recorded value":                                                               "borra el valor registrado",
+	"select a profile before using portfolios":                                           "selecciona un perfil antes de usar portafolios",
+	"authenticate the active profile before using portfolios":                           "autentica el perfil activo antes de usar portafolios",
+	"the active profile has an invalid API URL":                                          "el perfil activo tiene una URL de API inválida",
+	"the Daiku API client could not be created":                                          "no se pudo crear el cliente de la API de Daiku",
+	"the request body could not be encoded":                                              "no se pudo codificar el cuerpo de la solicitud",
+	"unsupported currency":                                                               "moneda no admitida",
+	"invalid asset type":                                                                 "tipo de activo inválido",
+	"last-price-update must use RFC3339":                                                 "last-price-update debe usar RFC3339",
 }
 
 // Parse accepts only the two product languages. Empty means auto-detect.
@@ -401,6 +421,12 @@ func (l Localizer) Human(value string) string {
 	if l.Language == Spanish {
 		if strings.HasPrefix(value, "help for ") {
 			return "ayuda de " + strings.TrimPrefix(value, "help for ")
+		}
+		if strings.HasPrefix(value, "cannot set and clear ") {
+			return "no se puede establecer y borrar " + strings.TrimPrefix(value, "cannot set and clear ")
+		}
+		if strings.HasPrefix(value, "Daiku API returned HTTP ") {
+			return "La API de Daiku respondió HTTP " + strings.TrimPrefix(value, "Daiku API returned HTTP ")
 		}
 		if translated, ok := humanSpanish[value]; ok {
 			return translated

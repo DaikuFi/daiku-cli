@@ -3,6 +3,7 @@ package portfolios
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ type fakeService struct {
 	flows      []daikuv1.AssetCashFlow
 	history    []daikuv1.AssetValueHistory
 	lastAsset  daikuv1.PublicAssetRequest
+	lastPatch  map[string]any
 }
 
 func (f *fakeService) PortfolioList(context.Context) ([]daikuv1.PortfolioList, error) {
@@ -30,7 +32,7 @@ func (f *fakeService) PortfolioGet(context.Context, string) (*daikuv1.PublicPort
 func (f *fakeService) PortfolioCreate(context.Context, daikuv1.PortfolioListRequest) (*daikuv1.PortfolioList, error) {
 	return &daikuv1.PortfolioList{}, nil
 }
-func (f *fakeService) PortfolioUpdate(context.Context, string, daikuv1.PatchedPortfolioListRequest) (*daikuv1.PortfolioList, error) {
+func (f *fakeService) PortfolioUpdate(context.Context, string, map[string]any) (*daikuv1.PortfolioList, error) {
 	return &daikuv1.PortfolioList{}, nil
 }
 func (f *fakeService) PortfolioDelete(context.Context, string) error { return nil }
@@ -46,7 +48,7 @@ func (f *fakeService) BucketList(context.Context, string) ([]daikuv1.BucketList,
 func (f *fakeService) BucketCreate(context.Context, string, daikuv1.BucketListRequest) (*daikuv1.BucketList, error) {
 	return &daikuv1.BucketList{}, nil
 }
-func (f *fakeService) BucketUpdate(context.Context, string, string, daikuv1.PatchedBucketListRequest) (*daikuv1.BucketList, error) {
+func (f *fakeService) BucketUpdate(context.Context, string, string, map[string]any) (*daikuv1.BucketList, error) {
 	return &daikuv1.BucketList{}, nil
 }
 func (f *fakeService) BucketDelete(context.Context, string, string) error { return nil }
@@ -57,7 +59,8 @@ func (f *fakeService) AssetCreate(_ context.Context, _ string, v daikuv1.PublicA
 	f.lastAsset = v
 	return &daikuv1.PublicAsset{Name: v.Name, AssetType: v.AssetType, IsLiability: v.IsLiability, Currency: v.Currency}, nil
 }
-func (f *fakeService) AssetUpdate(context.Context, string, string, daikuv1.PatchedPublicAssetRequest) (*daikuv1.PublicAsset, error) {
+func (f *fakeService) AssetUpdate(_ context.Context, _, _ string, patch map[string]any) (*daikuv1.PublicAsset, error) {
+	f.lastPatch = patch
 	return &daikuv1.PublicAsset{}, nil
 }
 func (f *fakeService) AssetDelete(context.Context, string, string) error { return nil }
@@ -67,7 +70,8 @@ func (f *fakeService) CashflowList(context.Context, string) ([]daikuv1.AssetCash
 func (f *fakeService) CashflowCreate(context.Context, string, daikuv1.AssetCashFlowRequest) (*daikuv1.AssetCashFlow, error) {
 	return &daikuv1.AssetCashFlow{}, nil
 }
-func (f *fakeService) CashflowUpdate(context.Context, string, string, daikuv1.PatchedAssetCashFlowRequest) (*daikuv1.AssetCashFlow, error) {
+func (f *fakeService) CashflowUpdate(_ context.Context, _, _ string, patch map[string]any) (*daikuv1.AssetCashFlow, error) {
+	f.lastPatch = patch
 	return &daikuv1.AssetCashFlow{}, nil
 }
 func (f *fakeService) CashflowDelete(context.Context, string, string) error { return nil }
@@ -77,7 +81,8 @@ func (f *fakeService) HistoryList(context.Context, string) ([]daikuv1.AssetValue
 func (f *fakeService) HistoryCreate(context.Context, string, daikuv1.AssetValueHistoryRequest) (*daikuv1.AssetValueHistory, error) {
 	return &daikuv1.AssetValueHistory{}, nil
 }
-func (f *fakeService) HistoryUpdate(context.Context, string, string, daikuv1.PatchedAssetValueHistoryRequest) (*daikuv1.AssetValueHistory, error) {
+func (f *fakeService) HistoryUpdate(_ context.Context, _, _ string, patch map[string]any) (*daikuv1.AssetValueHistory, error) {
+	f.lastPatch = patch
 	return &daikuv1.AssetValueHistory{}, nil
 }
 func (f *fakeService) HistoryDelete(context.Context, string, string) error { return nil }
@@ -110,8 +115,20 @@ func TestTotalsHumanOutputIsSpanishAndTabular(t *testing.T) {
 	if code != 0 || stderr != "" {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
-	if !strings.Contains(out, "Totales del portafolio (calculados por Daiku)") || !strings.Contains(out, "TOTAL LIABILITIES") || !strings.Contains(out, "35.00") {
+	if !strings.Contains(out, "Totales del portafolio (calculados por Daiku)") || !strings.Contains(out, "PASIVOS TOTALES") || !strings.Contains(out, "35.00") {
 		t.Fatalf("output=%s", out)
+	}
+}
+
+func TestSpanishHeadersAndErrorsAreLocalized(t *testing.T) {
+	f := &fakeService{totals: &daikuv1.PortfolioTotals{DisplayCurrency: "USD", TotalAssets: "1", TotalLiabilities: "0", NetWorth: "1"}}
+	code, out, _ := execute(t, f, "portfolios", "totals", "prt_1", "--language", "es")
+	if code != 0 || !strings.Contains(out, "PATRIMONIO") || !strings.Contains(out, "PASIVOS TOTALES") {
+		t.Fatalf("output=%s", out)
+	}
+	code, _, stderr := execute(t, &fakeService{}, "assets", "create", "--bucket", "bkt_1", "--name", "x", "--type", "other", "--currency", "BTC", "--language", "es")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "moneda no admitida") {
+		t.Fatalf("stderr=%s", stderr)
 	}
 }
 
@@ -123,6 +140,101 @@ func TestAssetCreatePassesLiabilityAndCurrencyWithoutRecalculation(t *testing.T)
 	}
 	if f.lastAsset.IsLiability == nil || !*f.lastAsset.IsLiability || f.lastAsset.CurrentValue == nil || *f.lastAsset.CurrentValue != "123.45" || f.lastAsset.Currency == nil || *f.lastAsset.Currency != "UYU" {
 		t.Fatalf("request changed: %#v", f.lastAsset)
+	}
+}
+
+func TestAssetPatchClearFlagsProduceExplicitNullAndOmitOthers(t *testing.T) {
+	f := &fakeService{}
+	code, _, stderr := execute(t, f, "assets", "update", "ast_1", "--bucket", "bkt_1", "--clear-quantity", "--clear-price-per-unit", "--clear-ticker", "--clear-last-price-update", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	if value, ok := f.lastPatch["quantity"]; !ok || value != nil {
+		t.Fatalf("quantity not explicit null: %#v", f.lastPatch)
+	}
+	if value, ok := f.lastPatch["price_per_unit"]; !ok || value != nil {
+		t.Fatalf("price not explicit null: %#v", f.lastPatch)
+	}
+	if _, ok := f.lastPatch["ticker_symbol"]; ok {
+		if f.lastPatch["ticker_symbol"] != nil {
+			t.Fatalf("ticker not cleared: %#v", f.lastPatch)
+		}
+	}
+	if value, ok := f.lastPatch["last_price_update"]; !ok || value != nil {
+		t.Fatalf("last price not cleared: %#v", f.lastPatch)
+	}
+}
+
+func TestAssetPatchOmitsNullableFieldsUnlessChanged(t *testing.T) {
+	f := &fakeService{}
+	code, _, _ := execute(t, f, "assets", "update", "ast_1", "--bucket", "bkt_1", "--name", "Renamed", "--json")
+	if code != 0 {
+		t.Fatal(code)
+	}
+	for _, key := range []string{"quantity", "price_per_unit", "ticker_symbol", "last_price_update"} {
+		if _, ok := f.lastPatch[key]; ok {
+			t.Fatalf("%s should be omitted: %#v", key, f.lastPatch)
+		}
+	}
+}
+
+func TestCashflowPatchOmitNullAndExtraCurrency(t *testing.T) {
+	f := &fakeService{}
+	code, _, stderr := execute(t, f, "assets", "cashflows", "update", "cf_1", "--asset", "ast_1", "--cash-in-currency", "BRL", "--clear-cash-out", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	if f.lastPatch["cash_in_currency"] != "BRL" {
+		t.Fatalf("currency missing: %#v", f.lastPatch)
+	}
+	if value, ok := f.lastPatch["cash_out"]; !ok || value != nil {
+		t.Fatalf("clear missing: %#v", f.lastPatch)
+	}
+	if _, ok := f.lastPatch["cash_in"]; ok {
+		t.Fatalf("cash_in should be omitted: %#v", f.lastPatch)
+	}
+}
+
+func TestHistoryQuantityOmittedOrExplicitlyCleared(t *testing.T) {
+	f := &fakeService{}
+	code, _, _ := execute(t, f, "assets", "value-history", "update", "vh_1", "--asset", "ast_1", "--notes", "x", "--json")
+	if code != 0 {
+		t.Fatal(code)
+	}
+	if _, ok := f.lastPatch["quantity"]; ok {
+		t.Fatalf("quantity should be omitted: %#v", f.lastPatch)
+	}
+	code, _, _ = execute(t, f, "assets", "value-history", "update", "vh_1", "--asset", "ast_1", "--clear-quantity", "--json")
+	if code != 0 {
+		t.Fatal(code)
+	}
+	if value, ok := f.lastPatch["quantity"]; !ok || value != nil {
+		t.Fatalf("quantity should be null: %#v", f.lastPatch)
+	}
+}
+
+func TestInvalidCurrencyRejected(t *testing.T) {
+	code, _, stderr := execute(t, &fakeService{}, "assets", "create", "--bucket", "bkt_1", "--name", "x", "--type", "other", "--currency", "BTC", "--json")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "unsupported currency") {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+}
+
+func TestSetAndClearFlagsConflict(t *testing.T) {
+	code, _, stderr := execute(t, &fakeService{}, "assets", "cashflows", "update", "cf_1", "--asset", "ast_1", "--cash-in", "2", "--clear-cash-in", "--json")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "cannot set and clear cash-in together") {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+}
+
+func TestRepresentativeCRUDCommands(t *testing.T) {
+	f := &fakeService{}
+	commands := [][]string{{"portfolios", "create", "--name", "Main", "--json"}, {"portfolios", "update", "prt_1", "--name", "New", "--json"}, {"portfolios", "delete", "prt_1", "--yes", "--json"}, {"portfolios", "buckets", "create", "--portfolio", "prt_1", "--name", "Cash", "--type", "cash", "--json"}, {"assets", "cashflows", "create", "--asset", "ast_1", "--date", "2026-08-30", "--cash-in", "10", "--cash-in-currency", "BRL", "--json"}, {"assets", "value-history", "create", "--asset", "ast_1", "--date", "2026-08-30", "--quantity", "1", "--currency", "GBP", "--json"}}
+	for _, args := range commands {
+		code, _, stderr := execute(t, f, args...)
+		if code != 0 {
+			t.Fatalf("%v code=%d stderr=%s", args, code, stderr)
+		}
 	}
 }
 
@@ -150,6 +262,20 @@ func TestEmptyValueHistoryHasStableEmptyArray(t *testing.T) {
 		t.Fatalf("output=%s", out)
 	}
 }
+
+func TestLargeValueHistoryRemainsComplete(t *testing.T) {
+	items := make([]daikuv1.AssetValueHistory, 1000)
+	for index := range items {
+		id := fmt.Sprintf("vh_%04d", index)
+		items[index] = daikuv1.AssetValueHistory{Id: &id, Date: openapi_types.Date{Time: time.Date(2026, 8, 30, 0, 0, 0, 0, time.UTC)}, Quantity: stringPtr("1")}
+	}
+	code, out, _ := execute(t, &fakeService{history: items}, "assets", "value-history", "list", "--asset", "ast_1", "--json")
+	if code != 0 || !strings.Contains(out, "vh_0999") {
+		t.Fatalf("incomplete output: code=%d len=%d", code, len(out))
+	}
+}
+
+func stringPtr(value string) *string { return &value }
 
 func TestCrossUserNotFoundIsSafe(t *testing.T) {
 	err := apiError(404, []byte(`{"code":"not_found","message":"not found"}`))
