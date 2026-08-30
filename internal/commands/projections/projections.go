@@ -573,7 +573,7 @@ func status(code int) error {
 	case code == 403:
 		return &cli.Error{Code: "forbidden", Message: "your role does not allow this operation", ExitCode: cli.ExitForbidden}
 	case code == 404:
-		return &cli.Error{Code: "not_found", Message: "the requested portfolio or scenario was not found", ExitCode: cli.ExitNotFound}
+		return &cli.Error{Code: "not_found", Message: "the requested resource was not found", ExitCode: cli.ExitNotFound}
 	default:
 		return apiFailure()
 	}

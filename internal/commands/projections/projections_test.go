@@ -234,6 +234,30 @@ func TestHTTPStatusErrorsAreTyped(t *testing.T) {
 	}
 }
 
+func TestExchangeRatesNotFoundDoesNotClaimPortfolioOrScenarioIsMissing(t *testing.T) {
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusNotFound,
+			Status:     "404 Not Found",
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"error":{"errors":null,"message":"rates unavailable","status_code":404}}`)),
+			Request:    r,
+		}, nil
+	})}
+	client, err := daikuv1.NewClientWithResponses("https://api.example.test", daikuv1.WithHTTPClient(httpClient))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	code, _, errOut := run(t, generatedAPI{client}, false, "exchange-rates", "--json")
+	if code != int(cli.ExitNotFound) || !strings.Contains(errOut, `"message":"the requested resource was not found"`) {
+		t.Fatalf("code=%d stderr=%q", code, errOut)
+	}
+	if strings.Contains(errOut, "portfolio") || strings.Contains(errOut, "scenario") {
+		t.Fatalf("exchange-rate error names an unrelated resource: %q", errOut)
+	}
+}
+
 func ptr[T any](value T) *T { return &value }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
