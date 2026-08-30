@@ -53,6 +53,20 @@ func TestLocalizerHandlesUTF8(t *testing.T) {
 	}
 }
 
+func TestLocalizerTranslatesBudgetAndRecurringSurfaces(t *testing.T) {
+	localizer := i18n.New(i18n.Spanish)
+	for english, want := range map[string]string{
+		"Inspect budget summaries and manage budget rules": "Consulta resúmenes y gestiona reglas de presupuesto",
+		"Confirm an occurrence as a human entry":           "Confirma una ocurrencia como entrada humana",
+		"clear the destination account":                    "elimina la cuenta de destino",
+		"the occurrence is already resolved":               "la ocurrencia ya está resuelta",
+	} {
+		if got := localizer.Human(english); got != want {
+			t.Errorf("Human(%q)=%q want %q", english, got, want)
+		}
+	}
+}
+
 func TestLocalizerTranslatesTransactionSurfaceAndHTTPStatus(t *testing.T) {
 	localizer := i18n.New(i18n.Spanish)
 	translations := map[string]string{
