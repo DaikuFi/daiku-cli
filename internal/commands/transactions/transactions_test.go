@@ -382,6 +382,32 @@ func TestBulkCreateUsesContractShapeAndPreservesAmounts(t *testing.T) {
 	}
 }
 
+func TestBulkHelpDocumentsFileAndStdinWithParseableJSON(t *testing.T) {
+	svc := &fakeService{}
+	for _, command := range []string{"bulk-create", "bulk-update"} {
+		code, out, stderr := run(t, svc, "", "transactions", command, "--help")
+		if code != 0 || stderr != "" || !strings.Contains(out, "--file -") || !strings.Contains(out, "--file ") || !strings.Contains(out, "Examples:") {
+			t.Fatalf("command=%s code=%d stdout=%q stderr=%q", command, code, out, stderr)
+		}
+		start := strings.Index(out, "'{")
+		end := strings.Index(out[start+1:], "}' |")
+		if start < 0 || end < 0 {
+			t.Fatalf("command=%s missing piped JSON example: %s", command, out)
+		}
+		raw := out[start+1 : start+1+end+1]
+		if !json.Valid([]byte(raw)) {
+			t.Fatalf("command=%s invalid example JSON %q", command, raw)
+		}
+		args := []string{"transactions", command, "--household", "hh_1", "--file", "-", "--json"}
+		if command == "bulk-update" {
+			args = append(args, "--yes")
+		}
+		if exampleCode, _, exampleStderr := run(t, svc, raw, args...); exampleCode != 0 {
+			t.Fatalf("command=%s example rejected: code=%d stderr=%q", command, exampleCode, exampleStderr)
+		}
+	}
+}
+
 func TestBulkDeleteRequiresExplicitConfirmation(t *testing.T) {
 	svc := &fakeService{}
 	code, _, _ := run(t, svc, "", "transactions", "delete-all", "--household", "hh_1", "--json")

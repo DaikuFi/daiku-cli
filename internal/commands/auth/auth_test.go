@@ -64,6 +64,28 @@ func TestStatusHumanIsLocalizedAndJSONStaysEnglish(t *testing.T) {
 	}
 }
 
+func TestStatusHelpDocumentsExitZeroForLoggedOutState(t *testing.T) {
+	app, _, stdout, stderr := authApp(t, false, false, "")
+	if exit := app.Run([]string{"auth", "status", "--help"}); exit != 0 || stderr.Len() != 0 {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
+	}
+	for _, want := range []string{"Exit code 0", "logged_in is false", "data.logged_in", "--json"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("help missing %q: %s", want, stdout.String())
+		}
+	}
+}
+
+func TestStatusLoggedOutIsReadableStateWithExitZero(t *testing.T) {
+	app, store, stdout, stderr := authApp(t, false, false, "")
+	if err := store.Delete("personal"); err != nil {
+		t.Fatal(err)
+	}
+	if exit := app.Run([]string{"auth", "status", "--json"}); exit != 0 || stderr.Len() != 0 || stdout.String() != "{\"ok\":true,\"data\":{\"logged_in\":false,\"profile\":\"personal\"}}\n" {
+		t.Fatalf("stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+}
+
 func TestLogoutRequiresExplicitConfirmationForPipe(t *testing.T) {
 	app, store, stdout, stderr := authApp(t, false, false, "yes\n")
 	exit := app.Run([]string{"auth", "logout", "--local-only", "--language=es", "--json"})

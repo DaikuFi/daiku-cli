@@ -21,6 +21,7 @@ const (
 	RootDescription Key = "root.description"
 	UsageHeading    Key = "help.usage"
 	CommandsHeading Key = "help.commands"
+	ExamplesHeading Key = "help.examples"
 	FlagsHeading    Key = "help.flags"
 	ErrorPrefix     Key = "error.prefix"
 	NoResults       Key = "output.no_results"
@@ -37,6 +38,7 @@ var messages = map[Language]map[Key]string{
 		RootDescription: "Manage Daiku from the command line",
 		UsageHeading:    "Usage",
 		CommandsHeading: "Commands",
+		ExamplesHeading: "Examples",
 		FlagsHeading:    "Flags",
 		ErrorPrefix:     "Error",
 		NoResults:       "No results.",
@@ -51,6 +53,7 @@ var messages = map[Language]map[Key]string{
 		RootDescription: "Gestiona Daiku desde la línea de comandos",
 		UsageHeading:    "Uso",
 		CommandsHeading: "Comandos",
+		ExamplesHeading: "Ejemplos",
 		FlagsHeading:    "Opciones",
 		ErrorPrefix:     "Error",
 		NoResults:       "No hay resultados.",
@@ -599,6 +602,38 @@ func (l Localizer) Text(key Key, args ...any) string {
 // intentionally left untouched so commands and flags remain English.
 func (l Localizer) Human(value string) string {
 	if l.Language == Spanish {
+		switch value {
+		case "Read authentication status. Exit code 0 means the status was read successfully, including when logged_in is false. Scripts should inspect data.logged_in from --json output.":
+			return "Lee el estado de autenticación. El código de salida 0 indica que el estado se leyó correctamente, incluso cuando logged_in es false. Los scripts deben consultar data.logged_in en la salida de --json."
+		case "Create transactions from one JSON object with an expenses array. Pass a path to --file, or pass --file - to read the same JSON from stdin.":
+			return "Crea transacciones desde un objeto JSON con un array expenses. Pasa una ruta a --file, o usa --file - para leer el mismo JSON desde stdin."
+		case "Update transactions from one JSON object with ids and updates. updates accepts account and category; use null to clear either field. Pass a path to --file, or pass --file - to read the same JSON from stdin.":
+			return "Actualiza transacciones desde un objeto JSON con ids y updates. updates acepta account y category; usa null para borrar cualquiera de los campos. Pasa una ruta a --file, o usa --file - para leer el mismo JSON desde stdin."
+		case "Inspect available projection rule types":
+			return "Consulta los tipos de reglas de proyección disponibles"
+		case "List available projection rule types":
+			return "Lista los tipos de reglas de proyección disponibles"
+		case "Get a projection rule type":
+			return "Muestra un tipo de regla de proyección"
+		case "the requested projection rule type was not found":
+			return "no se encontró el tipo de regla de proyección solicitado"
+		case "server rule type; inspect with daiku projections rule-types list":
+			return "tipo de regla del servidor; consúltalos con daiku projections rule-types list"
+		case "JSON object using config_fields from daiku projections rule-types get <type>":
+			return "objeto JSON que usa config_fields de daiku projections rule-types get <type>"
+		case "PRIORITY":
+			return "PRIORIDAD"
+		case "FIELD":
+			return "CAMPO"
+		case "FIELD TYPE":
+			return "TIPO DE CAMPO"
+		case "REQUIRED":
+			return "OBLIGATORIO"
+		case "PLACEHOLDER":
+			return "PLACEHOLDER"
+		case "LABEL KEY":
+			return "CLAVE DE ETIQUETA"
+		}
 		if strings.HasPrefix(value, "help for ") {
 			return "ayuda de " + strings.TrimPrefix(value, "help for ")
 		}

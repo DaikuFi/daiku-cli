@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -30,6 +31,7 @@ type API interface {
 	Calculate(context.Context, string, string) (*daikuv1.ProjectionResult, error)
 	Retirement(context.Context, string, string) (*daikuv1.RetirementResult, error)
 	RuleList(context.Context, string) ([]daikuv1.ProjectionRule, error)
+	RuleTypes(context.Context) ([]daikuv1.RuleType, error)
 	RuleCreate(context.Context, string, daikuv1.ProjectionRuleRequest) (*daikuv1.ProjectionRule, error)
 	RuleUpdate(context.Context, string, string, daikuv1.PatchedProjectionRuleRequest) (*daikuv1.ProjectionRule, error)
 	RuleDelete(context.Context, string, string) error
@@ -84,7 +86,7 @@ func New(store profiles.Store, manager *authcore.Manager) Module {
 
 func (m Module) Register(root *cobra.Command) {
 	projections := &cobra.Command{Use: "projections", Short: "Manage projection scenarios and rules", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(c *cobra.Command, _ []string) error { return c.Help() }}
-	projections.AddCommand(m.scenarios(), m.rules(), m.calculate(), m.retirement())
+	projections.AddCommand(m.scenarios(), m.rules(), m.ruleTypes(), m.calculate(), m.retirement())
 	reports := &cobra.Command{Use: "reports", Short: "Inspect server-calculated portfolio reports", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(c *cobra.Command, _ []string) error { return c.Help() }}
 	reports.AddCommand(m.netWorth(), m.currencyExposure())
 	rates := &cobra.Command{Use: "exchange-rates", Short: "List server-resolved exchange rates", Args: cli.UsageArgs(cobra.NoArgs)}
@@ -266,6 +268,58 @@ func (m Module) rules() *cobra.Command {
 	c.AddCommand(m.ruleList(), m.ruleCreate(), m.ruleUpdate(), m.ruleDelete())
 	return c
 }
+
+func (m Module) ruleTypes() *cobra.Command {
+	c := &cobra.Command{Use: "rule-types", Short: "Inspect available projection rule types", Args: cli.UsageArgs(cobra.NoArgs)}
+	c.AddCommand(m.ruleTypeList(), m.ruleTypeGet())
+	return c
+}
+
+func (m Module) ruleTypeList() *cobra.Command {
+	return &cobra.Command{Use: "list", Short: "List available projection rule types", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(c *cobra.Command, _ []string) error {
+		a, err := m.Factory(c.Context())
+		if err != nil {
+			return err
+		}
+		items, err := a.RuleTypes(c.Context())
+		if err != nil {
+			return err
+		}
+		sortRuleTypes(items)
+		return emitList(c, "rule_types", items, ruleTypeRows(c, items))
+	}}
+}
+
+func (m Module) ruleTypeGet() *cobra.Command {
+	return &cobra.Command{Use: "get <type>", Short: "Get a projection rule type", Args: cli.UsageArgs(cobra.ExactArgs(1)), RunE: func(c *cobra.Command, args []string) error {
+		a, err := m.Factory(c.Context())
+		if err != nil {
+			return err
+		}
+		items, err := a.RuleTypes(c.Context())
+		if err != nil {
+			return err
+		}
+		for _, item := range items {
+			if item.Type == args[0] {
+				if jsonMode(c) {
+					return cli.WriteSuccess(c.OutOrStdout(), item)
+				}
+				return renderer(c).Table(ruleTypeRows(c, []daikuv1.RuleType{item}))
+			}
+		}
+		return &cli.Error{Code: "rule_type_not_found", Message: "the requested projection rule type was not found", ExitCode: cli.ExitNotFound}
+	}}
+}
+
+func sortRuleTypes(items []daikuv1.RuleType) {
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].Priority != items[j].Priority {
+			return items[i].Priority < items[j].Priority
+		}
+		return items[i].Type < items[j].Type
+	})
+}
 func (m Module) ruleList() *cobra.Command {
 	var s string
 	c := &cobra.Command{Use: "list", Short: "List projection rules", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(c *cobra.Command, _ []string) error {
@@ -292,8 +346,8 @@ type ruleFields struct {
 func addRuleFields(c *cobra.Command, f *ruleFields, create bool) {
 	scenarioFlag(c, &f.scenario)
 	c.Flags().StringVar(&f.category, "category", "", "asset, debt, income or expense")
-	c.Flags().StringVar(&f.ruleType, "type", "", "server rule type")
-	c.Flags().StringVar(&f.config, "config", "", "JSON object with the server rule configuration")
+	c.Flags().StringVar(&f.ruleType, "type", "", "server rule type; inspect with daiku projections rule-types list")
+	c.Flags().StringVar(&f.config, "config", "", "JSON object using config_fields from daiku projections rule-types get <type>")
 	c.Flags().BoolVar(&f.enabled, "enabled", false, "enable rule")
 	c.Flags().IntVar(&f.order, "display-order", 0, "display order")
 	if create {
@@ -594,6 +648,33 @@ func ruleRows(c *cobra.Command, v []daikuv1.ProjectionRule) []output.Row {
 	}
 	return rows
 }
+
+func ruleTypeRows(c *cobra.Command, items []daikuv1.RuleType) []output.Row {
+	rows := make([]output.Row, 0, len(items))
+	for _, item := range items {
+		fields := item.ConfigFields
+		if len(fields) == 0 {
+			fields = []daikuv1.RuleConfigField{{}}
+		}
+		for _, field := range fields {
+			placeholder := ""
+			if field.Placeholder != nil {
+				placeholder = *field.Placeholder
+			}
+			rows = append(rows, output.Row{
+				{Label: label(c, "TYPE"), Value: item.Type},
+				{Label: label(c, "CATEGORY"), Value: string(item.Category)},
+				{Label: label(c, "PRIORITY"), Value: fmt.Sprint(item.Priority)},
+				{Label: label(c, "FIELD"), Value: field.Name},
+				{Label: label(c, "FIELD TYPE"), Value: string(field.Type)},
+				{Label: label(c, "REQUIRED"), Value: fmt.Sprint(field.Required)},
+				{Label: label(c, "PLACEHOLDER"), Value: placeholder},
+				{Label: label(c, "LABEL KEY"), Value: field.LabelKey},
+			})
+		}
+	}
+	return rows
+}
 func emitList(c *cobra.Command, key string, value any, rows []output.Row) error {
 	if jsonMode(c) {
 		return cli.WriteSuccess(c.OutOrStdout(), map[string]any{key: value})
@@ -762,6 +843,16 @@ func (a generatedAPI) RuleList(c context.Context, s string) ([]daikuv1.Projectio
 		return nil, e
 	}
 	return *r.JSON200, nil
+}
+func (a generatedAPI) RuleTypes(c context.Context) ([]daikuv1.RuleType, error) {
+	r, e := a.c.DaikuRuleTypesGetWithResponse(c)
+	if e != nil {
+		return nil, apiFailure()
+	}
+	if e = status(r.StatusCode()); e != nil {
+		return nil, e
+	}
+	return r.JSON200.RuleTypes, nil
 }
 func (a generatedAPI) RuleCreate(c context.Context, s string, b daikuv1.ProjectionRuleRequest) (*daikuv1.ProjectionRule, error) {
 	r, e := a.c.DaikuScenariosScenarioPkRulesPostWithResponse(c, s, b)
