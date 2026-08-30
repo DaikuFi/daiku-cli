@@ -49,6 +49,71 @@ func TestGeneratedServiceSendsTransferLegsWithoutRecalculation(t *testing.T) {
 	}
 }
 
+func TestGeneratedServiceListDecodesEnrichedExpensePageNatively(t *testing.T) {
+	doer := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/households/hh_1/expenses/" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+		body := `{
+			"count":1,
+			"next":null,
+			"previous":null,
+			"results":[{
+				"id":"exp_1",
+				"amount":"100.00",
+				"description":"Transferencia",
+				"currency":"BRL",
+				"transaction_type":"transfer",
+				"installment_total":12,
+				"transfer_peer":{
+					"account":"acc_peer",
+					"account_name":"Conta",
+					"amount":"525.50",
+					"currency":"BRL"
+				},
+				"cash_flow_link":{
+					"id":"cfl_1",
+					"side":"cash_out"
+				}
+			}]
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+		}, nil
+	})
+	client, err := daikuv1.NewClientWithResponses("https://api.daiku.test", daikuv1.WithHTTPClient(doer))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := (generatedService{client}).List(context.Background(), "hh_1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, ok := result.(daikuv1.ExpensePage)
+	if !ok || len(page.Results) != 1 {
+		t.Fatalf("result = %#v", result)
+	}
+	expense := page.Results[0]
+	if expense.InstallmentTotal == nil || *expense.InstallmentTotal != 12 {
+		t.Fatalf("installment_total = %#v", expense.InstallmentTotal)
+	}
+	if expense.TransferPeer == nil ||
+		expense.TransferPeer.Account != "acc_peer" ||
+		expense.TransferPeer.AccountName != "Conta" ||
+		expense.TransferPeer.Amount != "525.50" ||
+		expense.TransferPeer.Currency != daikuv1.Currency3e8EnumBRL {
+		t.Fatalf("transfer_peer = %#v", expense.TransferPeer)
+	}
+	if expense.CashFlowLink == nil ||
+		expense.CashFlowLink.Id != "cfl_1" ||
+		expense.CashFlowLink.Side != daikuv1.CashFlowLinkSummarySideEnumCashOut {
+		t.Fatalf("cash_flow_link = %#v", expense.CashFlowLink)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) Do(request *http.Request) (*http.Response, error)        { return f(request) }
