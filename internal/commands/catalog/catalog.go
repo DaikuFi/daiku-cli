@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
+	"time"
 
 	"github.com/DaikuFi/daiku-cli/generated/daikuv1"
 	"github.com/DaikuFi/daiku-cli/internal/api"
@@ -15,6 +15,7 @@ import (
 	"github.com/DaikuFi/daiku-cli/internal/output"
 	"github.com/DaikuFi/daiku-cli/internal/profiles"
 	"github.com/DaikuFi/daiku-cli/internal/prompt"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/spf13/cobra"
 )
 
@@ -187,7 +188,7 @@ func (m Module) householdReorder() *cobra.Command {
 			items[i] = daikuv1.HouseholdReorderItemRequest{Id: id, SortOrder: &order}
 		}
 		var result any
-		if err := m.call(cmd, http.MethodPost, "households/reorder/", map[string]any{"items": items}, &result); err != nil {
+		if err := m.call(cmd, http.MethodPost, "households/reorder/", items, &result); err != nil {
 			return err
 		}
 		return emitOne(cmd, result)
@@ -327,12 +328,32 @@ func (m Module) resourceReorder(spec resourceSpec) *cobra.Command {
 		if len(ids) == 0 {
 			return usage("provide at least one --id")
 		}
-		items := make([]map[string]any, len(ids))
-		for i, id := range ids {
-			items[i] = map[string]any{"id": id, "sort_order": i}
+		var items any
+		switch spec.path {
+		case "account-groups":
+			values := make([]daikuv1.AccountGroupReorderItemRequest, len(ids))
+			for i, id := range ids {
+				order := i
+				values[i] = daikuv1.AccountGroupReorderItemRequest{Id: id, SortOrder: &order}
+			}
+			items = values
+		case "categories":
+			values := make([]daikuv1.CategoryReorderItemRequest, len(ids))
+			for i, id := range ids {
+				order := i
+				values[i] = daikuv1.CategoryReorderItemRequest{Id: id, SortOrder: &order}
+			}
+			items = values
+		case "accounts":
+			values := make([]daikuv1.AccountReorderItemRequest, len(ids))
+			for i, id := range ids {
+				order := i
+				values[i] = daikuv1.AccountReorderItemRequest{Id: id, SortOrder: &order}
+			}
+			items = values
 		}
 		var result any
-		if err := m.call(cmd, http.MethodPost, scopedPath(household, spec.path)+"reorder/", map[string]any{"items": items}, &result); err != nil {
+		if err := m.call(cmd, http.MethodPost, scopedPath(household, spec.path)+"reorder/", items, &result); err != nil {
 			return err
 		}
 		return emitOne(cmd, result)
@@ -467,12 +488,14 @@ func (m Module) accountAdjust() *cobra.Command {
 		if err = confirm(cmd, yes, "Adjust account "+id+" balance."); err != nil {
 			return err
 		}
-		body := map[string]any{"target_balance": target}
+		body := daikuv1.AccountAdjustRequestRequest{TargetBalance: target, Note: optional(note)}
 		if date != "" {
-			body["date"] = date
-		}
-		if note != "" {
-			body["note"] = note
+			parsed, parseErr := time.Parse("2006-01-02", date)
+			if parseErr != nil {
+				return usage("date must use YYYY-MM-DD")
+			}
+			value := openapi_types.Date{Time: parsed}
+			body.Date = &value
 		}
 		var item map[string]any
 		if err = m.call(cmd, http.MethodPost, base+id+"/adjust/", body, &item); err != nil {
@@ -635,5 +658,3 @@ func humanValue(value any) string {
 	}
 	return fmt.Sprint(value)
 }
-
-var _ = strconv.Itoa
