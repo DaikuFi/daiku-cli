@@ -11,6 +11,7 @@ import (
 	daikuv1 "github.com/DaikuFi/daiku-cli/generated/daikuv1"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/spf13/cobra"
 )
 
 type fakeService struct {
@@ -143,6 +144,44 @@ func TestAssetCreatePassesLiabilityAndCurrencyWithoutRecalculation(t *testing.T)
 	}
 	if f.lastAsset.IsLiability == nil || !*f.lastAsset.IsLiability || f.lastAsset.CurrentValue == nil || *f.lastAsset.CurrentValue != "123.45" || f.lastAsset.Currency == nil || *f.lastAsset.Currency != "UYU" {
 		t.Fatalf("request changed: %#v", f.lastAsset)
+	}
+}
+
+func TestAssetTypesAreDiscoverableInHelpValidationAndCompletion(t *testing.T) {
+	want := strings.Join(assetTypes, ", ")
+
+	code, stdout, stderr := execute(t, &fakeService{}, "assets", "create", "--help")
+	if code != int(cli.ExitOK) || stderr != "" || !strings.Contains(stdout, "asset type: "+want) {
+		t.Fatalf("help code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+
+	code, _, stderr = execute(t, &fakeService{}, "assets", "create", "--bucket", "bkt_1", "--name", "Asset", "--type", "invalid")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "accepted values: "+want) {
+		t.Fatalf("validation code=%d stderr=%q", code, stderr)
+	}
+
+	code, stdout, stderr = execute(t, &fakeService{}, "assets", "create", "--help", "--language", "es")
+	if code != int(cli.ExitOK) || stderr != "" || !strings.Contains(stdout, "tipo de activo: "+want) {
+		t.Fatalf("spanish help code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	code, _, stderr = execute(t, &fakeService{}, "assets", "create", "--bucket", "bkt_1", "--name", "Asset", "--type", "invalid", "--language", "es")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "tipo de activo inválido; valores aceptados: "+want) {
+		t.Fatalf("spanish validation code=%d stderr=%q", code, stderr)
+	}
+
+	code, stdout, stderr = execute(t, &fakeService{}, cobra.ShellCompRequestCmd, "assets", "create", "--type", "")
+	if code != int(cli.ExitOK) || strings.Contains(stderr, "unknown command") {
+		t.Fatalf("completion code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	for _, assetType := range assetTypes {
+		if !strings.Contains(stdout, assetType+"\n") {
+			t.Fatalf("completion missing %q: %q", assetType, stdout)
+		}
+	}
+
+	code, stdout, stderr = execute(t, &fakeService{}, cobra.ShellCompRequestCmd, "assets", "create", "--type", "mo")
+	if code != int(cli.ExitOK) || !strings.Contains(stdout, "mortgage\n") || strings.Contains(stdout, "checking\n") || strings.Contains(stderr, "unknown command") {
+		t.Fatalf("filtered completion code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 }
 
