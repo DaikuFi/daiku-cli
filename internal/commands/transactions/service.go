@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 
 type Service interface {
 	List(context.Context, string, *daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams) (any, error)
+	GetTransaction(context.Context, string, string) (any, error)
 	Create(context.Context, string, daikuv1.ExpenseRequest) (any, error)
 	Update(context.Context, string, string, PatchBody) (any, error)
 	Delete(context.Context, string, string, *daikuv1.DaikuHouseholdsHouseholdPkExpensesIdDeleteParams) error
@@ -25,8 +27,42 @@ type Service interface {
 	TransferCandidates(context.Context, string, string) (any, error)
 	UnlinkTransfer(context.Context, string, string) (any, error)
 	CreateInstallments(context.Context, string, daikuv1.InstallmentCreateRequestRequest) (any, error)
+	ListInstallments(context.Context, string) (any, error)
 	GetInstallment(context.Context, string, string) (any, error)
 	UpdateInstallment(context.Context, string, string, PatchBody) (any, error)
+}
+
+// InstallmentPlanResponse mirrors the backend wire response until the public
+// schema describes schedule and charged_count with their real array/integer
+// shapes. Keeping the adapter here avoids modifying the pinned backend schema
+// while still preserving every charged and scheduled cuota for CLI consumers.
+type InstallmentPlanResponse struct {
+	Account       *string                       `json:"account"`
+	AccountName   *string                       `json:"account_name,omitempty"`
+	Amount        string                        `json:"amount"`
+	Category      *string                       `json:"category"`
+	CategoryEmoji *string                       `json:"category_emoji,omitempty"`
+	CategoryName  *string                       `json:"category_name,omitempty"`
+	ChargedCount  int                           `json:"charged_count"`
+	Count         int                           `json:"count"`
+	CreatedAt     string                        `json:"created_at"`
+	CreatedBy     *string                       `json:"created_by"`
+	Currency      daikuv1.Currency3e8Enum       `json:"currency"`
+	Description   string                        `json:"description"`
+	Household     string                        `json:"household"`
+	ID            string                        `json:"id"`
+	IsActive      bool                          `json:"is_active"`
+	Schedule      []InstallmentScheduleResponse `json:"schedule"`
+	StartDate     string                        `json:"start_date"`
+	Tags          []daikuv1.Tag                 `json:"tags"`
+	UpdatedAt     string                        `json:"updated_at"`
+}
+
+type InstallmentScheduleResponse struct {
+	Amount  string           `json:"amount"`
+	Date    string           `json:"date"`
+	Expense *daikuv1.Expense `json:"expense"`
+	Number  int              `json:"number"`
 }
 
 type PatchBody map[string]any
@@ -160,6 +196,29 @@ func responseDetail(body []byte) string {
 	return string(fallback.Detail)
 }
 
+func decodeInstallmentResponse[T any](response *http.Response, requestErr error, successStatus int) (T, error) {
+	var zero T
+	if requestErr != nil {
+		return zero, requestErr
+	}
+	if response == nil {
+		return zero, safe("invalid_response", "the Daiku API returned an invalid installment response")
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return zero, safe("invalid_response", "the Daiku API installment response could not be read")
+	}
+	if response.StatusCode != successStatus {
+		return zero, responseError(response.StatusCode, body)
+	}
+	var result T
+	if err := json.Unmarshal(body, &result); err != nil {
+		return zero, safe("invalid_response", "the Daiku API returned an invalid installment response")
+	}
+	return result, nil
+}
+
 func (s generatedService) List(ctx context.Context, hh string, p *daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams) (any, error) {
 	r, err := s.client.DaikuHouseholdsHouseholdPkExpensesGetWithResponse(ctx, hh, p)
 	if err != nil {
@@ -176,6 +235,16 @@ func (s generatedService) List(ctx context.Context, hh string, p *daikuv1.DaikuH
 		return nil, safe("invalid_response", "the Daiku API returned an invalid transaction list")
 	}
 	return items, nil
+}
+func (s generatedService) GetTransaction(ctx context.Context, hh, id string) (any, error) {
+	r, err := s.client.DaikuHouseholdsHouseholdPkExpensesIdGetWithResponse(ctx, hh, id)
+	if err != nil {
+		return nil, err
+	}
+	if r.JSON200 == nil {
+		return nil, responseError(r.StatusCode(), r.Body)
+	}
+	return *r.JSON200, nil
 }
 func (s generatedService) Create(ctx context.Context, hh string, b daikuv1.ExpenseRequest) (any, error) {
 	r, e := s.client.DaikuHouseholdsHouseholdPkExpensesPostWithResponse(ctx, hh, b)
@@ -286,36 +355,22 @@ func (s generatedService) UnlinkTransfer(ctx context.Context, hh, id string) (an
 	return *r.JSON200, nil
 }
 func (s generatedService) CreateInstallments(ctx context.Context, hh string, b daikuv1.InstallmentCreateRequestRequest) (any, error) {
-	r, e := s.client.DaikuHouseholdsHouseholdPkExpensesInstallmentsPostWithResponse(ctx, hh, b)
-	if e != nil {
-		return nil, e
-	}
-	if r.JSON201 == nil {
-		return nil, responseError(r.StatusCode(), r.Body)
-	}
-	return *r.JSON201, nil
+	r, e := s.client.DaikuHouseholdsHouseholdPkExpensesInstallmentsPost(ctx, hh, b)
+	return decodeInstallmentResponse[InstallmentPlanResponse](r, e, http.StatusCreated)
+}
+func (s generatedService) ListInstallments(ctx context.Context, hh string) (any, error) {
+	r, e := s.client.DaikuHouseholdsHouseholdPkExpensesInstallmentsGet(ctx, hh)
+	return decodeInstallmentResponse[[]InstallmentPlanResponse](r, e, http.StatusOK)
 }
 func (s generatedService) GetInstallment(ctx context.Context, hh, id string) (any, error) {
-	r, e := s.client.DaikuHouseholdsHouseholdPkInstallmentPlansIdGetWithResponse(ctx, hh, id)
-	if e != nil {
-		return nil, e
-	}
-	if r.JSON200 == nil {
-		return nil, responseError(r.StatusCode(), r.Body)
-	}
-	return *r.JSON200, nil
+	r, e := s.client.DaikuHouseholdsHouseholdPkInstallmentPlansIdGet(ctx, hh, id)
+	return decodeInstallmentResponse[InstallmentPlanResponse](r, e, http.StatusOK)
 }
 func (s generatedService) UpdateInstallment(ctx context.Context, hh, id string, b PatchBody) (any, error) {
 	payload, err := json.Marshal(b)
 	if err != nil {
 		return nil, safe("invalid_request", "installment update could not be encoded")
 	}
-	r, e := s.client.DaikuHouseholdsHouseholdPkInstallmentPlansIdPatchWithBodyWithResponse(ctx, hh, id, "application/json", strings.NewReader(string(payload)))
-	if e != nil {
-		return nil, e
-	}
-	if r.JSON200 == nil {
-		return nil, responseError(r.StatusCode(), r.Body)
-	}
-	return *r.JSON200, nil
+	r, e := s.client.DaikuHouseholdsHouseholdPkInstallmentPlansIdPatchWithBody(ctx, hh, id, "application/json", strings.NewReader(string(payload)))
+	return decodeInstallmentResponse[InstallmentPlanResponse](r, e, http.StatusOK)
 }

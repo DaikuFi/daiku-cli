@@ -26,6 +26,10 @@ type fakeService struct {
 	unlinked           bool
 	listed             *daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams
 	listResult         any
+	transactionHH      string
+	transactionID      string
+	installmentHH      string
+	installmentList    any
 }
 
 func (f *fakeService) List(_ context.Context, _ string, p *daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams) (any, error) {
@@ -34,6 +38,10 @@ func (f *fakeService) List(_ context.Context, _ string, p *daikuv1.DaikuHousehol
 		return f.listResult, nil
 	}
 	return []daikuv1.Expense{}, nil
+}
+func (f *fakeService) GetTransaction(_ context.Context, hh, id string) (any, error) {
+	f.transactionHH, f.transactionID = hh, id
+	return daikuv1.Expense{Id: &id, Amount: "10.00", Description: "Coffee"}, nil
 }
 func (f *fakeService) Create(_ context.Context, _ string, b daikuv1.ExpenseRequest) (any, error) {
 	f.created = &b
@@ -76,14 +84,21 @@ func (f *fakeService) UnlinkTransfer(context.Context, string, string) (any, erro
 }
 func (f *fakeService) CreateInstallments(_ context.Context, _ string, body daikuv1.InstallmentCreateRequestRequest) (any, error) {
 	f.installment = &body
-	return daikuv1.InstallmentPlan{}, nil
+	return InstallmentPlanResponse{}, nil
+}
+func (f *fakeService) ListInstallments(_ context.Context, hh string) (any, error) {
+	f.installmentHH = hh
+	if f.installmentList != nil {
+		return f.installmentList, nil
+	}
+	return []InstallmentPlanResponse{}, nil
 }
 func (*fakeService) GetInstallment(context.Context, string, string) (any, error) {
-	return daikuv1.InstallmentPlan{}, nil
+	return InstallmentPlanResponse{}, nil
 }
 func (f *fakeService) UpdateInstallment(_ context.Context, _, _ string, body PatchBody) (any, error) {
 	f.installmentUpdated = body
-	return daikuv1.InstallmentPlan{}, nil
+	return InstallmentPlanResponse{}, nil
 }
 
 func run(t *testing.T, svc *fakeService, input string, args ...string) (int, string, string) {
@@ -140,6 +155,66 @@ func TestListWiresPublishedMonthYearAndAllControls(t *testing.T) {
 	code, _, stderr = run(t, svc, "", "transactions", "list", "--household", "hh_1", "--json")
 	if code != 0 || svc.listed == nil || svc.listed.Paginated == nil || !*svc.listed.Paginated {
 		t.Fatalf("default code=%d params=%#v err=%s", code, svc.listed, stderr)
+	}
+
+	svc = &fakeService{}
+	code, _, stderr = run(t, svc, "", "transactions", "list", "--household", "hh_1", "--currency", "BRL", "--page", "2", "--page-size", "25", "--json")
+	if code != 0 || svc.listed == nil {
+		t.Fatalf("filtered code=%d params=%#v err=%s", code, svc.listed, stderr)
+	}
+	if svc.listed.Currency == nil || *svc.listed.Currency != daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency("BRL") || svc.listed.Page == nil || *svc.listed.Page != 2 || svc.listed.PageSize == nil || *svc.listed.PageSize != 25 {
+		t.Fatalf("filtered params=%#v", svc.listed)
+	}
+}
+
+func TestListRejectsInvalidOrContradictoryPageControls(t *testing.T) {
+	for _, args := range [][]string{
+		{"transactions", "list", "--household", "hh_1", "--all", "--page", "2", "--json"},
+		{"transactions", "list", "--household", "hh_1", "--all", "--page-size", "25", "--json"},
+		{"transactions", "list", "--household", "hh_1", "--page", "0", "--json"},
+		{"transactions", "list", "--household", "hh_1", "--page-size", "201", "--json"},
+		{"transactions", "list", "--household", "hh_1", "--currency", "ZZZ", "--json"},
+	} {
+		svc := &fakeService{}
+		code, _, _ := run(t, svc, "", args...)
+		if code != int(cli.ExitUsage) || svc.listed != nil {
+			t.Fatalf("args=%v code=%d params=%#v", args, code, svc.listed)
+		}
+	}
+}
+
+func TestTransactionGetWiresHouseholdAndStableJSON(t *testing.T) {
+	svc := &fakeService{}
+	code, out, stderr := run(t, svc, "", "transactions", "get", "exp_1", "--household", "hh_1", "--json")
+	if code != 0 || svc.transactionHH != "hh_1" || svc.transactionID != "exp_1" {
+		t.Fatalf("code=%d household=%q id=%q err=%s", code, svc.transactionHH, svc.transactionID, stderr)
+	}
+	if !strings.Contains(out, `"ok":true`) || !strings.Contains(out, `"id":"exp_1"`) || !strings.Contains(out, `"amount":"10.00"`) {
+		t.Fatalf("json=%s", out)
+	}
+}
+
+func TestInstallmentListPreservesScheduleJSONAndHumanSummary(t *testing.T) {
+	id := "exp_1"
+	plan := InstallmentPlanResponse{
+		ID: "inp_1", Household: "hh_1", Description: "Laptop", Amount: "1200.00",
+		Currency: daikuv1.Currency3e8EnumBRL, Count: 12, ChargedCount: 1, StartDate: "2026-08-30", IsActive: true,
+		Schedule: []InstallmentScheduleResponse{{Number: 1, Amount: "100.00", Date: "2026-08-30", Expense: &daikuv1.Expense{Id: &id, Amount: "100.00", Description: "Laptop"}}},
+		Tags:     []daikuv1.Tag{},
+	}
+	svc := &fakeService{installmentList: []InstallmentPlanResponse{plan}}
+	code, out, stderr := run(t, svc, "", "installments", "list", "--household", "hh_1", "--json")
+	if code != 0 || svc.installmentHH != "hh_1" {
+		t.Fatalf("code=%d household=%q err=%s", code, svc.installmentHH, stderr)
+	}
+	if !strings.Contains(out, `"schedule":[{"amount":"100.00","date":"2026-08-30","expense":`) || !strings.Contains(out, `"number":1`) {
+		t.Fatalf("json=%s", out)
+	}
+
+	svc = &fakeService{installmentList: []InstallmentPlanResponse{plan}}
+	code, out, stderr = run(t, svc, "", "installments", "list", "--household", "hh_1", "--language", "es")
+	if code != 0 || !strings.Contains(out, "Laptop") || !strings.Contains(out, "1/12") || !strings.Contains(out, "BRL") {
+		t.Fatalf("code=%d out=%s err=%s", code, out, stderr)
 	}
 }
 
@@ -219,11 +294,11 @@ func TestTransferRejectsSameAccount(t *testing.T) {
 
 func TestInstallmentsSendPurchaseTotalAndCount(t *testing.T) {
 	svc := &fakeService{}
-	code, _, stderr := run(t, svc, "", "installments", "create", "--household", "hh_1", "--amount", "1200.00", "--description", "Laptop", "--currency", "UYU", "--date", "2026-08-29", "--count", "12", "--tag-ids", "tag_1,tag_2", "--json")
+	code, _, stderr := run(t, svc, "", "installments", "create", "--household", "hh_1", "--amount", "1200.00", "--description", "Laptop", "--currency", "BRL", "--date", "2026-08-29", "--count", "12", "--tag-ids", "tag_1,tag_2", "--json")
 	if code != 0 {
 		t.Fatalf("code=%d err=%s", code, stderr)
 	}
-	if svc.installment == nil || svc.installment.Amount != "1200.00" || svc.installment.Installments != 12 {
+	if svc.installment == nil || svc.installment.Amount != "1200.00" || svc.installment.Installments != 12 || svc.installment.Currency != daikuv1.Currency3e8EnumBRL {
 		t.Fatalf("body=%#v", svc.installment)
 	}
 	if svc.installment.TagIds == nil || len(*svc.installment.TagIds) != 2 {
@@ -400,10 +475,14 @@ func TestSpanishTransactionHelpAndHumanValidationError(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("list help code=%d err=%s", code, stderr)
 	}
-	for _, translated := range []string{"mes 1-12", "año de cuatro dígitos", "obtiene todas las transacciones coincidentes sin paginación"} {
+	for _, translated := range []string{"mes 1-12", "año de cuatro dígitos", "código de moneda de la transacción", "número de página", "resultados por página", "obtiene todas las transacciones coincidentes sin paginación"} {
 		if !strings.Contains(out, translated) {
 			t.Fatalf("list help missing %q: %s", translated, out)
 		}
+	}
+	code, out, stderr = run(t, svc, "", "installments", "list", "--language", "es", "--help")
+	if code != 0 || !strings.Contains(out, "Lista planes de cuotas") || !strings.Contains(out, "ID del hogar") {
+		t.Fatalf("installments help code=%d out=%s err=%s", code, out, stderr)
 	}
 
 	code, _, stderr = run(t, svc, "", "transactions", "create", "--household", "hh_1", "--amount", "invalid", "--description", "x", "--language", "es")
