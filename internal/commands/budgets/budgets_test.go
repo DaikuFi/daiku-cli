@@ -68,6 +68,31 @@ func TestUpdatePreservesOmittedAndExplicitNull(t *testing.T) {
 	}
 }
 
+func TestUpdateRejectsInvalidExplicitPeriodValues(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		flags []string
+	}{
+		{name: "zero month", flags: []string{"--month", "0"}},
+		{name: "month above range", flags: []string{"--month", "13"}},
+		{name: "zero year", flags: []string{"--year", "0"}},
+		{name: "negative year", flags: []string{"--year", "-1"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api := &fakeAPI{}
+			args := []string{"budgets", "rules", "update", "bud_1", "--household", "hh_1", "--json"}
+			args = append(args, tc.flags...)
+			code, _, errOut := runSimple(t, api, args...)
+			if code != int(cli.ExitUsage) || errOut == "" {
+				t.Fatalf("code=%d stderr=%q", code, errOut)
+			}
+			if api.updated != nil {
+				t.Fatalf("API reached with invalid period: %#v", api.updated)
+			}
+		})
+	}
+}
+
 func TestCreateDoesNotRegisterPatchOnlyClearFlags(t *testing.T) {
 	api := &fakeAPI{}
 	code, _, errOut := runSimple(t, api, "budgets", "rules", "create", "--household", "hh_1", "--category", "cat_1", "--amount", "10", "--currency", "UYU", "--scope", "monthly", "--clear-month", "--json")

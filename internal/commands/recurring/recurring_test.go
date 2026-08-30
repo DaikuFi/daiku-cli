@@ -158,6 +158,31 @@ func TestUpdateOmissionAndExplicitClears(t *testing.T) {
 	}
 }
 
+func TestUpdateRejectsInvalidExplicitScheduleValues(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		flags []string
+	}{
+		{name: "zero day", flags: []string{"--day", "0"}},
+		{name: "day above range", flags: []string{"--day", "32"}},
+		{name: "zero month", flags: []string{"--month", "0"}},
+		{name: "month above range", flags: []string{"--month", "13"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api := &fakeAPI{}
+			args := []string{"recurring", "update", "rec_1", "--household", "hh_1", "--json"}
+			args = append(args, tc.flags...)
+			code, _, errOut := runSimple(t, api, args...)
+			if code != int(cli.ExitUsage) || errOut == "" {
+				t.Fatalf("code=%d stderr=%q", code, errOut)
+			}
+			if api.updated != nil {
+				t.Fatalf("API reached with invalid schedule: %#v", api.updated)
+			}
+		})
+	}
+}
+
 func TestAcceptsPublishedCurrencyAndRejectsUnknown(t *testing.T) {
 	api := &fakeAPI{}
 	base := []string{"recurring", "create", "--household", "hh_1", "--description", "x", "--amount", "10", "--frequency", "monthly", "--type", "expense", "--creation-mode", "auto", "--day", "1", "--json", "--currency"}

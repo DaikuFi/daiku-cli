@@ -222,6 +222,12 @@ func (m Module) update() *cobra.Command {
 		if e := validateTemplate(f, true); e != nil {
 			return e
 		}
+		if cmd.Flags().Changed("day") && (f.day < 1 || f.day > 31) {
+			return usage("day must be between 1 and 31")
+		}
+		if cmd.Flags().Changed("month") && (f.month < 1 || f.month > 12) {
+			return usage("month must be between 1 and 12")
+		}
 		names := []string{"description", "amount", "currency", "frequency", "type", "creation-mode", "account", "destination-account", "category", "start-date", "day", "month", "active", "clear-account", "clear-destination-account", "clear-category", "clear-month"}
 		changed := false
 		for _, n := range names {

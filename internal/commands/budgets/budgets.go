@@ -253,6 +253,12 @@ func (m Module) ruleUpdate() *cobra.Command {
 		if err := validateRule(f, true); err != nil {
 			return err
 		}
+		if cmd.Flags().Changed("month") && (f.month < 1 || f.month > 12) {
+			return usage("month must be between 1 and 12")
+		}
+		if cmd.Flags().Changed("year") && f.year < 1 {
+			return usage("year must be provided and greater than zero")
+		}
 		if !cmd.Flags().Changed("category") && !cmd.Flags().Changed("amount") && !cmd.Flags().Changed("currency") && !cmd.Flags().Changed("scope") && !cmd.Flags().Changed("month") && !cmd.Flags().Changed("year") && !f.clearMonth && !f.clearYear {
 			return usage("provide at least one field to update")
 		}
