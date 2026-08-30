@@ -216,6 +216,13 @@ func TestRuleTypesGetNotFoundIsTyped(t *testing.T) {
 	}
 }
 
+func TestRuleTypesGetNotFoundIsLocalizedInSpanish(t *testing.T) {
+	code, _, stderr := run(t, &fakeAPI{}, false, "projections", "rule-types", "get", "missing", "--language", "es")
+	if code != int(cli.ExitNotFound) || stderr != "Error: no se encontró el tipo de regla de proyección solicitado\n" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+}
+
 func TestRuleCreateHelpPointsToRuleTypeIntrospection(t *testing.T) {
 	code, out, stderr := run(t, &fakeAPI{}, false, "projections", "rules", "create", "--help")
 	if code != 0 || stderr != "" || !strings.Contains(out, "projections rule-types list") || !strings.Contains(out, "projections rule-types get <type>") {

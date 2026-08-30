@@ -610,6 +610,8 @@ func (l Localizer) Human(value string) string {
 			return "Lista los tipos de reglas de proyección disponibles"
 		case "Get a projection rule type":
 			return "Muestra un tipo de regla de proyección"
+		case "the requested projection rule type was not found":
+			return "no se encontró el tipo de regla de proyección solicitado"
 		case "server rule type; inspect with daiku projections rule-types list":
 			return "tipo de regla del servidor; consúltalos con daiku projections rule-types list"
 		case "JSON object using config_fields from daiku projections rule-types get <type>":
