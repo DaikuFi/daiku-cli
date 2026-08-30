@@ -413,10 +413,16 @@ func (m Module) resourceReorder(spec resourceSpec) *cobra.Command {
 			}
 			items = values
 		case "categories":
-			values := make([]daikuv1.CategoryReorderItemRequest, len(ids))
+			// CategoryReorderItemRequest.Parent is optional in the API contract but
+			// its generated JSON tag lacks omitempty. Using that type here would send
+			// parent:null and explicitly detach every reordered subcategory.
+			values := make([]struct {
+				ID        string `json:"id"`
+				SortOrder int    `json:"sort_order"`
+			}, len(ids))
 			for i, id := range ids {
-				order := i
-				values[i] = daikuv1.CategoryReorderItemRequest{Id: id, SortOrder: &order}
+				values[i].ID = id
+				values[i].SortOrder = i
 			}
 			items = values
 		case "accounts":

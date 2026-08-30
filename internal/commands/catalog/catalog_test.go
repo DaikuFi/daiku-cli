@@ -421,7 +421,7 @@ func TestAccountAdjustUsesGeneratedContractShape(t *testing.T) {
 	}
 }
 
-func TestCategoryReorderUsesGeneratedArrayBody(t *testing.T) {
+func TestCategoryReorderOmitsParent(t *testing.T) {
 	h := apiHandler(t, "POST", "/api/v1/households/hh_1/categories/reorder/", 200, `[]`, func(r *http.Request) {
 		var body []map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -429,6 +429,11 @@ func TestCategoryReorderUsesGeneratedArrayBody(t *testing.T) {
 		}
 		if len(body) != 2 || body[0]["id"] != "cat_a" || body[0]["sort_order"] != float64(0) || body[1]["id"] != "cat_b" {
 			t.Fatalf("body=%v", body)
+		}
+		for i, item := range body {
+			if _, ok := item["parent"]; ok {
+				t.Fatalf("body[%d] unexpectedly includes parent: %v", i, item)
+			}
 		}
 	})
 	app, _, errOut := testApp(t, h, "", false)
