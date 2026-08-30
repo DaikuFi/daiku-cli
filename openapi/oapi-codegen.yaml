@@ -1,0 +1,7 @@
+package: daikuv1
+output: generated/daikuv1/client.gen.go
+generate:
+  models: true
+  client: true
+output-options:
+  response-type-suffix: Response
