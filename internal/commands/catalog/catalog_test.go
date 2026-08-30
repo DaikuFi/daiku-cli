@@ -134,6 +134,91 @@ func TestNameAmbiguityReturnsStableCandidates(t *testing.T) {
 	}
 }
 
+func TestNameContainingUnderscoreIsResolvedInsteadOfTrustedAsID(t *testing.T) {
+	calls := 0
+	h := func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "application/json")
+		if calls == 1 {
+			if r.Method != "GET" {
+				t.Fatal(r.Method)
+			}
+			_, _ = w.Write([]byte(`[{"id":"tag_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","name":"summer_trip"}]`))
+			return
+		}
+		if r.Method != "DELETE" || !strings.HasSuffix(r.URL.Path, "tag_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/") {
+			t.Fatalf("%s %s", r.Method, r.URL.Path)
+		}
+		w.WriteHeader(204)
+	}
+	app, _, errOut := testApp(t, h, "", false)
+	if code := app.Run([]string{"tags", "delete", "summer_trip", "--household", "hh_1", "--yes", "--json"}); code != 0 {
+		t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d", calls)
+	}
+}
+
+func TestWrongResourceIDPrefixFailsBeforeNetwork(t *testing.T) {
+	called := false
+	app, _, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { called = true }, "", false)
+	if code := app.Run([]string{"tags", "delete", "acc_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--household", "hh_1", "--yes", "--json"}); code != 2 {
+		t.Fatalf("exit=%d %s", code, errOut.String())
+	}
+	if called {
+		t.Fatal("network called")
+	}
+}
+
+func TestInapplicableResourceFlagIsRejected(t *testing.T) {
+	called := false
+	app, _, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { called = true }, "", false)
+	if code := app.Run([]string{"tags", "create", "--household", "hh_1", "--name", "x", "--emoji", "x", "--json"}); code != 2 {
+		t.Fatalf("exit=%d %s", code, errOut.String())
+	}
+	if called {
+		t.Fatal("network called")
+	}
+}
+
+func TestAccountPatchSupportsChangedFalseAndNullableFields(t *testing.T) {
+	id := "acc_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	h := apiHandler(t, "PATCH", "/api/v1/households/hh_1/accounts/"+id+"/", 200, `{"id":"`+id+`","name":"Cash"}`, func(r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["group"] != nil || body["institution"] != nil || body["is_default"] != false {
+			t.Fatalf("body=%v", body)
+		}
+	})
+	app, _, errOut := testApp(t, h, "", false)
+	if code := app.Run([]string{"accounts", "update", id, "--household", "hh_1", "--clear-group", "--clear-institution", "--is-default=false", "--json"}); code != 0 {
+		t.Fatalf("exit=%d %s", code, errOut.String())
+	}
+}
+
+func TestSpanishDestructivePromptIsLocalized(t *testing.T) {
+	id := "acc_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	calls := 0
+	h := func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != "DELETE" {
+			t.Fatalf("method=%s", r.Method)
+		}
+		_, _ = w.Write([]byte(`{"archived":true}`))
+	}
+	app, _, errOut := testApp(t, h, "sí\n", true)
+	if code := app.Run([]string{"accounts", "archive", id, "--household", "hh_1", "--language", "es"}); code != 0 {
+		t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+	}
+	if calls != 1 || !strings.Contains(errOut.String(), "Archivar la cuenta") || !strings.Contains(errOut.String(), "¿Continuar?") {
+		t.Fatalf("calls=%d prompt=%s", calls, errOut.String())
+	}
+}
+
 func TestViewerWriteIsServerAuthorized(t *testing.T) {
 	h := apiHandler(t, "POST", "/api/v1/households/hh_1/tags/", 403, `{"error":{"message":"forbidden"}}`, nil)
 	app, _, errOut := testApp(t, h, "", false)
