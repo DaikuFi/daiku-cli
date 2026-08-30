@@ -105,6 +105,18 @@ func TestSpanishHumanHelpKeepsCommandsEnglish(t *testing.T) {
 	}
 }
 
+func TestSpanishCatalogFlagHelpIsLocalized(t *testing.T) {
+	app, out, _ := testApp(t, func(http.ResponseWriter, *http.Request) { t.Fatal("network called") }, "", true)
+	if code := app.Run([]string{"accounts", "create", "--help", "--language", "es"}); code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	for _, want := range []string{"titular de la cuenta", "número de cuenta", "moneda", "cuenta como predeterminada"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("missing %q in %s", want, out.String())
+		}
+	}
+}
+
 func TestScopedCommandRequiresHouseholdWithoutNetwork(t *testing.T) {
 	called := false
 	app, _, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { called = true }, "", false)
@@ -207,6 +219,91 @@ func TestAccountPatchSupportsChangedFalseAndNullableFields(t *testing.T) {
 	app, _, errOut := testApp(t, h, "", false)
 	if code := app.Run([]string{"accounts", "update", id, "--household", "hh_1", "--clear-group", "--clear-institution", "--is-default=false", "--json"}); code != 0 {
 		t.Fatalf("exit=%d %s", code, errOut.String())
+	}
+}
+
+func TestHouseholdPatchPreservesOmissionAndAllowsClearingEmoji(t *testing.T) {
+	id := "hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	tests := []struct {
+		name string
+		args []string
+		want map[string]any
+	}{
+		{"name only", []string{"households", "update", id, "--name", "Casa", "--json"}, map[string]any{"name": "Casa"}},
+		{"clear emoji", []string{"households", "update", id, "--emoji", "", "--json"}, map[string]any{"emoji": ""}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := apiHandler(t, "PATCH", "/api/v1/households/"+id+"/", 200, `{}`, func(r *http.Request) {
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Fatal(err)
+				}
+				if len(body) != len(tc.want) {
+					t.Fatalf("body=%v want exactly %v", body, tc.want)
+				}
+				for key, want := range tc.want {
+					if body[key] != want {
+						t.Fatalf("body=%v want exactly %v", body, tc.want)
+					}
+				}
+			})
+			app, _, errOut := testApp(t, h, "", false)
+			if code := app.Run(tc.args); code != 0 {
+				t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+			}
+		})
+	}
+}
+
+func TestContractEnumsAreValidatedBeforeNetwork(t *testing.T) {
+	tests := [][]string{
+		{"institutions", "create", "--household", "hsh_1", "--name", "Bank", "--country", "ZZ", "--json"},
+		{"institutions", "update", "inst_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--household", "hsh_1", "--country", "ZZ", "--json"},
+		{"accounts", "create", "--household", "hsh_1", "--name", "Bank", "--type", "wallet", "--json"},
+		{"accounts", "update", "acc_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--household", "hsh_1", "--type", "wallet", "--json"},
+	}
+	for _, args := range tests {
+		t.Run(strings.Join(args[:2], " "), func(t *testing.T) {
+			called := false
+			app, _, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { called = true }, "", false)
+			if code := app.Run(args); code != 2 {
+				t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+			}
+			if called {
+				t.Fatal("network called")
+			}
+			if !strings.Contains(errOut.String(), "not published") {
+				t.Fatal(errOut.String())
+			}
+		})
+	}
+}
+
+func TestContractEnumsNormalizeValidValues(t *testing.T) {
+	tests := []struct {
+		name, method, path, field, want string
+		args                            []string
+	}{
+		{"country", "POST", "/api/v1/households/hsh_1/institutions/", "country", "UY", []string{"institutions", "create", "--household", "hsh_1", "--name", "Bank", "--country", "uy", "--json"}},
+		{"account type", "POST", "/api/v1/households/hsh_1/accounts/", "account_type", "credit_card", []string{"accounts", "create", "--household", "hsh_1", "--name", "Card", "--type", "CREDIT_CARD", "--json"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := apiHandler(t, tc.method, tc.path, 201, `{}`, func(r *http.Request) {
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Fatal(err)
+				}
+				if body[tc.field] != tc.want {
+					t.Fatalf("body=%v", body)
+				}
+			})
+			app, _, errOut := testApp(t, h, "", false)
+			if code := app.Run(tc.args); code != 0 {
+				t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+			}
+		})
 	}
 }
 

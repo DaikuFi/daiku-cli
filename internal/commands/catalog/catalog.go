@@ -131,26 +131,29 @@ func (m Module) householdCreate() *cobra.Command {
 func (m Module) householdUpdate() *cobra.Command {
 	var name, currency, emoji string
 	cmd := run("update <household>", "Update a household", cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
-		if name == "" && currency == "" && emoji == "" {
+		if !cmd.Flags().Changed("name") && !cmd.Flags().Changed("display-currency") && !cmd.Flags().Changed("emoji") {
 			return usage("provide at least one field to update")
 		}
 		id, err := m.resolve(cmd, "households/", args[0])
 		if err != nil {
 			return err
 		}
-		body := daikuv1.PatchedHouseholdRequest{}
-		if name != "" {
-			body.Name = &name
+		// The generated PATCH type has a nullable field without omitempty. A
+		// presence-aware map keeps omitted values omitted instead of silently
+		// sending first_accountable_date=null.
+		body := map[string]any{}
+		if cmd.Flags().Changed("name") {
+			body["name"] = name
 		}
-		if emoji != "" {
-			body.Emoji = &emoji
+		if cmd.Flags().Changed("emoji") {
+			body["emoji"] = emoji
 		}
-		if currency != "" {
+		if cmd.Flags().Changed("display-currency") {
 			value, parseErr := displayCurrency(currency)
 			if parseErr != nil {
 				return parseErr
 			}
-			body.DisplayCurrency = &value
+			body["display_currency"] = value
 		}
 		var item map[string]any
 		if err = m.call(cmd, http.MethodPatch, "households/"+id+"/", body, &item); err != nil {
@@ -253,9 +256,13 @@ func (m Module) resourceCreate(spec resourceSpec) *cobra.Command {
 		case "institutions":
 			value := daikuv1.PublicFinancialInstitutionRequest{Name: name, Domain: optional(domain)}
 			if country != "" {
+				parsed, err := institutionCountry(country)
+				if err != nil {
+					return err
+				}
 				var union daikuv1.PublicFinancialInstitutionRequest_Country
-				if err := union.FromCountry806Enum(daikuv1.Country806Enum(country)); err != nil {
-					return usage("invalid country")
+				if err := union.FromCountry806Enum(parsed); err != nil {
+					return commandError("invalid_request", "country could not be encoded", cli.ExitFailure)
 				}
 				value.Country = &union
 			}
@@ -308,6 +315,13 @@ func (m Module) resourceUpdate(spec resourceSpec) *cobra.Command {
 			return err
 		}
 		body := map[string]any{}
+		if spec.path == "institutions" && cmd.Flags().Changed("country") {
+			parsed, parseErr := institutionCountry(country)
+			if parseErr != nil {
+				return parseErr
+			}
+			country = string(parsed)
+		}
 		for _, pair := range []struct{ flag, key, value string }{{"name", "name", name}, {"emoji", "emoji", emoji}, {"color", "color", color}, {"domain", "domain", domain}, {"country", "country", country}, {"parent", "parent", parent}} {
 			if cmd.Flags().Lookup(pair.flag) != nil && cmd.Flags().Changed(pair.flag) {
 				body[pair.key] = pair.value
@@ -446,7 +460,10 @@ func (m Module) accountCreate() *cobra.Command {
 			body.Currency = &v
 		}
 		if kind != "" {
-			v := daikuv1.PublicAccountWriteAccountTypeEnum(kind)
+			v, err := accountType(kind)
+			if err != nil {
+				return err
+			}
 			body.AccountType = &v
 		}
 		var item map[string]any
@@ -501,6 +518,13 @@ func (m Module) accountUpdate() *cobra.Command {
 				return parseErr
 			}
 			currency = string(parsed)
+		}
+		if cmd.Flags().Changed("type") {
+			parsed, parseErr := accountType(kind)
+			if parseErr != nil {
+				return parseErr
+			}
+			kind = string(parsed)
 		}
 		for flag, value := range map[string]any{"name": name, "group": group, "institution": institution, "currency": currency, "account_type": kind, "opening_balance": balance, "emoji": emoji, "account_number": number, "account_holder": holder, "is_default": isDefault} {
 			flagName := strings.ReplaceAll(flag, "account_type", "type")
@@ -633,6 +657,12 @@ var publishedCurrencies = map[string]struct{}{
 	string(daikuv1.Currency595EnumUYU): {}, string(daikuv1.Currency595EnumVES): {},
 }
 
+const publishedCountries = "|AD|AE|AF|AG|AI|AL|AM|AO|AQ|AR|AS|AT|AU|AW|AX|AZ|BA|BB|BD|BE|BF|BG|BH|BI|BJ|BL|BM|BN|BO|BQ|BR|BS|BT|BV|BW|BY|BZ|CA|CC|CD|CF|CG|CH|CI|CK|CL|CM|CN|CO|CR|CU|CV|CW|CX|CY|CZ|DE|DJ|DK|DM|DO|DZ|EC|EE|EG|EH|ER|ES|ET|FI|FJ|FK|FM|FO|FR|GA|GB|GD|GE|GF|GG|GH|GI|GL|GM|GN|GP|GQ|GR|GS|GT|GU|GW|GY|HK|HM|HN|HR|HT|HU|ID|IE|IL|IM|IN|IO|IQ|IR|IS|IT|JE|JM|JO|JP|KE|KG|KH|KI|KM|KN|KP|KR|KW|KY|KZ|LA|LB|LC|LI|LK|LR|LS|LT|LU|LV|LY|MA|MC|MD|ME|MF|MG|MH|MK|ML|MM|MN|MO|MP|MQ|MR|MS|MT|MU|MV|MW|MX|MY|MZ|NA|NC|NE|NF|NG|NI|NL|NO|NP|NR|NU|NZ|OM|PA|PE|PF|PG|PH|PK|PL|PM|PN|PR|PS|PT|PW|PY|QA|RE|RO|RS|RU|RW|SA|SB|SC|SD|SE|SG|SH|SI|SJ|SK|SL|SM|SN|SO|SR|SS|ST|SV|SX|SY|SZ|TC|TD|TF|TG|TH|TJ|TK|TL|TM|TN|TO|TR|TT|TV|TW|TZ|UA|UG|UM|US|UY|UZ|VA|VC|VE|VG|VI|VN|VU|WF|WS|YE|YT|ZA|ZM|ZW|"
+
+var publishedAccountTypes = map[string]struct{}{
+	"checking": {}, "savings": {}, "credit_card": {}, "loan": {}, "investment": {}, "cash": {}, "other": {},
+}
+
 func normalizeCurrency(value string) (string, error) {
 	value = strings.ToUpper(strings.TrimSpace(value))
 	if _, ok := publishedCurrencies[value]; !ok {
@@ -647,6 +677,20 @@ func accountCurrency(value string) (daikuv1.Currency595Enum, error) {
 func displayCurrency(value string) (daikuv1.DisplayCurrency3e8Enum, error) {
 	normalized, err := normalizeCurrency(value)
 	return daikuv1.DisplayCurrency3e8Enum(normalized), err
+}
+func institutionCountry(value string) (daikuv1.Country806Enum, error) {
+	value = strings.ToUpper(strings.TrimSpace(value))
+	if len(value) != 2 || !strings.Contains(publishedCountries, "|"+value+"|") {
+		return "", usage("country is not published by the Daiku API contract")
+	}
+	return daikuv1.Country806Enum(value), nil
+}
+func accountType(value string) (daikuv1.PublicAccountWriteAccountTypeEnum, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if _, ok := publishedAccountTypes[value]; !ok {
+		return "", usage("account type is not published by the Daiku API contract")
+	}
+	return daikuv1.PublicAccountWriteAccountTypeEnum(value), nil
 }
 func singular(value string) string {
 	if value == "categories" {
