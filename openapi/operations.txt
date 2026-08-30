@@ -32,6 +32,8 @@ GET /api/v1/households/{household_pk}/category-budgets/ daiku_households_househo
 GET /api/v1/households/{household_pk}/category-move-jobs/{id}/ daiku_households_household_pk_category_move_jobs_id_get
 GET /api/v1/households/{household_pk}/category-rules/ daiku_households_household_pk_category_rules_get
 GET /api/v1/households/{household_pk}/expenses/ daiku_households_household_pk_expenses_get
+GET /api/v1/households/{household_pk}/expenses/installments/ daiku_households_household_pk_expenses_installments_get
+GET /api/v1/households/{household_pk}/expenses/{id}/ daiku_households_household_pk_expenses_id_get
 GET /api/v1/households/{household_pk}/expenses/{id}/transfer-candidates/ daiku_households_household_pk_expenses_id_transfer_candidates_get
 GET /api/v1/households/{household_pk}/installment-plans/{id}/ daiku_households_household_pk_installment_plans_id_get
 GET /api/v1/households/{household_pk}/institutions/ daiku_households_household_pk_institutions_get

@@ -794,23 +794,98 @@ const (
 
 // Defines values for DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency.
 const (
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyARS DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "ARS"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyBOB DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "BOB"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyBRL DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "BRL"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyCLP DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "CLP"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyCOP DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "COP"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyCRC DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "CRC"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyDOP DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "DOP"
 	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyEUR DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "EUR"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyGBP DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "GBP"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyGTQ DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "GTQ"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyHNL DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "HNL"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyMXN DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "MXN"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyNIO DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "NIO"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyPAB DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "PAB"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyPEN DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "PEN"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyPYG DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "PYG"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyUI  DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "UI"
 	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyUSD DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "USD"
 	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyUYU DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "UYU"
+	DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrencyVES DaikuHouseholdsHouseholdPkBudgetsPlannedGetParamsDisplayCurrency = "VES"
 )
 
 // Defines values for DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency.
 const (
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyARS DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "ARS"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyBOB DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "BOB"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyBRL DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "BRL"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyCLP DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "CLP"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyCOP DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "COP"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyCRC DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "CRC"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyDOP DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "DOP"
 	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyEUR DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "EUR"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyGBP DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "GBP"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyGTQ DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "GTQ"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyHNL DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "HNL"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyMXN DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "MXN"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyNIO DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "NIO"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyPAB DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "PAB"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyPEN DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "PEN"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyPYG DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "PYG"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyUI  DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "UI"
 	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyUSD DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "USD"
 	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyUYU DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "UYU"
+	DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrencyVES DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParamsDisplayCurrency = "VES"
 )
 
 // Defines values for DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency.
 const (
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyARS DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "ARS"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyBOB DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "BOB"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyBRL DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "BRL"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyCLP DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "CLP"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyCOP DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "COP"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyCRC DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "CRC"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyDOP DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "DOP"
 	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyEUR DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "EUR"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyGBP DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "GBP"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyGTQ DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "GTQ"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyHNL DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "HNL"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyMXN DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "MXN"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyNIO DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "NIO"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyPAB DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "PAB"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyPEN DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "PEN"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyPYG DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "PYG"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyUI  DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "UI"
 	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyUSD DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "USD"
 	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyUYU DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "UYU"
+	DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrencyVES DaikuHouseholdsHouseholdPkBudgetsSummaryGetParamsDisplayCurrency = "VES"
+)
+
+// Defines values for DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency.
+const (
+	ARS DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "ARS"
+	BOB DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "BOB"
+	BRL DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "BRL"
+	CLP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "CLP"
+	COP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "COP"
+	CRC DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "CRC"
+	DOP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "DOP"
+	EUR DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "EUR"
+	GBP DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "GBP"
+	GTQ DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "GTQ"
+	HNL DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "HNL"
+	MXN DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "MXN"
+	NIO DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "NIO"
+	PAB DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "PAB"
+	PEN DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "PEN"
+	PYG DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "PYG"
+	UI  DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "UI"
+	USD DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "USD"
+	UYU DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "UYU"
+	VES DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "VES"
 )
 
 // Defines values for DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatus.
@@ -1107,14 +1182,31 @@ type BudgetSuggestion struct {
 type BudgetSuggestionsResponse struct {
 	Categories []BudgetSuggestion `json:"categories"`
 
-	// DisplayCurrency * `UYU` - UYU
-	// * `USD` - USD
-	// * `EUR` - EUR
-	DisplayCurrency DisplayCurrency43eEnum   `json:"display_currency"`
-	Month           int                      `json:"month"`
-	Unconverted     []map[string]interface{} `json:"unconverted"`
-	Window          int                      `json:"window"`
-	Year            int                      `json:"year"`
+	// DisplayCurrency * `UYU` - Uruguayan Peso
+	// * `USD` - US Dollar
+	// * `EUR` - Euro
+	// * `BRL` - Brazilian Real
+	// * `GBP` - British Pound
+	// * `ARS` - Argentine Peso
+	// * `UI` - Unidad Indexada
+	// * `CLP` - Chilean Peso
+	// * `COP` - Colombian Peso
+	// * `MXN` - Mexican Peso
+	// * `PEN` - Peruvian Sol
+	// * `PYG` - Paraguayan Guaraní
+	// * `BOB` - Bolivian Boliviano
+	// * `VES` - Venezuelan Bolívar Soberano
+	// * `GTQ` - Guatemalan Quetzal
+	// * `HNL` - Honduran Lempira
+	// * `CRC` - Costa Rican Colón
+	// * `NIO` - Nicaraguan Córdoba
+	// * `PAB` - Panamanian Balboa
+	// * `DOP` - Dominican Peso
+	DisplayCurrency DisplayCurrency3e8Enum `json:"display_currency"`
+	Month           int                    `json:"month"`
+	Unconverted     *UnconvertedCurrencies `json:"unconverted"`
+	Window          int                    `json:"window"`
+	Year            int                    `json:"year"`
 }
 
 // BudgetSummary defines model for BudgetSummary.
@@ -1125,15 +1217,32 @@ type BudgetSummary struct {
 	DaysElapsed   int                     `json:"days_elapsed"`
 	DaysInMonth   int                     `json:"days_in_month"`
 
-	// DisplayCurrency * `UYU` - UYU
-	// * `USD` - USD
-	// * `EUR` - EUR
-	DisplayCurrency    DisplayCurrency43eEnum    `json:"display_currency"`
+	// DisplayCurrency * `UYU` - Uruguayan Peso
+	// * `USD` - US Dollar
+	// * `EUR` - Euro
+	// * `BRL` - Brazilian Real
+	// * `GBP` - British Pound
+	// * `ARS` - Argentine Peso
+	// * `UI` - Unidad Indexada
+	// * `CLP` - Chilean Peso
+	// * `COP` - Colombian Peso
+	// * `MXN` - Mexican Peso
+	// * `PEN` - Peruvian Sol
+	// * `PYG` - Paraguayan Guaraní
+	// * `BOB` - Bolivian Boliviano
+	// * `VES` - Venezuelan Bolívar Soberano
+	// * `GTQ` - Guatemalan Quetzal
+	// * `HNL` - Honduran Lempira
+	// * `CRC` - Costa Rican Colón
+	// * `NIO` - Nicaraguan Córdoba
+	// * `PAB` - Panamanian Balboa
+	// * `DOP` - Dominican Peso
+	DisplayCurrency    DisplayCurrency3e8Enum    `json:"display_currency"`
 	FreeToSpend        *string                   `json:"free_to_spend"`
 	PaceStatus         *BudgetSummary_PaceStatus `json:"pace_status"`
 	TotalMonthlyBudget string                    `json:"total_monthly_budget"`
 	TotalSpent         string                    `json:"total_spent"`
-	Unconverted        []map[string]interface{}  `json:"unconverted"`
+	Unconverted        *UnconvertedCurrencies    `json:"unconverted"`
 }
 
 // BudgetSummary_PaceStatus defines model for BudgetSummary.PaceStatus.
@@ -2342,10 +2451,27 @@ type InstallmentCreateRequestRequest struct {
 	Amount   string  `json:"amount"`
 	Category *string `json:"category"`
 
-	// Currency * `UYU` - UYU
-	// * `USD` - USD
-	// * `EUR` - EUR
-	Currency     Currency43eEnum    `json:"currency"`
+	// Currency * `UYU` - Uruguayan Peso
+	// * `USD` - US Dollar
+	// * `EUR` - Euro
+	// * `BRL` - Brazilian Real
+	// * `GBP` - British Pound
+	// * `ARS` - Argentine Peso
+	// * `UI` - Unidad Indexada
+	// * `CLP` - Chilean Peso
+	// * `COP` - Colombian Peso
+	// * `MXN` - Mexican Peso
+	// * `PEN` - Peruvian Sol
+	// * `PYG` - Paraguayan Guaraní
+	// * `BOB` - Bolivian Boliviano
+	// * `VES` - Venezuelan Bolívar Soberano
+	// * `GTQ` - Guatemalan Quetzal
+	// * `HNL` - Honduran Lempira
+	// * `CRC` - Costa Rican Colón
+	// * `NIO` - Nicaraguan Córdoba
+	// * `PAB` - Panamanian Balboa
+	// * `DOP` - Dominican Peso
+	Currency     Currency3e8Enum    `json:"currency"`
 	Description  string             `json:"description"`
 	ExpenseDate  openapi_types.Date `json:"expense_date"`
 	Installments int                `json:"installments"`
@@ -2963,10 +3089,27 @@ type PlannedBudgetMonth_Scope struct {
 type PlannedBudgetRecurring struct {
 	Amount string `json:"amount"`
 
-	// Currency * `UYU` - UYU
-	// * `USD` - USD
-	// * `EUR` - EUR
-	Currency Currency43eEnum `json:"currency"`
+	// Currency * `UYU` - Uruguayan Peso
+	// * `USD` - US Dollar
+	// * `EUR` - Euro
+	// * `BRL` - Brazilian Real
+	// * `GBP` - British Pound
+	// * `ARS` - Argentine Peso
+	// * `UI` - Unidad Indexada
+	// * `CLP` - Chilean Peso
+	// * `COP` - Colombian Peso
+	// * `MXN` - Mexican Peso
+	// * `PEN` - Peruvian Sol
+	// * `PYG` - Paraguayan Guaraní
+	// * `BOB` - Bolivian Boliviano
+	// * `VES` - Venezuelan Bolívar Soberano
+	// * `GTQ` - Guatemalan Quetzal
+	// * `HNL` - Honduran Lempira
+	// * `CRC` - Costa Rican Colón
+	// * `NIO` - Nicaraguan Córdoba
+	// * `PAB` - Panamanian Balboa
+	// * `DOP` - Dominican Peso
+	Currency Currency3e8Enum `json:"currency"`
 
 	// Scope * `monthly` - monthly
 	// * `yearly` - yearly
@@ -2983,13 +3126,30 @@ type PlannedBudgetTotals struct {
 type PlannedBudgets struct {
 	Categories []PlannedBudgetCategory `json:"categories"`
 
-	// DisplayCurrency * `UYU` - UYU
-	// * `USD` - USD
-	// * `EUR` - EUR
-	DisplayCurrency DisplayCurrency43eEnum   `json:"display_currency"`
-	Totals          PlannedBudgetTotals      `json:"totals"`
-	Unconverted     []map[string]interface{} `json:"unconverted"`
-	Year            int                      `json:"year"`
+	// DisplayCurrency * `UYU` - Uruguayan Peso
+	// * `USD` - US Dollar
+	// * `EUR` - Euro
+	// * `BRL` - Brazilian Real
+	// * `GBP` - British Pound
+	// * `ARS` - Argentine Peso
+	// * `UI` - Unidad Indexada
+	// * `CLP` - Chilean Peso
+	// * `COP` - Colombian Peso
+	// * `MXN` - Mexican Peso
+	// * `PEN` - Peruvian Sol
+	// * `PYG` - Paraguayan Guaraní
+	// * `BOB` - Bolivian Boliviano
+	// * `VES` - Venezuelan Bolívar Soberano
+	// * `GTQ` - Guatemalan Quetzal
+	// * `HNL` - Honduran Lempira
+	// * `CRC` - Costa Rican Colón
+	// * `NIO` - Nicaraguan Córdoba
+	// * `PAB` - Panamanian Balboa
+	// * `DOP` - Dominican Peso
+	DisplayCurrency DisplayCurrency3e8Enum `json:"display_currency"`
+	Totals          PlannedBudgetTotals    `json:"totals"`
+	Unconverted     *UnconvertedCurrencies `json:"unconverted"`
+	Year            int                    `json:"year"`
 }
 
 // PortfolioHoldings defines model for PortfolioHoldings.
@@ -4835,6 +4995,12 @@ type TransferUnlinkResponse struct {
 // * `year` - year
 type TypeEnum string
 
+// UnconvertedCurrencies defines model for UnconvertedCurrencies.
+type UnconvertedCurrencies struct {
+	Count      int      `json:"count"`
+	Currencies []string `json:"currencies"`
+}
+
 // User Serializer for user data with nested profile information.
 type User struct {
 	// DateJoined Timestamp when the user account was created
@@ -4924,6 +5090,9 @@ type DaikuHouseholdsHouseholdPkExpensesGetParams struct {
 	// Category Filter by category id.
 	Category *string `form:"category,omitempty" json:"category,omitempty"`
 
+	// Currency Filter by transaction currency.
+	Currency *DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency `form:"currency,omitempty" json:"currency,omitempty"`
+
 	// DateFrom Inclusive lower bound (YYYY-MM-DD). Combinable with date_to for an arbitrary range; independent of month/year.
 	DateFrom *openapi_types.Date `form:"date_from,omitempty" json:"date_from,omitempty"`
 
@@ -4938,6 +5107,12 @@ type DaikuHouseholdsHouseholdPkExpensesGetParams struct {
 
 	// Ordering Sort: newest (default), oldest, amount_high, amount_low.
 	Ordering *string `form:"ordering,omitempty" json:"ordering,omitempty"`
+
+	// Page Page number. Its presence opts into pagination.
+	Page *int `form:"page,omitempty" json:"page,omitempty"`
+
+	// PageSize Results per page (1–200; default 50).
+	PageSize *int `form:"page_size,omitempty" json:"page_size,omitempty"`
 
 	// Paginated Opt into a paged {count,next,previous,results} envelope. Without it (or ?page=) the response is the legacy bare array.
 	Paginated *bool `form:"paginated,omitempty" json:"paginated,omitempty"`
@@ -4954,6 +5129,9 @@ type DaikuHouseholdsHouseholdPkExpensesGetParams struct {
 	// Year Filter by year, e.g. 2026.
 	Year *int `form:"year,omitempty" json:"year,omitempty"`
 }
+
+// DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency defines parameters for DaikuHouseholdsHouseholdPkExpensesGet.
+type DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency string
 
 // DaikuHouseholdsHouseholdPkExpensesIdDeleteParams defines parameters for DaikuHouseholdsHouseholdPkExpensesIdDelete.
 type DaikuHouseholdsHouseholdPkExpensesIdDeleteParams struct {
@@ -6509,6 +6687,9 @@ type ClientInterface interface {
 
 	DaikuHouseholdsHouseholdPkExpensesBulkPost(ctx context.Context, householdPk string, body DaikuHouseholdsHouseholdPkExpensesBulkPostJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DaikuHouseholdsHouseholdPkExpensesInstallmentsGet request
+	DaikuHouseholdsHouseholdPkExpensesInstallmentsGet(ctx context.Context, householdPk string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DaikuHouseholdsHouseholdPkExpensesInstallmentsPostWithBody request with any body
 	DaikuHouseholdsHouseholdPkExpensesInstallmentsPostWithBody(ctx context.Context, householdPk string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -6516,6 +6697,9 @@ type ClientInterface interface {
 
 	// DaikuHouseholdsHouseholdPkExpensesIdDelete request
 	DaikuHouseholdsHouseholdPkExpensesIdDelete(ctx context.Context, householdPk string, id string, params *DaikuHouseholdsHouseholdPkExpensesIdDeleteParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DaikuHouseholdsHouseholdPkExpensesIdGet request
+	DaikuHouseholdsHouseholdPkExpensesIdGet(ctx context.Context, householdPk string, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DaikuHouseholdsHouseholdPkExpensesIdPatchWithBody request with any body
 	DaikuHouseholdsHouseholdPkExpensesIdPatchWithBody(ctx context.Context, householdPk string, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -7686,6 +7870,18 @@ func (c *Client) DaikuHouseholdsHouseholdPkExpensesBulkPost(ctx context.Context,
 	return c.Client.Do(req)
 }
 
+func (c *Client) DaikuHouseholdsHouseholdPkExpensesInstallmentsGet(ctx context.Context, householdPk string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDaikuHouseholdsHouseholdPkExpensesInstallmentsGetRequest(c.Server, householdPk)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) DaikuHouseholdsHouseholdPkExpensesInstallmentsPostWithBody(ctx context.Context, householdPk string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDaikuHouseholdsHouseholdPkExpensesInstallmentsPostRequestWithBody(c.Server, householdPk, contentType, body)
 	if err != nil {
@@ -7712,6 +7908,18 @@ func (c *Client) DaikuHouseholdsHouseholdPkExpensesInstallmentsPost(ctx context.
 
 func (c *Client) DaikuHouseholdsHouseholdPkExpensesIdDelete(ctx context.Context, householdPk string, id string, params *DaikuHouseholdsHouseholdPkExpensesIdDeleteParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDaikuHouseholdsHouseholdPkExpensesIdDeleteRequest(c.Server, householdPk, id, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DaikuHouseholdsHouseholdPkExpensesIdGet(ctx context.Context, householdPk string, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDaikuHouseholdsHouseholdPkExpensesIdGetRequest(c.Server, householdPk, id)
 	if err != nil {
 		return nil, err
 	}
@@ -11010,6 +11218,22 @@ func NewDaikuHouseholdsHouseholdPkExpensesGetRequest(server string, householdPk 
 
 		}
 
+		if params.Currency != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "currency", runtime.ParamLocationQuery, *params.Currency); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.DateFrom != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "date_from", runtime.ParamLocationQuery, *params.DateFrom); err != nil {
@@ -11077,6 +11301,38 @@ func NewDaikuHouseholdsHouseholdPkExpensesGetRequest(server string, householdPk 
 		if params.Ordering != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "ordering", runtime.ParamLocationQuery, *params.Ordering); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page_size", runtime.ParamLocationQuery, *params.PageSize); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -11322,6 +11578,40 @@ func NewDaikuHouseholdsHouseholdPkExpensesBulkPostRequestWithBody(server string,
 	return req, nil
 }
 
+// NewDaikuHouseholdsHouseholdPkExpensesInstallmentsGetRequest generates requests for DaikuHouseholdsHouseholdPkExpensesInstallmentsGet
+func NewDaikuHouseholdsHouseholdPkExpensesInstallmentsGetRequest(server string, householdPk string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "household_pk", runtime.ParamLocationPath, householdPk)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/households/%s/expenses/installments/", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDaikuHouseholdsHouseholdPkExpensesInstallmentsPostRequest calls the generic DaikuHouseholdsHouseholdPkExpensesInstallmentsPost builder with application/json body
 func NewDaikuHouseholdsHouseholdPkExpensesInstallmentsPostRequest(server string, householdPk string, body DaikuHouseholdsHouseholdPkExpensesInstallmentsPostJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -11425,6 +11715,47 @@ func NewDaikuHouseholdsHouseholdPkExpensesIdDeleteRequest(server string, househo
 	}
 
 	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDaikuHouseholdsHouseholdPkExpensesIdGetRequest generates requests for DaikuHouseholdsHouseholdPkExpensesIdGet
+func NewDaikuHouseholdsHouseholdPkExpensesIdGetRequest(server string, householdPk string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "household_pk", runtime.ParamLocationPath, householdPk)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/households/%s/expenses/%s/", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -14187,6 +14518,9 @@ type ClientWithResponsesInterface interface {
 
 	DaikuHouseholdsHouseholdPkExpensesBulkPostWithResponse(ctx context.Context, householdPk string, body DaikuHouseholdsHouseholdPkExpensesBulkPostJSONRequestBody, reqEditors ...RequestEditorFn) (*DaikuHouseholdsHouseholdPkExpensesBulkPostResponse, error)
 
+	// DaikuHouseholdsHouseholdPkExpensesInstallmentsGetWithResponse request
+	DaikuHouseholdsHouseholdPkExpensesInstallmentsGetWithResponse(ctx context.Context, householdPk string, reqEditors ...RequestEditorFn) (*DaikuHouseholdsHouseholdPkExpensesInstallmentsGetResponse, error)
+
 	// DaikuHouseholdsHouseholdPkExpensesInstallmentsPostWithBodyWithResponse request with any body
 	DaikuHouseholdsHouseholdPkExpensesInstallmentsPostWithBodyWithResponse(ctx context.Context, householdPk string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DaikuHouseholdsHouseholdPkExpensesInstallmentsPostResponse, error)
 
@@ -14194,6 +14528,9 @@ type ClientWithResponsesInterface interface {
 
 	// DaikuHouseholdsHouseholdPkExpensesIdDeleteWithResponse request
 	DaikuHouseholdsHouseholdPkExpensesIdDeleteWithResponse(ctx context.Context, householdPk string, id string, params *DaikuHouseholdsHouseholdPkExpensesIdDeleteParams, reqEditors ...RequestEditorFn) (*DaikuHouseholdsHouseholdPkExpensesIdDeleteResponse, error)
+
+	// DaikuHouseholdsHouseholdPkExpensesIdGetWithResponse request
+	DaikuHouseholdsHouseholdPkExpensesIdGetWithResponse(ctx context.Context, householdPk string, id string, reqEditors ...RequestEditorFn) (*DaikuHouseholdsHouseholdPkExpensesIdGetResponse, error)
 
 	// DaikuHouseholdsHouseholdPkExpensesIdPatchWithBodyWithResponse request with any body
 	DaikuHouseholdsHouseholdPkExpensesIdPatchWithBodyWithResponse(ctx context.Context, householdPk string, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DaikuHouseholdsHouseholdPkExpensesIdPatchResponse, error)
@@ -15812,6 +16149,33 @@ func (r DaikuHouseholdsHouseholdPkExpensesBulkPostResponse) StatusCode() int {
 	return 0
 }
 
+type DaikuHouseholdsHouseholdPkExpensesInstallmentsGetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]InstallmentPlan
+	JSON400      *PublicError
+	JSON401      *PublicError
+	JSON403      *PublicError
+	JSON404      *PublicError
+	JSON429      *PublicError
+}
+
+// Status returns HTTPResponse.Status
+func (r DaikuHouseholdsHouseholdPkExpensesInstallmentsGetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DaikuHouseholdsHouseholdPkExpensesInstallmentsGetResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type DaikuHouseholdsHouseholdPkExpensesInstallmentsPostResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -15859,6 +16223,33 @@ func (r DaikuHouseholdsHouseholdPkExpensesIdDeleteResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r DaikuHouseholdsHouseholdPkExpensesIdDeleteResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DaikuHouseholdsHouseholdPkExpensesIdGetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Expense
+	JSON400      *PublicError
+	JSON401      *PublicError
+	JSON403      *PublicError
+	JSON404      *PublicError
+	JSON429      *PublicError
+}
+
+// Status returns HTTPResponse.Status
+func (r DaikuHouseholdsHouseholdPkExpensesIdGetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DaikuHouseholdsHouseholdPkExpensesIdGetResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -18107,6 +18498,15 @@ func (c *ClientWithResponses) DaikuHouseholdsHouseholdPkExpensesBulkPostWithResp
 	return ParseDaikuHouseholdsHouseholdPkExpensesBulkPostResponse(rsp)
 }
 
+// DaikuHouseholdsHouseholdPkExpensesInstallmentsGetWithResponse request returning *DaikuHouseholdsHouseholdPkExpensesInstallmentsGetResponse
+func (c *ClientWithResponses) DaikuHouseholdsHouseholdPkExpensesInstallmentsGetWithResponse(ctx context.Context, householdPk string, reqEditors ...RequestEditorFn) (*DaikuHouseholdsHouseholdPkExpensesInstallmentsGetResponse, error) {
+	rsp, err := c.DaikuHouseholdsHouseholdPkExpensesInstallmentsGet(ctx, householdPk, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDaikuHouseholdsHouseholdPkExpensesInstallmentsGetResponse(rsp)
+}
+
 // DaikuHouseholdsHouseholdPkExpensesInstallmentsPostWithBodyWithResponse request with arbitrary body returning *DaikuHouseholdsHouseholdPkExpensesInstallmentsPostResponse
 func (c *ClientWithResponses) DaikuHouseholdsHouseholdPkExpensesInstallmentsPostWithBodyWithResponse(ctx context.Context, householdPk string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DaikuHouseholdsHouseholdPkExpensesInstallmentsPostResponse, error) {
 	rsp, err := c.DaikuHouseholdsHouseholdPkExpensesInstallmentsPostWithBody(ctx, householdPk, contentType, body, reqEditors...)
@@ -18131,6 +18531,15 @@ func (c *ClientWithResponses) DaikuHouseholdsHouseholdPkExpensesIdDeleteWithResp
 		return nil, err
 	}
 	return ParseDaikuHouseholdsHouseholdPkExpensesIdDeleteResponse(rsp)
+}
+
+// DaikuHouseholdsHouseholdPkExpensesIdGetWithResponse request returning *DaikuHouseholdsHouseholdPkExpensesIdGetResponse
+func (c *ClientWithResponses) DaikuHouseholdsHouseholdPkExpensesIdGetWithResponse(ctx context.Context, householdPk string, id string, reqEditors ...RequestEditorFn) (*DaikuHouseholdsHouseholdPkExpensesIdGetResponse, error) {
+	rsp, err := c.DaikuHouseholdsHouseholdPkExpensesIdGet(ctx, householdPk, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDaikuHouseholdsHouseholdPkExpensesIdGetResponse(rsp)
 }
 
 // DaikuHouseholdsHouseholdPkExpensesIdPatchWithBodyWithResponse request with arbitrary body returning *DaikuHouseholdsHouseholdPkExpensesIdPatchResponse
@@ -21955,6 +22364,67 @@ func ParseDaikuHouseholdsHouseholdPkExpensesBulkPostResponse(rsp *http.Response)
 	return response, nil
 }
 
+// ParseDaikuHouseholdsHouseholdPkExpensesInstallmentsGetResponse parses an HTTP response from a DaikuHouseholdsHouseholdPkExpensesInstallmentsGetWithResponse call
+func ParseDaikuHouseholdsHouseholdPkExpensesInstallmentsGetResponse(rsp *http.Response) (*DaikuHouseholdsHouseholdPkExpensesInstallmentsGetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DaikuHouseholdsHouseholdPkExpensesInstallmentsGetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []InstallmentPlan
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest PublicError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest PublicError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PublicError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest PublicError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest PublicError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDaikuHouseholdsHouseholdPkExpensesInstallmentsPostResponse parses an HTTP response from a DaikuHouseholdsHouseholdPkExpensesInstallmentsPostWithResponse call
 func ParseDaikuHouseholdsHouseholdPkExpensesInstallmentsPostResponse(rsp *http.Response) (*DaikuHouseholdsHouseholdPkExpensesInstallmentsPostResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -22030,6 +22500,67 @@ func ParseDaikuHouseholdsHouseholdPkExpensesIdDeleteResponse(rsp *http.Response)
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest PublicError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest PublicError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest PublicError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest PublicError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest PublicError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDaikuHouseholdsHouseholdPkExpensesIdGetResponse parses an HTTP response from a DaikuHouseholdsHouseholdPkExpensesIdGetWithResponse call
+func ParseDaikuHouseholdsHouseholdPkExpensesIdGetResponse(rsp *http.Response) (*DaikuHouseholdsHouseholdPkExpensesIdGetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DaikuHouseholdsHouseholdPkExpensesIdGetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Expense
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest PublicError
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {

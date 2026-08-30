@@ -10,6 +10,7 @@ import (
 
 	daikuv1 "github.com/DaikuFi/daiku-cli/generated/daikuv1"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
+	"github.com/DaikuFi/daiku-cli/internal/currency"
 	"github.com/DaikuFi/daiku-cli/internal/i18n"
 	"github.com/DaikuFi/daiku-cli/internal/output"
 	"github.com/DaikuFi/daiku-cli/internal/prompt"
@@ -175,11 +176,7 @@ func confirm(cmd *cobra.Command, yes bool, action string) error {
 	return nil
 }
 func validCurrency(v string) bool {
-	switch v {
-	case "UYU", "USD", "EUR", "BRL", "GBP", "ARS", "UI", "CLP", "COP", "MXN", "PEN", "PYG", "BOB", "VES", "GTQ", "HNL", "CRC", "NIO", "PAB", "DOP":
-		return true
-	}
-	return false
+	return currency.IsSupported(v)
 }
 
 func (m Module) portfolioList() *cobra.Command {

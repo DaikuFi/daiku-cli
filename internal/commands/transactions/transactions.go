@@ -27,11 +27,11 @@ type Module struct{ Factory ServiceFactory }
 func New(factory ServiceFactory) Module { return Module{Factory: factory} }
 func (m Module) Register(root *cobra.Command) {
 	tx := &cobra.Command{Use: "transactions", Short: "Manage transactions", Args: cli.UsageArgs(cobra.NoArgs)}
-	tx.AddCommand(m.list(false), m.list(true), m.create(), m.update(), m.delete(), m.bulkCreate(), m.bulkUpdate(), m.bulkDelete())
+	tx.AddCommand(m.list(false), m.list(true), m.get(), m.create(), m.update(), m.delete(), m.bulkCreate(), m.bulkUpdate(), m.bulkDelete())
 	tr := &cobra.Command{Use: "transfers", Short: "Manage transfers", Args: cli.UsageArgs(cobra.NoArgs)}
 	tr.AddCommand(m.transferCreate(), m.transferConvert(), m.transferCandidates(), m.transferUnlink())
 	ins := &cobra.Command{Use: "installments", Short: "Manage installment plans", Args: cli.UsageArgs(cobra.NoArgs)}
-	ins.AddCommand(m.installmentCreate(), m.installmentGet(), m.installmentUpdate())
+	ins.AddCommand(m.installmentList(), m.installmentCreate(), m.installmentGet(), m.installmentUpdate())
 	root.AddCommand(tx, tr, ins)
 }
 
@@ -100,13 +100,12 @@ func currency(raw string) (*daikuv1.Currency3e8Enum, error) {
 	}
 	return &v, nil
 }
-func installmentCurrency(raw string) (*daikuv1.Currency43eEnum, error) {
-	allowed := map[string]daikuv1.Currency43eEnum{"EUR": daikuv1.Currency43eEnumEUR, "USD": daikuv1.Currency43eEnumUSD, "UYU": daikuv1.Currency43eEnumUYU}
-	v, ok := allowed[raw]
-	if !ok {
+func installmentCurrency(raw string) (*daikuv1.Currency3e8Enum, error) {
+	v, err := currency(raw)
+	if err != nil {
 		return nil, &cli.Error{Code: "invalid_currency", Message: "currency is not supported by the installment API contract", ExitCode: cli.ExitUsage}
 	}
-	return &v, nil
+	return v, nil
 }
 func validInstallmentTotal(amount string, count int) bool {
 	total, ok := new(big.Rat).SetString(amount)
@@ -134,12 +133,51 @@ func printResult(cmd *cobra.Command, value any) error {
 		}
 		return nil
 	}
+	if plans := installmentPlans(value); plans != nil {
+		return renderer.Table(installmentRows(plans, human.Localizer.Language == "es"))
+	}
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return err
 	}
 	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 	return err
+}
+
+func installmentPlans(value any) []InstallmentPlanResponse {
+	switch v := value.(type) {
+	case InstallmentPlanResponse:
+		return []InstallmentPlanResponse{v}
+	case []InstallmentPlanResponse:
+		return v
+	}
+	return nil
+}
+
+func installmentRows(items []InstallmentPlanResponse, es bool) []output.Row {
+	labels := []string{"ID", "Start", "Description", "Amount", "Currency", "Charged", "Active"}
+	active, inactive := "yes", "no"
+	if es {
+		labels = []string{"ID", "Inicio", "Descripción", "Importe", "Moneda", "Cobradas", "Activo"}
+		active, inactive = "sí", "no"
+	}
+	rows := make([]output.Row, 0, len(items))
+	for _, item := range items {
+		state := inactive
+		if item.IsActive {
+			state = active
+		}
+		rows = append(rows, output.Row{
+			{Label: labels[0], Value: item.ID},
+			{Label: labels[1], Value: item.StartDate},
+			{Label: labels[2], Value: item.Description},
+			{Label: labels[3], Value: item.Amount},
+			{Label: labels[4], Value: string(item.Currency)},
+			{Label: labels[5], Value: fmt.Sprintf("%d/%d", item.ChargedCount, item.Count)},
+			{Label: labels[6], Value: state},
+		})
+	}
+	return rows
 }
 func expenses(value any) []daikuv1.Expense {
 	switch v := value.(type) {
@@ -223,9 +261,12 @@ func (m Module) list(search bool) *cobra.Command {
 	to := optionalString(cmd, "to", "inclusive end date")
 	account := optionalString(cmd, "account", "account ID")
 	category := optionalString(cmd, "category", "category ID")
-	var month, year int
+	filterCurrency := optionalString(cmd, "currency", "transaction currency code")
+	var month, year, page, pageSize int
 	cmd.Flags().IntVar(&month, "month", 0, "month 1-12")
 	cmd.Flags().IntVar(&year, "year", 0, "four-digit year")
+	cmd.Flags().IntVar(&page, "page", 0, "page number (starts at 1)")
+	cmd.Flags().IntVar(&pageSize, "page-size", 0, "results per page (1-200)")
 	var all bool
 	cmd.Flags().BoolVar(&all, "all", false, "fetch every matching transaction without pagination")
 	kind := optionalString(cmd, "kind", "recurring or one-time")
@@ -236,6 +277,15 @@ func (m Module) list(search bool) *cobra.Command {
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		if search && *q == "" {
 			return &cli.Error{Code: "query_required", Message: "--query is required", ExitCode: cli.ExitUsage}
+		}
+		if all && (cmd.Flags().Changed("page") || cmd.Flags().Changed("page-size")) {
+			return usage("--all cannot be combined with --page or --page-size")
+		}
+		if cmd.Flags().Changed("page") && page < 1 {
+			return usage("page must be greater than zero")
+		}
+		if cmd.Flags().Changed("page-size") && (pageSize < 1 || pageSize > 200) {
+			return usage("page-size must be between 1 and 200")
 		}
 		fd, e := dateValue(*from)
 		if e != nil {
@@ -263,6 +313,20 @@ func (m Module) list(search bool) *cobra.Command {
 				return usage("year must be between 1 and 9999")
 			}
 			p.Year = &year
+		}
+		if *filterCurrency != "" {
+			validated, e := currency(*filterCurrency)
+			if e != nil {
+				return e
+			}
+			value := daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency(string(*validated))
+			p.Currency = &value
+		}
+		if cmd.Flags().Changed("page") {
+			p.Page = &page
+		}
+		if cmd.Flags().Changed("page-size") {
+			p.PageSize = &pageSize
 		}
 		if *q != "" {
 			p.Q = q
@@ -304,6 +368,23 @@ func (m Module) list(search bool) *cobra.Command {
 			return e
 		}
 		return printResult(cmd, v)
+	}
+	return cmd
+}
+
+func (m Module) get() *cobra.Command {
+	cmd := &cobra.Command{Use: "get ID", Short: "Get a transaction", Args: cli.UsageArgs(cobra.ExactArgs(1))}
+	hh := requiredString(cmd, "household", "household ID")
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		s, err := service(cmd.Context(), m)
+		if err != nil {
+			return err
+		}
+		result, err := s.GetTransaction(cmd.Context(), *hh, args[0])
+		if err != nil {
+			return err
+		}
+		return printResult(cmd, result)
 	}
 	return cmd
 }
@@ -730,6 +811,23 @@ func (m Module) transferUnlink() *cobra.Command {
 	return cmd
 }
 
+func (m Module) installmentList() *cobra.Command {
+	cmd := &cobra.Command{Use: "list", Short: "List installment plans", Args: cli.UsageArgs(cobra.NoArgs)}
+	hh := requiredString(cmd, "household", "household ID")
+	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
+		s, err := service(cmd.Context(), m)
+		if err != nil {
+			return err
+		}
+		result, err := s.ListInstallments(cmd.Context(), *hh)
+		if err != nil {
+			return err
+		}
+		return printResult(cmd, result)
+	}
+	return cmd
+}
+
 func (m Module) installmentCreate() *cobra.Command {
 	cmd := &cobra.Command{Use: "create", Short: "Create an installment plan", Args: cli.UsageArgs(cobra.NoArgs)}
 	hh := requiredString(cmd, "household", "household ID")
@@ -814,7 +912,7 @@ func (m Module) installmentUpdate() *cobra.Command {
 	hh := requiredString(cmd, "household", "household ID")
 	amount := optionalString(cmd, "amount", "purchase total, never cuota amount")
 	description := optionalString(cmd, "description", "description")
-	cur := optionalString(cmd, "currency", "UYU, USD, or EUR")
+	cur := optionalString(cmd, "currency", "currency code published by the installment API contract")
 	account := optionalString(cmd, "account", "account ID")
 	category := optionalString(cmd, "category", "category ID")
 	var clearAccount, clearCategory bool

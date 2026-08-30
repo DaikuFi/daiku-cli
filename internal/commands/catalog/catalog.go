@@ -13,6 +13,7 @@ import (
 	"github.com/DaikuFi/daiku-cli/generated/daikuv1"
 	"github.com/DaikuFi/daiku-cli/internal/api"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
+	"github.com/DaikuFi/daiku-cli/internal/currency"
 	"github.com/DaikuFi/daiku-cli/internal/output"
 	"github.com/DaikuFi/daiku-cli/internal/profiles"
 	"github.com/DaikuFi/daiku-cli/internal/prompt"
@@ -647,16 +648,6 @@ func optional(value string) *string {
 	return &value
 }
 
-var publishedCurrencies = map[string]struct{}{
-	string(daikuv1.Currency595EnumARS): {}, string(daikuv1.Currency595EnumBOB): {}, string(daikuv1.Currency595EnumBRL): {},
-	string(daikuv1.Currency595EnumCLP): {}, string(daikuv1.Currency595EnumCOP): {}, string(daikuv1.Currency595EnumCRC): {},
-	string(daikuv1.Currency595EnumDOP): {}, string(daikuv1.Currency595EnumEUR): {}, string(daikuv1.Currency595EnumGBP): {},
-	string(daikuv1.Currency595EnumGTQ): {}, string(daikuv1.Currency595EnumHNL): {}, string(daikuv1.Currency595EnumMXN): {},
-	string(daikuv1.Currency595EnumNIO): {}, string(daikuv1.Currency595EnumPAB): {}, string(daikuv1.Currency595EnumPEN): {},
-	string(daikuv1.Currency595EnumPYG): {}, string(daikuv1.Currency595EnumUI): {}, string(daikuv1.Currency595EnumUSD): {},
-	string(daikuv1.Currency595EnumUYU): {}, string(daikuv1.Currency595EnumVES): {},
-}
-
 const publishedCountries = "|AD|AE|AF|AG|AI|AL|AM|AO|AQ|AR|AS|AT|AU|AW|AX|AZ|BA|BB|BD|BE|BF|BG|BH|BI|BJ|BL|BM|BN|BO|BQ|BR|BS|BT|BV|BW|BY|BZ|CA|CC|CD|CF|CG|CH|CI|CK|CL|CM|CN|CO|CR|CU|CV|CW|CX|CY|CZ|DE|DJ|DK|DM|DO|DZ|EC|EE|EG|EH|ER|ES|ET|FI|FJ|FK|FM|FO|FR|GA|GB|GD|GE|GF|GG|GH|GI|GL|GM|GN|GP|GQ|GR|GS|GT|GU|GW|GY|HK|HM|HN|HR|HT|HU|ID|IE|IL|IM|IN|IO|IQ|IR|IS|IT|JE|JM|JO|JP|KE|KG|KH|KI|KM|KN|KP|KR|KW|KY|KZ|LA|LB|LC|LI|LK|LR|LS|LT|LU|LV|LY|MA|MC|MD|ME|MF|MG|MH|MK|ML|MM|MN|MO|MP|MQ|MR|MS|MT|MU|MV|MW|MX|MY|MZ|NA|NC|NE|NF|NG|NI|NL|NO|NP|NR|NU|NZ|OM|PA|PE|PF|PG|PH|PK|PL|PM|PN|PR|PS|PT|PW|PY|QA|RE|RO|RS|RU|RW|SA|SB|SC|SD|SE|SG|SH|SI|SJ|SK|SL|SM|SN|SO|SR|SS|ST|SV|SX|SY|SZ|TC|TD|TF|TG|TH|TJ|TK|TL|TM|TN|TO|TR|TT|TV|TW|TZ|UA|UG|UM|US|UY|UZ|VA|VC|VE|VG|VI|VN|VU|WF|WS|YE|YT|ZA|ZM|ZW|"
 
 var publishedAccountTypes = map[string]struct{}{
@@ -664,8 +655,8 @@ var publishedAccountTypes = map[string]struct{}{
 }
 
 func normalizeCurrency(value string) (string, error) {
-	value = strings.ToUpper(strings.TrimSpace(value))
-	if _, ok := publishedCurrencies[value]; !ok {
+	value, ok := currency.Normalize(value)
+	if !ok {
 		return "", usage("currency is not published by the Daiku API contract")
 	}
 	return value, nil
