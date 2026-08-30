@@ -13,6 +13,7 @@ import (
 
 type fakeAPI struct {
 	created          *daikuv1.RecurringExpenseRequest
+	updated          Patch
 	confirmed        *daikuv1.RecurringOccurrenceConfirmRequestRequest
 	skipped, snoozed string
 }
@@ -24,7 +25,8 @@ func (f *fakeAPI) Create(_ context.Context, _ string, b daikuv1.RecurringExpense
 	f.created = &b
 	return &daikuv1.RecurringExpense{Description: b.Description, Amount: b.Amount, DayOfMonth: b.DayOfMonth, Frequency: b.Frequency}, nil
 }
-func (f *fakeAPI) Update(context.Context, string, string, daikuv1.PatchedRecurringExpenseRequest) (*daikuv1.RecurringExpense, error) {
+func (f *fakeAPI) Update(_ context.Context, _, _ string, patch Patch) (*daikuv1.RecurringExpense, error) {
+	f.updated = patch
 	return &daikuv1.RecurringExpense{}, nil
 }
 func (f *fakeAPI) Delete(context.Context, string, string) error { return nil }
@@ -114,5 +116,43 @@ func TestExpenseIncomeAndOccurrenceActions(t *testing.T) {
 	code, _, errOut = runSimple(t, api, "recurring", "occurrences", "snooze", "occ_snooze", "--household", "hh_1", "--until", "2026-09-01", "--json")
 	if code != 0 || api.snoozed != "occ_snooze" {
 		t.Fatalf("snooze code=%d stderr=%q", code, errOut)
+	}
+}
+
+func TestUpdateOmissionAndExplicitClears(t *testing.T) {
+	api := &fakeAPI{}
+	code, _, errOut := runSimple(t, api, "recurring", "update", "rec_1", "--household", "hh_1", "--amount", "12", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%q", code, errOut)
+	}
+	if len(api.updated) != 1 || api.updated["amount"] != "12" {
+		t.Fatalf("patch=%#v", api.updated)
+	}
+	for _, key := range []string{"account", "category", "destination_account", "month_of_year"} {
+		if _, ok := api.updated[key]; ok {
+			t.Fatalf("%s must be omitted: %#v", key, api.updated)
+		}
+	}
+	code, _, errOut = runSimple(t, api, "recurring", "update", "rec_1", "--household", "hh_1", "--clear-account", "--clear-category", "--clear-destination-account", "--clear-month", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%q", code, errOut)
+	}
+	for _, key := range []string{"account", "category", "destination_account", "month_of_year"} {
+		if value, ok := api.updated[key]; !ok || value != nil {
+			t.Fatalf("%s must be null: %#v", key, api.updated)
+		}
+	}
+}
+
+func TestAcceptsPublishedCurrencyAndRejectsUnknown(t *testing.T) {
+	api := &fakeAPI{}
+	base := []string{"recurring", "create", "--household", "hh_1", "--description", "x", "--amount", "10", "--frequency", "monthly", "--type", "expense", "--creation-mode", "auto", "--day", "1", "--json", "--currency"}
+	code, _, errOut := runSimple(t, api, append(base, "MXN")...)
+	if code != 0 {
+		t.Fatalf("MXN code=%d stderr=%q", code, errOut)
+	}
+	code, _, errOut = runSimple(t, api, append(base, "XYZ")...)
+	if code != 2 || !strings.Contains(errOut, "not supported") {
+		t.Fatalf("XYZ code=%d stderr=%q", code, errOut)
 	}
 }

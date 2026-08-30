@@ -1,7 +1,9 @@
 package recurring
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -20,7 +22,7 @@ import (
 type API interface {
 	List(context.Context, string) ([]daikuv1.RecurringExpense, error)
 	Create(context.Context, string, daikuv1.RecurringExpenseRequest) (*daikuv1.RecurringExpense, error)
-	Update(context.Context, string, string, daikuv1.PatchedRecurringExpenseRequest) (*daikuv1.RecurringExpense, error)
+	Update(context.Context, string, string, Patch) (*daikuv1.RecurringExpense, error)
 	Delete(context.Context, string, string) error
 	Occurrences(context.Context, string, *daikuv1.DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParams) ([]daikuv1.RecurringOccurrence, error)
 	Confirm(context.Context, string, string, daikuv1.RecurringOccurrenceConfirmRequestRequest) (*daikuv1.RecurringOccurrence, error)
@@ -29,6 +31,7 @@ type API interface {
 }
 type Factory func(context.Context) (API, error)
 type Module struct{ Factory Factory }
+type Patch map[string]any
 
 func New(store profiles.Store, manager *authcore.Manager) Module {
 	return Module{Factory: func(ctx context.Context) (API, error) {
@@ -80,13 +83,14 @@ type templateFlags struct {
 	household, description, amount, currency, frequency, transactionType, creationMode, account, destinationAccount, category, startDate string
 	day, month                                                                                                                           int
 	active                                                                                                                               bool
+	clearAccount, clearDestinationAccount, clearCategory, clearMonth                                                                     bool
 }
 
 func addTemplateFlags(cmd *cobra.Command, f *templateFlags, create bool) {
 	householdFlag(cmd, &f.household)
 	cmd.Flags().StringVar(&f.description, "description", "", "description")
 	cmd.Flags().StringVar(&f.amount, "amount", "", "amount")
-	cmd.Flags().StringVar(&f.currency, "currency", "", "currency: UYU, USD or EUR")
+	cmd.Flags().StringVar(&f.currency, "currency", "", "ISO currency published by the API contract")
 	cmd.Flags().StringVar(&f.frequency, "frequency", "", "frequency: monthly or yearly")
 	cmd.Flags().StringVar(&f.transactionType, "type", "", "transaction type: expense, income or transfer")
 	cmd.Flags().StringVar(&f.creationMode, "creation-mode", "", "creation mode: auto or confirm")
@@ -97,6 +101,10 @@ func addTemplateFlags(cmd *cobra.Command, f *templateFlags, create bool) {
 	cmd.Flags().IntVar(&f.day, "day", 0, "day of month (1-31)")
 	cmd.Flags().IntVar(&f.month, "month", 0, "month of year for yearly templates (1-12)")
 	cmd.Flags().BoolVar(&f.active, "active", true, "whether the template is active")
+	cmd.Flags().BoolVar(&f.clearAccount, "clear-account", false, "clear the source account")
+	cmd.Flags().BoolVar(&f.clearDestinationAccount, "clear-destination-account", false, "clear the destination account")
+	cmd.Flags().BoolVar(&f.clearCategory, "clear-category", false, "clear the category")
+	cmd.Flags().BoolVar(&f.clearMonth, "clear-month", false, "clear the month of year")
 	if create {
 		for _, n := range []string{"description", "amount", "currency", "frequency", "type", "creation-mode", "day"} {
 			_ = cmd.MarkFlagRequired(n)
@@ -107,8 +115,8 @@ func validateTemplate(f templateFlags, partial bool) error {
 	if !partial && (f.description == "" || f.amount == "" || f.currency == "" || f.frequency == "" || f.transactionType == "" || f.creationMode == "" || f.day == 0) {
 		return usage("description, amount, currency, frequency, type, creation-mode and day are required")
 	}
-	if f.currency != "" && f.currency != "UYU" && f.currency != "USD" && f.currency != "EUR" {
-		return usage("currency must be UYU, USD or EUR")
+	if f.currency != "" && !validCurrency(f.currency) {
+		return usage("currency is not supported by the Daiku API contract")
 	}
 	if f.frequency != "" && f.frequency != "monthly" && f.frequency != "yearly" {
 		return usage("frequency must be monthly or yearly")
@@ -142,7 +150,18 @@ func validateTemplate(f templateFlags, partial bool) error {
 			return e
 		}
 	}
+	if (f.account != "" && f.clearAccount) || (f.destinationAccount != "" && f.clearDestinationAccount) || (f.category != "" && f.clearCategory) || (f.month != 0 && f.clearMonth) {
+		return usage("a field cannot be set and cleared together")
+	}
 	return nil
+}
+func validCurrency(value string) bool {
+	for _, currency := range []string{"ARS", "BOB", "BRL", "CLP", "COP", "CRC", "DOP", "EUR", "GBP", "GTQ", "HNL", "MXN", "NIO", "PAB", "PEN", "PYG", "UI", "USD", "UYU", "VES"} {
+		if value == currency {
+			return true
+		}
+	}
+	return false
 }
 func request(f templateFlags) (daikuv1.RecurringExpenseRequest, error) {
 	r := daikuv1.RecurringExpenseRequest{Description: f.description, Amount: f.amount, DayOfMonth: f.day, Frequency: daikuv1.FrequencyDceEnum(f.frequency)}
@@ -200,7 +219,7 @@ func (m Module) update() *cobra.Command {
 		if e := validateTemplate(f, true); e != nil {
 			return e
 		}
-		names := []string{"description", "amount", "currency", "frequency", "type", "creation-mode", "account", "destination-account", "category", "start-date", "day", "month", "active"}
+		names := []string{"description", "amount", "currency", "frequency", "type", "creation-mode", "account", "destination-account", "category", "start-date", "day", "month", "active", "clear-account", "clear-destination-account", "clear-category", "clear-month"}
 		changed := false
 		for _, n := range names {
 			changed = changed || cmd.Flags().Changed(n)
@@ -208,53 +227,61 @@ func (m Module) update() *cobra.Command {
 		if !changed {
 			return usage("provide at least one field to update")
 		}
-		b := daikuv1.PatchedRecurringExpenseRequest{}
+		b := Patch{}
 		if cmd.Flags().Changed("description") {
-			b.Description = &f.description
+			b["description"] = f.description
 		}
 		if cmd.Flags().Changed("amount") {
-			b.Amount = &f.amount
+			b["amount"] = f.amount
 		}
 		if cmd.Flags().Changed("currency") {
-			v := daikuv1.Currency3e8Enum(f.currency)
-			b.Currency = &v
+			b["currency"] = f.currency
 		}
 		if cmd.Flags().Changed("frequency") {
-			v := daikuv1.FrequencyDceEnum(f.frequency)
-			b.Frequency = &v
+			b["frequency"] = f.frequency
 		}
 		if cmd.Flags().Changed("type") {
-			v := daikuv1.RecurringExpenseTransactionTypeEnum(f.transactionType)
-			b.TransactionType = &v
+			b["transaction_type"] = f.transactionType
 		}
 		if cmd.Flags().Changed("creation-mode") {
-			v := daikuv1.CreationModeEnum(f.creationMode)
-			b.CreationMode = &v
+			b["creation_mode"] = f.creationMode
 		}
 		if cmd.Flags().Changed("account") {
-			b.Account = &f.account
+			b["account"] = f.account
 		}
 		if cmd.Flags().Changed("destination-account") {
-			b.DestinationAccount = &f.destinationAccount
+			b["destination_account"] = f.destinationAccount
 		}
 		if cmd.Flags().Changed("category") {
-			b.Category = &f.category
+			b["category"] = f.category
 		}
 		if cmd.Flags().Changed("day") {
-			b.DayOfMonth = &f.day
+			b["day_of_month"] = f.day
 		}
 		if cmd.Flags().Changed("month") {
-			b.MonthOfYear = &f.month
+			b["month_of_year"] = f.month
 		}
 		if cmd.Flags().Changed("active") {
-			b.IsActive = &f.active
+			b["is_active"] = f.active
 		}
 		if cmd.Flags().Changed("start-date") {
 			d, e := parseDate(f.startDate)
 			if e != nil {
 				return e
 			}
-			b.StartDate = &d
+			b["start_date"] = d
+		}
+		if f.clearAccount {
+			b["account"] = nil
+		}
+		if f.clearDestinationAccount {
+			b["destination_account"] = nil
+		}
+		if f.clearCategory {
+			b["category"] = nil
+		}
+		if f.clearMonth {
+			b["month_of_year"] = nil
 		}
 		a, e := m.Factory(cmd.Context())
 		if e != nil {
@@ -471,8 +498,12 @@ func (a generatedAPI) Create(ctx context.Context, h string, b daikuv1.RecurringE
 	}
 	return r.JSON201, nil
 }
-func (a generatedAPI) Update(ctx context.Context, h, id string, b daikuv1.PatchedRecurringExpenseRequest) (*daikuv1.RecurringExpense, error) {
-	r, e := a.c.DaikuHouseholdsHouseholdPkRecurringIdPatchWithResponse(ctx, h, id, b)
+func (a generatedAPI) Update(ctx context.Context, h, id string, b Patch) (*daikuv1.RecurringExpense, error) {
+	payload, e := json.Marshal(b)
+	if e != nil {
+		return nil, apiFailure()
+	}
+	r, e := a.c.DaikuHouseholdsHouseholdPkRecurringIdPatchWithBodyWithResponse(ctx, h, id, "application/json", bytes.NewReader(payload))
 	if e != nil {
 		return nil, apiFailure()
 	}

@@ -12,15 +12,20 @@ import (
 )
 
 type fakeAPI struct {
-	summary *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSummaryGetParams
-	created *daikuv1.CategoryBudgetRequest
-	deleted string
+	summary     *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSummaryGetParams
+	planned     *daikuv1.DaikuHouseholdsHouseholdPkBudgetsPlannedGetParams
+	suggestions *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParams
+	created     *daikuv1.CategoryBudgetRequest
+	deleted     string
+	updated     Patch
 }
 
-func (f *fakeAPI) Planned(context.Context, string, *daikuv1.DaikuHouseholdsHouseholdPkBudgetsPlannedGetParams) (*daikuv1.PlannedBudgets, error) {
+func (f *fakeAPI) Planned(_ context.Context, _ string, params *daikuv1.DaikuHouseholdsHouseholdPkBudgetsPlannedGetParams) (*daikuv1.PlannedBudgets, error) {
+	f.planned = params
 	return &daikuv1.PlannedBudgets{}, nil
 }
-func (f *fakeAPI) Suggestions(context.Context, string, *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParams) (*daikuv1.BudgetSuggestionsResponse, error) {
+func (f *fakeAPI) Suggestions(_ context.Context, _ string, params *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParams) (*daikuv1.BudgetSuggestionsResponse, error) {
+	f.suggestions = params
 	return &daikuv1.BudgetSuggestionsResponse{}, nil
 }
 func (f *fakeAPI) Summary(_ context.Context, _ string, p *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSummaryGetParams) (*daikuv1.BudgetSummary, error) {
@@ -34,8 +39,73 @@ func (f *fakeAPI) Create(_ context.Context, _ string, b daikuv1.CategoryBudgetRe
 	f.created = &b
 	return &daikuv1.CategoryBudget{Amount: b.Amount, Category: b.Category}, nil
 }
-func (f *fakeAPI) Update(context.Context, string, string, daikuv1.PatchedCategoryBudgetRequest) (*daikuv1.CategoryBudget, error) {
+func (f *fakeAPI) Update(_ context.Context, _, _ string, patch Patch) (*daikuv1.CategoryBudget, error) {
+	f.updated = patch
 	return &daikuv1.CategoryBudget{}, nil
+}
+
+func TestUpdatePreservesOmittedAndExplicitNull(t *testing.T) {
+	api := &fakeAPI{}
+	code, _, errOut := runSimple(t, api, "budgets", "rules", "update", "bud_1", "--household", "hh_1", "--amount", "123", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%q", code, errOut)
+	}
+	if len(api.updated) != 1 || api.updated["amount"] != "123" {
+		t.Fatalf("patch=%#v", api.updated)
+	}
+	if _, ok := api.updated["month"]; ok {
+		t.Fatalf("month must be omitted: %#v", api.updated)
+	}
+	code, _, errOut = runSimple(t, api, "budgets", "rules", "update", "bud_1", "--household", "hh_1", "--clear-month", "--clear-year", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%q", code, errOut)
+	}
+	if month, ok := api.updated["month"]; !ok || month != nil {
+		t.Fatalf("month clear=%#v", api.updated)
+	}
+	if year, ok := api.updated["year"]; !ok || year != nil {
+		t.Fatalf("year clear=%#v", api.updated)
+	}
+}
+
+func TestBudgetRuleAcceptsPublishedCurrency(t *testing.T) {
+	api := &fakeAPI{}
+	code, _, errOut := runSimple(t, api, "budgets", "rules", "create", "--household", "hh_1", "--category", "cat_1", "--amount", "10", "--currency", "BRL", "--scope", "monthly", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%q", code, errOut)
+	}
+}
+
+func TestPlannedAndSuggestionsPinTheirPeriods(t *testing.T) {
+	api := &fakeAPI{}
+	code, _, errOut := runSimple(t, api, "budgets", "planned", "--household", "hh_1", "--year", "2027", "--currency", "EUR", "--json")
+	if code != 0 || api.planned == nil || *api.planned.Year != 2027 {
+		t.Fatalf("planned code=%d stderr=%q params=%+v", code, errOut, api.planned)
+	}
+	code, _, errOut = runSimple(t, api, "budgets", "suggestions", "--household", "hh_1", "--year", "2027", "--month", "4", "--currency", "USD", "--json")
+	if code != 0 || api.suggestions == nil || *api.suggestions.Year != 2027 || *api.suggestions.Month != 4 {
+		t.Fatalf("suggestions code=%d stderr=%q params=%+v", code, errOut, api.suggestions)
+	}
+}
+
+func TestSpanishHumanOutputAndForbiddenError(t *testing.T) {
+	api := &fakeAPI{}
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	app := cli.New(cli.WithIO(strings.NewReader(""), out, errOut), cli.WithEnvironment(func(name string) (string, bool) {
+		if name == "DAIKU_LANG" {
+			return "es", true
+		}
+		return "", false
+	}), cli.WithTerminalDetector(func(io.Writer) bool { return false }), cli.WithInteractiveDetector(func(io.Reader, io.Writer) bool { return false }), cli.WithModule(Module{Factory: func(context.Context) (API, error) { return api, nil }}))
+	if code := app.Run([]string{"budgets", "rules", "list", "--household", "hh_1"}); code != 0 || !strings.Contains(out.String(), "reglas de presupuesto") {
+		t.Fatalf("code=%d out=%q err=%q", code, out.String(), errOut.String())
+	}
+	err := status(403)
+	cliErr, ok := err.(*cli.Error)
+	if !ok || cliErr.ExitCode != cli.ExitForbidden || cliErr.Code != "forbidden" {
+		t.Fatalf("error=%#v", err)
+	}
 }
 func (f *fakeAPI) Delete(_ context.Context, _ string, id string) error { f.deleted = id; return nil }
 

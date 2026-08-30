@@ -1,7 +1,9 @@
 package budgets
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -20,12 +22,13 @@ type API interface {
 	Summary(context.Context, string, *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSummaryGetParams) (*daikuv1.BudgetSummary, error)
 	List(context.Context, string) ([]daikuv1.CategoryBudget, error)
 	Create(context.Context, string, daikuv1.CategoryBudgetRequest) (*daikuv1.CategoryBudget, error)
-	Update(context.Context, string, string, daikuv1.PatchedCategoryBudgetRequest) (*daikuv1.CategoryBudget, error)
+	Update(context.Context, string, string, Patch) (*daikuv1.CategoryBudget, error)
 	Delete(context.Context, string, string) error
 }
 
 type Factory func(context.Context) (API, error)
 type Module struct{ Factory Factory }
+type Patch map[string]any
 
 func New(store profiles.Store, manager *authcore.Manager) Module {
 	return Module{Factory: func(ctx context.Context) (API, error) {
@@ -165,6 +168,7 @@ func (m Module) ruleList() *cobra.Command {
 type ruleFlags struct {
 	household, category, amount, currency, scope string
 	month, year                                  int
+	clearMonth, clearYear                        bool
 }
 
 func addRuleFlags(cmd *cobra.Command, f *ruleFlags, create bool) {
@@ -175,6 +179,8 @@ func addRuleFlags(cmd *cobra.Command, f *ruleFlags, create bool) {
 	cmd.Flags().StringVar(&f.scope, "scope", "", "scope: monthly, yearly or month")
 	cmd.Flags().IntVar(&f.month, "month", 0, "month (required for month scope)")
 	cmd.Flags().IntVar(&f.year, "year", 0, "pinned year (required for month scope)")
+	cmd.Flags().BoolVar(&f.clearMonth, "clear-month", false, "clear the pinned month")
+	cmd.Flags().BoolVar(&f.clearYear, "clear-year", false, "clear the pinned year")
 	if create {
 		for _, name := range []string{"category", "amount", "currency", "scope"} {
 			_ = cmd.MarkFlagRequired(name)
@@ -185,8 +191,8 @@ func validateRule(f ruleFlags, partial bool) error {
 	if !partial && (f.category == "" || f.amount == "" || f.currency == "" || f.scope == "") {
 		return usage("category, amount, currency and scope are required")
 	}
-	if f.currency != "" && f.currency != "UYU" && f.currency != "USD" && f.currency != "EUR" {
-		return usage("currency must be UYU, USD or EUR")
+	if f.currency != "" && !validCurrency(f.currency) {
+		return usage("currency is not supported by the Daiku API contract")
 	}
 	if f.scope != "" && f.scope != "monthly" && f.scope != "yearly" && f.scope != "month" {
 		return usage("scope must be monthly, yearly or month")
@@ -197,7 +203,18 @@ func validateRule(f ruleFlags, partial bool) error {
 	if (f.scope == "monthly" || f.scope == "yearly") && (f.month != 0 || f.year != 0) {
 		return usage("month and year are only valid for month scope")
 	}
+	if (f.month != 0 && f.clearMonth) || (f.year != 0 && f.clearYear) {
+		return usage("a field cannot be set and cleared together")
+	}
 	return nil
+}
+func validCurrency(value string) bool {
+	for _, currency := range []string{"ARS", "BOB", "BRL", "CLP", "COP", "CRC", "DOP", "EUR", "GBP", "GTQ", "HNL", "MXN", "NIO", "PAB", "PEN", "PYG", "UI", "USD", "UYU", "VES"} {
+		if value == currency {
+			return true
+		}
+	}
+	return false
 }
 func ruleRequest(f ruleFlags) daikuv1.CategoryBudgetRequest {
 	currency := daikuv1.Currency3e8Enum(f.currency)
@@ -233,29 +250,33 @@ func (m Module) ruleUpdate() *cobra.Command {
 		if err := validateRule(f, true); err != nil {
 			return err
 		}
-		if !cmd.Flags().Changed("category") && !cmd.Flags().Changed("amount") && !cmd.Flags().Changed("currency") && !cmd.Flags().Changed("scope") && !cmd.Flags().Changed("month") && !cmd.Flags().Changed("year") {
+		if !cmd.Flags().Changed("category") && !cmd.Flags().Changed("amount") && !cmd.Flags().Changed("currency") && !cmd.Flags().Changed("scope") && !cmd.Flags().Changed("month") && !cmd.Flags().Changed("year") && !f.clearMonth && !f.clearYear {
 			return usage("provide at least one field to update")
 		}
-		body := daikuv1.PatchedCategoryBudgetRequest{}
+		body := Patch{}
 		if cmd.Flags().Changed("category") {
-			body.Category = &f.category
+			body["category"] = f.category
 		}
 		if cmd.Flags().Changed("amount") {
-			body.Amount = &f.amount
+			body["amount"] = f.amount
 		}
 		if cmd.Flags().Changed("currency") {
-			v := daikuv1.Currency3e8Enum(f.currency)
-			body.Currency = &v
+			body["currency"] = f.currency
 		}
 		if cmd.Flags().Changed("scope") {
-			v := daikuv1.CategoryBudgetScopeEnum(f.scope)
-			body.Scope = &v
+			body["scope"] = f.scope
 		}
 		if cmd.Flags().Changed("month") {
-			body.Month = &f.month
+			body["month"] = f.month
 		}
 		if cmd.Flags().Changed("year") {
-			body.Year = &f.year
+			body["year"] = f.year
+		}
+		if f.clearMonth {
+			body["month"] = nil
+		}
+		if f.clearYear {
+			body["year"] = nil
 		}
 		a, err := m.Factory(cmd.Context())
 		if err != nil {
@@ -386,8 +407,12 @@ func (a generatedAPI) Create(ctx context.Context, h string, b daikuv1.CategoryBu
 	}
 	return r.JSON201, nil
 }
-func (a generatedAPI) Update(ctx context.Context, h, id string, b daikuv1.PatchedCategoryBudgetRequest) (*daikuv1.CategoryBudget, error) {
-	r, e := a.c.DaikuHouseholdsHouseholdPkCategoryBudgetsIdPatchWithResponse(ctx, h, id, b)
+func (a generatedAPI) Update(ctx context.Context, h, id string, b Patch) (*daikuv1.CategoryBudget, error) {
+	payload, e := json.Marshal(b)
+	if e != nil {
+		return nil, apiFailure()
+	}
+	r, e := a.c.DaikuHouseholdsHouseholdPkCategoryBudgetsIdPatchWithBodyWithResponse(ctx, h, id, "application/json", bytes.NewReader(payload))
 	if e != nil {
 		return nil, apiFailure()
 	}
