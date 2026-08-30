@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -111,6 +113,63 @@ func TestGeneratedServiceListDecodesEnrichedExpensePageNatively(t *testing.T) {
 		expense.CashFlowLink.Id != "cfl_1" ||
 		expense.CashFlowLink.Side != daikuv1.CashFlowLinkSummarySideEnumCashOut {
 		t.Fatalf("cash_flow_link = %#v", expense.CashFlowLink)
+	}
+}
+
+func TestGeneratedServiceListSendsPublishedPaginationControlsOverHTTP(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/households/hh_1/expenses/" {
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer fixture-token" {
+			http.Error(w, "missing bearer token", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch requests {
+		case 1:
+			if r.URL.Query().Get("paginated") != "true" || r.URL.Query().Get("month") != "8" || r.URL.Query().Get("year") != "2026" {
+				http.Error(w, "unexpected query", http.StatusBadRequest)
+				return
+			}
+			fmt.Fprint(w, `{"count":1,"next":null,"previous":null,"results":[]}`)
+		case 2:
+			if _, present := r.URL.Query()["paginated"]; present {
+				http.Error(w, "paginated must be omitted for all", http.StatusBadRequest)
+				return
+			}
+			fmt.Fprint(w, `[]`)
+		default:
+			http.Error(w, "too many requests", http.StatusBadRequest)
+		}
+	}))
+	t.Cleanup(server.Close)
+	client, err := daikuv1.NewClientWithResponses(server.URL, daikuv1.WithRequestEditorFn(func(_ context.Context, request *http.Request) error {
+		request.Header.Set("Authorization", "Bearer fixture-token")
+		return nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	month, year, paginated := 8, 2026, true
+	result, err := (generatedService{client}).List(context.Background(), "hh_1", &daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams{
+		Month: &month, Year: &year, Paginated: &paginated,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := result.(daikuv1.ExpensePage); !ok {
+		t.Fatalf("paged result=%#v", result)
+	}
+	result, err = (generatedService{client}).List(context.Background(), "hh_1", &daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := result.([]daikuv1.Expense); !ok {
+		t.Fatalf("all result=%#v", result)
 	}
 }
 

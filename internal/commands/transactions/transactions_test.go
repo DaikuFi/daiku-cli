@@ -25,10 +25,14 @@ type fakeService struct {
 	converted          bool
 	unlinked           bool
 	listed             *daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams
+	listResult         any
 }
 
 func (f *fakeService) List(_ context.Context, _ string, p *daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams) (any, error) {
 	f.listed = p
+	if f.listResult != nil {
+		return f.listResult, nil
+	}
 	return []daikuv1.Expense{}, nil
 }
 func (f *fakeService) Create(_ context.Context, _ string, b daikuv1.ExpenseRequest) (any, error) {
@@ -90,6 +94,8 @@ func run(t *testing.T, svc *fakeService, input string, args ...string) (int, str
 	return code, out.String(), errOut.String()
 }
 
+func stringptr(value string) *string { return &value }
+
 func TestCreatePreservesDecimalStringAndJSONEnvelope(t *testing.T) {
 	svc := &fakeService{}
 	code, out, stderr := run(t, svc, "", "transactions", "create", "--household", "hh_1", "--amount", "1.2300", "--description", "Lunch", "--currency", "USD", "--json")
@@ -114,6 +120,69 @@ func TestListRejectsInvertedRangeBeforeCallingAPI(t *testing.T) {
 	code, _, stderr := run(t, svc, "", "transactions", "list", "--household", "hh_1", "--from", "2026-08-30", "--to", "2026-08-01")
 	if code != int(cli.ExitUsage) || svc.listed != nil {
 		t.Fatalf("code=%d listed=%v err=%s", code, svc.listed, stderr)
+	}
+}
+
+func TestListWiresPublishedMonthYearAndAllControls(t *testing.T) {
+	svc := &fakeService{}
+	code, _, stderr := run(t, svc, "", "transactions", "list", "--household", "hh_1", "--month", "8", "--year", "2026", "--all", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d err=%s", code, stderr)
+	}
+	if svc.listed == nil || svc.listed.Month == nil || *svc.listed.Month != 8 || svc.listed.Year == nil || *svc.listed.Year != 2026 {
+		t.Fatalf("params=%#v", svc.listed)
+	}
+	if svc.listed.Paginated != nil {
+		t.Fatalf("--all sent paginated=%v; the contract requires omitting it", *svc.listed.Paginated)
+	}
+
+	svc = &fakeService{}
+	code, _, stderr = run(t, svc, "", "transactions", "list", "--household", "hh_1", "--json")
+	if code != 0 || svc.listed == nil || svc.listed.Paginated == nil || !*svc.listed.Paginated {
+		t.Fatalf("default code=%d params=%#v err=%s", code, svc.listed, stderr)
+	}
+}
+
+func TestListRejectsInvalidPublishedCalendarFilters(t *testing.T) {
+	for _, args := range [][]string{
+		{"transactions", "list", "--household", "hh_1", "--month", "0", "--json"},
+		{"transactions", "list", "--household", "hh_1", "--month", "13", "--json"},
+		{"transactions", "list", "--household", "hh_1", "--year", "0", "--json"},
+	} {
+		svc := &fakeService{}
+		code, _, _ := run(t, svc, "", args...)
+		if code != int(cli.ExitUsage) || svc.listed != nil {
+			t.Fatalf("args=%v code=%d params=%#v", args, code, svc.listed)
+		}
+	}
+}
+
+func TestListPreservesPageEnvelopeForAgentsAndGuidesHumansToAll(t *testing.T) {
+	id := "exp_1"
+	page := daikuv1.ExpensePage{
+		Count: 2,
+		Next:  stringptr("https://api.daiku.test/api/v1/households/hh_1/expenses/?page=2"),
+		Results: []daikuv1.Expense{{
+			Id: &id, Amount: "1.00", Description: "Coffee",
+		}},
+	}
+	svc := &fakeService{listResult: page}
+	code, out, stderr := run(t, svc, "", "transactions", "list", "--household", "hh_1", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d err=%s", code, stderr)
+	}
+	var envelope struct {
+		OK   bool                `json:"ok"`
+		Data daikuv1.ExpensePage `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(out), &envelope); err != nil || !envelope.OK || envelope.Data.Count != 2 || envelope.Data.Next == nil {
+		t.Fatalf("envelope=%s err=%v", out, err)
+	}
+
+	svc = &fakeService{listResult: page}
+	code, out, stderr = run(t, svc, "", "transactions", "list", "--household", "hh_1", "--language", "es")
+	if code != 0 || !strings.Contains(out, "Mostrando 1 de 2 transacciones") || !strings.Contains(out, "--all") {
+		t.Fatalf("code=%d out=%s err=%s", code, out, stderr)
 	}
 }
 
@@ -325,6 +394,15 @@ func TestSpanishTransactionHelpAndHumanValidationError(t *testing.T) {
 	for _, translated := range []string{"Crea una transacción", "ID del hogar", "importe decimal", "descripción"} {
 		if !strings.Contains(out, translated) {
 			t.Fatalf("help missing %q: %s", translated, out)
+		}
+	}
+	code, out, stderr = run(t, svc, "", "transactions", "list", "--language", "es", "--help")
+	if code != 0 {
+		t.Fatalf("list help code=%d err=%s", code, stderr)
+	}
+	for _, translated := range []string{"mes 1-12", "año de cuatro dígitos", "obtiene todas las transacciones coincidentes sin paginación"} {
+		if !strings.Contains(out, translated) {
+			t.Fatalf("list help missing %q: %s", translated, out)
 		}
 	}
 

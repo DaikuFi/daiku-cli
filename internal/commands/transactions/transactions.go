@@ -125,7 +125,14 @@ func printResult(cmd *cobra.Command, value any) error {
 	human := cli.Human(cmd)
 	renderer := output.Renderer{Writer: cmd.OutOrStdout(), Localize: human.Localizer, Terminal: human.Terminal, Width: human.Width, NoColor: human.NoColor}
 	if items != nil {
-		return renderer.Table(expenseRows(items, human.Localizer.Language == "es"))
+		if err := renderer.Table(expenseRows(items, human.Localizer.Language == "es")); err != nil {
+			return err
+		}
+		if page, ok := value.(daikuv1.ExpensePage); ok && page.Count > len(page.Results) {
+			_, err := fmt.Fprint(cmd.OutOrStdout(), human.Localizer.Humanf("Showing %d of %d transactions. Use --all to fetch every matching transaction.\n", len(page.Results), page.Count))
+			return err
+		}
+		return nil
 	}
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
@@ -216,6 +223,11 @@ func (m Module) list(search bool) *cobra.Command {
 	to := optionalString(cmd, "to", "inclusive end date")
 	account := optionalString(cmd, "account", "account ID")
 	category := optionalString(cmd, "category", "category ID")
+	var month, year int
+	cmd.Flags().IntVar(&month, "month", 0, "month 1-12")
+	cmd.Flags().IntVar(&year, "year", 0, "four-digit year")
+	var all bool
+	cmd.Flags().BoolVar(&all, "all", false, "fetch every matching transaction without pagination")
 	kind := optionalString(cmd, "kind", "recurring or one-time")
 	typ := optionalString(cmd, "type", "expense or income")
 	ordering := optionalString(cmd, "ordering", "newest, oldest, amount_high, or amount_low")
@@ -236,7 +248,22 @@ func (m Module) list(search bool) *cobra.Command {
 		if fd != nil && td != nil && fd.Time.After(td.Time) {
 			return &cli.Error{Code: "invalid_range", Message: "--from must not be after --to", ExitCode: cli.ExitUsage}
 		}
-		p := &daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams{DateFrom: fd, DateTo: td, Paginated: boolptr(true)}
+		p := &daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams{DateFrom: fd, DateTo: td}
+		if !all {
+			p.Paginated = boolptr(true)
+		}
+		if cmd.Flags().Changed("month") {
+			if month < 1 || month > 12 {
+				return usage("month must be between 1 and 12")
+			}
+			p.Month = &month
+		}
+		if cmd.Flags().Changed("year") {
+			if year < 1 || year > 9999 {
+				return usage("year must be between 1 and 9999")
+			}
+			p.Year = &year
+		}
 		if *q != "" {
 			p.Q = q
 		}
