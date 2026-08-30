@@ -609,7 +609,14 @@ func readJSON(cmd *cobra.Command, path string, out any) error {
 	return nil
 }
 func (m Module) bulkCreate() *cobra.Command {
-	cmd := &cobra.Command{Use: "bulk-create", Short: "Create transactions in bulk", Args: cli.UsageArgs(cobra.NoArgs)}
+	cmd := &cobra.Command{
+		Use:   "bulk-create",
+		Short: "Create transactions in bulk",
+		Long:  "Create transactions from one JSON object with an expenses array. Pass a path to --file, or pass --file - to read the same JSON from stdin.",
+		Example: `  daiku transactions bulk-create --household hsh_123 --file transactions.json
+  printf '%s\n' '{"expenses":[{"amount":"10.50","description":"Coffee","expense_date":"2026-08-30","currency":"UYU","transaction_type":"expense"}]}' | daiku transactions bulk-create --household hsh_123 --file -`,
+		Args: cli.UsageArgs(cobra.NoArgs),
+	}
 	hh := requiredString(cmd, "household", "household ID")
 	file := requiredString(cmd, "file", "JSON file, or - for stdin")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -644,7 +651,14 @@ func (m Module) bulkCreate() *cobra.Command {
 }
 func (m Module) bulkUpdate() *cobra.Command {
 	var yes bool
-	cmd := &cobra.Command{Use: "bulk-update", Short: "Update matching transactions in bulk", Args: cli.UsageArgs(cobra.NoArgs)}
+	cmd := &cobra.Command{
+		Use:   "bulk-update",
+		Short: "Update matching transactions in bulk",
+		Long:  "Update transactions from one JSON object with ids and updates. updates accepts account and category; use null to clear either field. Pass a path to --file, or pass --file - to read the same JSON from stdin.",
+		Example: `  daiku transactions bulk-update --household hsh_123 --file updates.json --yes
+  printf '%s\n' '{"ids":["exp_123"],"updates":{"category":"cat_123"}}' | daiku transactions bulk-update --household hsh_123 --file - --yes`,
+		Args: cli.UsageArgs(cobra.NoArgs),
+	}
 	hh := requiredString(cmd, "household", "household ID")
 	file := requiredString(cmd, "file", "JSON file, or - for stdin")
 	cmd.Flags().BoolVar(&yes, "yes", false, "skip the interactive confirmation")

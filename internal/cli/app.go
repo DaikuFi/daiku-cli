@@ -276,6 +276,13 @@ func (a *App) helpFunc(jsonOutput bool, localizer i18n.Localizer, helpErr *error
 			}
 		}
 
+		if command.Example != "" {
+			if _, err := fmt.Fprintf(command.OutOrStdout(), "\n%s:\n%s\n", localizer.Text(i18n.ExamplesHeading), command.Example); err != nil {
+				*helpErr = err
+				return
+			}
+		}
+
 		if _, err := fmt.Fprintf(command.OutOrStdout(), "\n%s:\n", localizer.Text(i18n.FlagsHeading)); err != nil {
 			*helpErr = err
 			return

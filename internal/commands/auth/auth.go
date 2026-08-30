@@ -99,7 +99,7 @@ func (m Module) logout() *cobra.Command {
 	return cmd
 }
 func (m Module) status() *cobra.Command {
-	return &cobra.Command{Use: "status", Short: "Show authentication status", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(cmd *cobra.Command, _ []string) error {
+	return &cobra.Command{Use: "status", Short: "Show authentication status", Long: "Read authentication status. Exit code 0 means the status was read successfully, including when logged_in is false. Scripts should inspect data.logged_in from --json output.", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(cmd *cobra.Command, _ []string) error {
 		profile, err := m.selected()
 		if err != nil {
 			return err

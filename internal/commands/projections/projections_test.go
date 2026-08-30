@@ -26,6 +26,7 @@ import (
 type fakeAPI struct {
 	scenarios       []daikuv1.ProjectionScenario
 	rules           []daikuv1.ProjectionRule
+	ruleTypes       []daikuv1.RuleType
 	series          *daikuv1.NetWorthSeries
 	netWorthParams  *daikuv1.DaikuPortfoliosReportsNetWorthGetParams
 	exposureParams  *daikuv1.DaikuPortfoliosReportsCurrencyExposureGetParams
@@ -60,6 +61,9 @@ func (f *fakeAPI) Retirement(context.Context, string, string) (*daikuv1.Retireme
 }
 func (f *fakeAPI) RuleList(context.Context, string) ([]daikuv1.ProjectionRule, error) {
 	return f.rules, f.err
+}
+func (f *fakeAPI) RuleTypes(context.Context) ([]daikuv1.RuleType, error) {
+	return f.ruleTypes, f.err
 }
 func (f *fakeAPI) RuleCreate(_ context.Context, _ string, b daikuv1.ProjectionRuleRequest) (*daikuv1.ProjectionRule, error) {
 	f.created = &b
@@ -169,6 +173,56 @@ func TestRuleConfigRejectsInvalidContractEnums(t *testing.T) {
 	}
 }
 
+func TestRuleTypesListHasStableJSONWithConfigFields(t *testing.T) {
+	placeholder := "1000"
+	api := &fakeAPI{ruleTypes: []daikuv1.RuleType{
+		{Category: daikuv1.RuleTypeCategoryEnumDebt, ConfigFields: []daikuv1.RuleConfigField{}, DescriptionKey: "rules.debt.description", LabelKey: "rules.debt.label", Priority: 20, Type: "debt_payment"},
+		{Category: daikuv1.RuleTypeCategoryEnumIncome, ConfigFields: []daikuv1.RuleConfigField{{LabelKey: "rules.amount", Name: "amount", Placeholder: &placeholder, Required: true, Type: daikuv1.TypeEnumAmount}}, DescriptionKey: "rules.salary.description", LabelKey: "rules.salary.label", Priority: 10, Type: "salary"},
+	}}
+	code, out, stderr := run(t, api, false, "projections", "rule-types", "list", "--json")
+	want := "{\"ok\":true,\"data\":{\"rule_types\":[{\"category\":\"income\",\"config_fields\":[{\"label_key\":\"rules.amount\",\"name\":\"amount\",\"placeholder\":\"1000\",\"required\":true,\"type\":\"amount\"}],\"description_key\":\"rules.salary.description\",\"label_key\":\"rules.salary.label\",\"priority\":10,\"type\":\"salary\"},{\"category\":\"debt\",\"config_fields\":[],\"description_key\":\"rules.debt.description\",\"label_key\":\"rules.debt.label\",\"priority\":20,\"type\":\"debt_payment\"}]}}\n"
+	if code != 0 || stderr != "" || out != want {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, out, stderr)
+	}
+}
+
+func TestRuleTypesGetShowsConfigFieldsInHumanOutput(t *testing.T) {
+	placeholder := "1000"
+	api := &fakeAPI{ruleTypes: []daikuv1.RuleType{{Category: daikuv1.RuleTypeCategoryEnumIncome, ConfigFields: []daikuv1.RuleConfigField{{LabelKey: "rules.amount", Name: "amount", Placeholder: &placeholder, Required: true, Type: daikuv1.TypeEnumAmount}}, Priority: 10, Type: "salary"}}}
+	code, out, stderr := run(t, api, true, "projections", "rule-types", "get", "salary")
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, out, stderr)
+	}
+	for _, want := range []string{"salary", "income", "amount", "required", "1000", "rules.amount"} {
+		if !strings.Contains(strings.ToLower(out), strings.ToLower(want)) {
+			t.Fatalf("human output missing %q: %s", want, out)
+		}
+	}
+}
+
+func TestRuleTypesGetHasStableJSON(t *testing.T) {
+	api := &fakeAPI{ruleTypes: []daikuv1.RuleType{{Category: daikuv1.RuleTypeCategoryEnumAsset, ConfigFields: []daikuv1.RuleConfigField{}, DescriptionKey: "rules.asset.description", LabelKey: "rules.asset.label", Priority: 5, Type: "asset_growth"}}}
+	code, out, stderr := run(t, api, false, "projections", "rule-types", "get", "asset_growth", "--json")
+	want := "{\"ok\":true,\"data\":{\"category\":\"asset\",\"config_fields\":[],\"description_key\":\"rules.asset.description\",\"label_key\":\"rules.asset.label\",\"priority\":5,\"type\":\"asset_growth\"}}\n"
+	if code != 0 || stderr != "" || out != want {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, out, stderr)
+	}
+}
+
+func TestRuleTypesGetNotFoundIsTyped(t *testing.T) {
+	code, _, stderr := run(t, &fakeAPI{}, false, "projections", "rule-types", "get", "missing", "--json")
+	if code != int(cli.ExitNotFound) || !strings.Contains(stderr, `"code":"rule_type_not_found"`) {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+}
+
+func TestRuleCreateHelpPointsToRuleTypeIntrospection(t *testing.T) {
+	code, out, stderr := run(t, &fakeAPI{}, false, "projections", "rules", "create", "--help")
+	if code != 0 || stderr != "" || !strings.Contains(out, "projections rule-types list") || !strings.Contains(out, "projections rule-types get <type>") {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, out, stderr)
+	}
+}
+
 func TestScenarioPatchDistinguishesOmittedValueAndNull(t *testing.T) {
 	api := &fakeAPI{}
 	code, _, stderr := run(t, api, false, "projections", "scenarios", "update", "scn_1", "--portfolio", "prt_1", "--name", "Plan", "--json")
@@ -220,6 +274,30 @@ func TestGeneratedScenarioPatchSendsAuthAndExactJSON(t *testing.T) {
 	}
 	if body != `{"birth_year":null}` {
 		t.Fatalf("clear body=%s", body)
+	}
+}
+
+func TestGeneratedRuleTypesUsesCatalogEndpoint(t *testing.T) {
+	var path, authorization string
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		path = r.URL.Path
+		authorization = r.Header.Get("Authorization")
+		body := `{"rule_types":[{"category":"income","config_fields":[{"label_key":"rules.amount","name":"amount","required":true,"type":"amount"}],"description_key":"rules.salary.description","label_key":"rules.salary.label","priority":10,"type":"salary"}]}`
+		return &http.Response{StatusCode: http.StatusOK, Status: "200 OK", Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
+	})}
+	client, err := daikuv1.NewClientWithResponses("https://api.example.test", daikuv1.WithHTTPClient(httpClient), daikuv1.WithRequestEditorFn(func(_ context.Context, request *http.Request) error {
+		request.Header.Set("Authorization", "Bearer token")
+		return nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := (generatedAPI{client}).RuleTypes(context.Background())
+	if err != nil || len(items) != 1 || items[0].Type != "salary" || len(items[0].ConfigFields) != 1 {
+		t.Fatalf("items=%+v err=%v", items, err)
+	}
+	if path != "/api/v1/rule-types/" || authorization != "Bearer token" {
+		t.Fatalf("path=%q authorization=%q", path, authorization)
 	}
 }
 
