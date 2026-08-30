@@ -799,7 +799,7 @@ func mapAPIError(err error) error {
 	if e.StatusCode >= 500 {
 		exit = cli.ExitUnavailable
 	}
-	return commandError(e.Code, e.Message, exit)
+	return &cli.Error{Code: e.Code, Message: e.Message, ExitCode: exit, Details: e.Details}
 }
 
 func confirm(cmd *cobra.Command, yes bool, format string, args ...any) error {

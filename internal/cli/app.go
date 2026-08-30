@@ -142,10 +142,12 @@ func (a *App) Run(args []string) int {
 	root.InitDefaultCompletionCmd(args...)
 	typeCompletionArgsAsUsage(root)
 
-	if _, _, err := root.Find(args); err != nil {
-		cliError := usageError(err.Error())
-		writeError(a.options.errOut, cliError, jsonOutput, localizer)
-		return int(cliError.ExitCode)
+	if !isShellCompletionRequest(args) {
+		if _, _, err := root.Find(args); err != nil {
+			cliError := usageError(err.Error())
+			writeError(a.options.errOut, cliError, jsonOutput, localizer)
+			return int(cliError.ExitCode)
+		}
 	}
 
 	executed, err := root.ExecuteC()
@@ -164,6 +166,13 @@ func (a *App) Run(args []string) int {
 	}
 
 	return int(ExitOK)
+}
+
+func isShellCompletionRequest(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	return args[0] == cobra.ShellCompRequestCmd || args[0] == cobra.ShellCompNoDescRequestCmd
 }
 
 func (a *App) rootCommand(jsonOutput bool, localizer i18n.Localizer, helpErr *error) *cobra.Command {

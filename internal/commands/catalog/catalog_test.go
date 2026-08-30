@@ -297,6 +297,17 @@ func TestHouseholdModeRequiresUsesAccountsFlag(t *testing.T) {
 	}
 }
 
+func TestCatalogPreservesTypedPublicError(t *testing.T) {
+	h := apiHandler(t, "POST", "/api/v1/households/hsh_1/accounts/", 400, `{"error":{"status_code":400,"message":"This household is in simple mode.","errors":{"uses_accounts":["Enable advanced mode first."]}}}`, nil)
+	app, _, errOut := testApp(t, h, "", false)
+	if code := app.Run([]string{"accounts", "create", "--household", "hsh_1", "--name", "Bank", "--json"}); code != 1 {
+		t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+	}
+	if !strings.Contains(errOut.String(), "This household is in simple mode.") || !strings.Contains(errOut.String(), "uses_accounts") {
+		t.Fatalf("stderr=%s", errOut.String())
+	}
+}
+
 func TestContractEnumsAreValidatedBeforeNetwork(t *testing.T) {
 	tests := [][]string{
 		{"institutions", "create", "--household", "hsh_1", "--name", "Bank", "--country", "ZZ", "--json"},

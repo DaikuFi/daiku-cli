@@ -33,8 +33,8 @@ type API interface {
 	RuleCreate(context.Context, string, daikuv1.ProjectionRuleRequest) (*daikuv1.ProjectionRule, error)
 	RuleUpdate(context.Context, string, string, daikuv1.PatchedProjectionRuleRequest) (*daikuv1.ProjectionRule, error)
 	RuleDelete(context.Context, string, string) error
-	NetWorth(context.Context) (*daikuv1.NetWorthSeries, error)
-	CurrencyExposure(context.Context) (*daikuv1.CurrencyExposure, error)
+	NetWorth(context.Context, *daikuv1.DaikuPortfoliosReportsNetWorthGetParams) (*daikuv1.NetWorthSeries, error)
+	CurrencyExposure(context.Context, *daikuv1.DaikuPortfoliosReportsCurrencyExposureGetParams) (*daikuv1.CurrencyExposure, error)
 	Rates(context.Context, *daikuv1.DaikuExchangeRatesGetParams) ([]daikuv1.ExchangeRate, error)
 }
 
@@ -436,8 +436,31 @@ func (m Module) ruleDelete() *cobra.Command {
 }
 
 func (m Module) netWorth() *cobra.Command {
-	return reportCommand(m, "net-worth", "Show the server-calculated net worth series", func(a API, c *cobra.Command) (any, []output.Row, error) {
-		v, e := a.NetWorth(c.Context())
+	var displayCurrency, end string
+	var months int
+	c := reportCommand(m, "net-worth", "Show the server-calculated net worth series", func(a API, c *cobra.Command) (any, []output.Row, error) {
+		params := &daikuv1.DaikuPortfoliosReportsNetWorthGetParams{}
+		if displayCurrency != "" {
+			normalized, ok := currency.Normalize(displayCurrency)
+			if !ok {
+				return nil, nil, usage("invalid currency; supported: " + strings.Join(currency.Codes(), ", "))
+			}
+			value := daikuv1.DaikuPortfoliosReportsNetWorthGetParamsCurrency(normalized)
+			params.Currency = &value
+		}
+		if c.Flags().Changed("months") {
+			if months < 1 || months > 60 {
+				return nil, nil, usage("months must be between 1 and 60")
+			}
+			params.Months = &months
+		}
+		if end != "" {
+			if _, e := time.Parse("2006-01", end); e != nil {
+				return nil, nil, usage("end must use YYYY-MM")
+			}
+			params.End = &end
+		}
+		v, e := a.NetWorth(c.Context(), params)
 		if e != nil {
 			return nil, nil, e
 		}
@@ -447,10 +470,32 @@ func (m Module) netWorth() *cobra.Command {
 		}
 		return v, rows, nil
 	})
+	c.Flags().StringVar(&displayCurrency, "currency", "", "display currency ("+strings.Join(currency.Codes(), ", ")+")")
+	c.Flags().IntVar(&months, "months", 0, "number of monthly snapshots (1-60; server default 12)")
+	c.Flags().StringVar(&end, "end", "", "final month (YYYY-MM; server default current month)")
+	return c
 }
 func (m Module) currencyExposure() *cobra.Command {
-	return reportCommand(m, "currency-exposure", "Show server-calculated currency exposure", func(a API, c *cobra.Command) (any, []output.Row, error) {
-		v, e := a.CurrencyExposure(c.Context())
+	var displayCurrency, date string
+	c := reportCommand(m, "currency-exposure", "Show server-calculated currency exposure", func(a API, c *cobra.Command) (any, []output.Row, error) {
+		params := &daikuv1.DaikuPortfoliosReportsCurrencyExposureGetParams{}
+		if displayCurrency != "" {
+			normalized, ok := currency.Normalize(displayCurrency)
+			if !ok {
+				return nil, nil, usage("invalid currency; supported: " + strings.Join(currency.Codes(), ", "))
+			}
+			value := daikuv1.DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency(normalized)
+			params.Currency = &value
+		}
+		if date != "" {
+			parsed, e := time.Parse("2006-01-02", date)
+			if e != nil {
+				return nil, nil, usage("date must use YYYY-MM-DD")
+			}
+			value := types.Date{Time: parsed}
+			params.Date = &value
+		}
+		v, e := a.CurrencyExposure(c.Context(), params)
 		if e != nil {
 			return nil, nil, e
 		}
@@ -460,6 +505,9 @@ func (m Module) currencyExposure() *cobra.Command {
 		}
 		return v, rows, nil
 	})
+	c.Flags().StringVar(&displayCurrency, "currency", "", "display currency ("+strings.Join(currency.Codes(), ", ")+")")
+	c.Flags().StringVar(&date, "date", "", "snapshot date (YYYY-MM-DD; server default today)")
+	return c
 }
 func reportCommand(m Module, use, short string, run func(API, *cobra.Command) (any, []output.Row, error)) *cobra.Command {
 	return &cobra.Command{Use: use, Short: short, Args: cli.UsageArgs(cobra.NoArgs), RunE: func(c *cobra.Command, _ []string) error {
@@ -728,8 +776,8 @@ func (a generatedAPI) RuleDelete(c context.Context, s, id string) error {
 	}
 	return status(r.StatusCode())
 }
-func (a generatedAPI) NetWorth(c context.Context) (*daikuv1.NetWorthSeries, error) {
-	r, e := a.c.DaikuPortfoliosReportsNetWorthGetWithResponse(c)
+func (a generatedAPI) NetWorth(c context.Context, p *daikuv1.DaikuPortfoliosReportsNetWorthGetParams) (*daikuv1.NetWorthSeries, error) {
+	r, e := a.c.DaikuPortfoliosReportsNetWorthGetWithResponse(c, p)
 	if e != nil {
 		return nil, apiFailure()
 	}
@@ -738,8 +786,8 @@ func (a generatedAPI) NetWorth(c context.Context) (*daikuv1.NetWorthSeries, erro
 	}
 	return r.JSON200, nil
 }
-func (a generatedAPI) CurrencyExposure(c context.Context) (*daikuv1.CurrencyExposure, error) {
-	r, e := a.c.DaikuPortfoliosReportsCurrencyExposureGetWithResponse(c)
+func (a generatedAPI) CurrencyExposure(c context.Context, p *daikuv1.DaikuPortfoliosReportsCurrencyExposureGetParams) (*daikuv1.CurrencyExposure, error) {
+	r, e := a.c.DaikuPortfoliosReportsCurrencyExposureGetWithResponse(c, p)
 	if e != nil {
 		return nil, apiFailure()
 	}
