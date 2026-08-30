@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	daikuv1 "github.com/DaikuFi/daiku-cli/generated/daikuv1"
 	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
@@ -41,7 +42,8 @@ func New(store profiles.Store, manager *authcore.Manager) Module {
 		if err != nil {
 			return nil, &cli.Error{Code: "authentication_required", Message: "the active profile is not authenticated", ExitCode: cli.ExitAuth}
 		}
-		client, err := daikuv1.NewClientWithResponses(profile.APIURL, daikuv1.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+		serverURL := strings.TrimSuffix(profile.APIURL, "api/v1/")
+		client, err := daikuv1.NewClientWithResponses(serverURL, daikuv1.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
 			req.Header.Set("Authorization", "Bearer "+token)
 			return nil
 		}))
@@ -179,12 +181,13 @@ func addRuleFlags(cmd *cobra.Command, f *ruleFlags, create bool) {
 	cmd.Flags().StringVar(&f.scope, "scope", "", "scope: monthly, yearly or month")
 	cmd.Flags().IntVar(&f.month, "month", 0, "month (required for month scope)")
 	cmd.Flags().IntVar(&f.year, "year", 0, "pinned year (required for month scope)")
-	cmd.Flags().BoolVar(&f.clearMonth, "clear-month", false, "clear the pinned month")
-	cmd.Flags().BoolVar(&f.clearYear, "clear-year", false, "clear the pinned year")
 	if create {
 		for _, name := range []string{"category", "amount", "currency", "scope"} {
 			_ = cmd.MarkFlagRequired(name)
 		}
+	} else {
+		cmd.Flags().BoolVar(&f.clearMonth, "clear-month", false, "clear the pinned month")
+		cmd.Flags().BoolVar(&f.clearYear, "clear-year", false, "clear the pinned year")
 	}
 }
 func validateRule(f ruleFlags, partial bool) error {

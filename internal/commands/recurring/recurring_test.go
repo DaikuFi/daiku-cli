@@ -71,6 +71,20 @@ func TestCreatesTransferTemplateWithoutLocalOccurrence(t *testing.T) {
 		t.Fatalf("body=%+v", api.created)
 	}
 }
+
+func TestCreateDoesNotRegisterPatchOnlyClearFlags(t *testing.T) {
+	api := &fakeAPI{}
+	base := []string{"recurring", "create", "--household", "hh_1", "--description", "Rent", "--amount", "100", "--currency", "USD", "--frequency", "monthly", "--type", "expense", "--creation-mode", "auto", "--day", "5", "--json"}
+	for _, flag := range []string{"--clear-account", "--clear-destination-account", "--clear-category", "--clear-month"} {
+		code, _, errOut := runSimple(t, api, append(base, flag)...)
+		if code != int(cli.ExitUsage) || !strings.Contains(errOut, "unknown flag: "+flag) {
+			t.Fatalf("flag=%s code=%d stderr=%q", flag, code, errOut)
+		}
+		if api.created != nil {
+			t.Fatalf("%s reached the API", flag)
+		}
+	}
+}
 func TestConfirmRequiresExplicitNonInteractiveConsent(t *testing.T) {
 	api := &fakeAPI{}
 	args := []string{"recurring", "occurrences", "confirm", "occ_1", "--household", "hh_1", "--date", "2026-08-30", "--amount", "42", "--json"}
@@ -163,5 +177,17 @@ func TestStatusMapsRolesAndResolvedConflict(t *testing.T) {
 		if !ok || err.ExitCode != want {
 			t.Fatalf("status(%d)=%#v", code, err)
 		}
+	}
+}
+
+func TestSpanishValidationAndFlagHelp(t *testing.T) {
+	api := &fakeAPI{}
+	code, out, errOut := runSimple(t, api, "recurring", "create", "--household", "hh_1", "--description", "x", "--amount", "10", "--currency", "UYU", "--frequency", "weekly", "--type", "expense", "--creation-mode", "auto", "--day", "1", "--language", "es")
+	if code != int(cli.ExitUsage) || out != "" || !strings.Contains(errOut, "la frecuencia debe ser monthly o yearly") {
+		t.Fatalf("code=%d out=%q stderr=%q", code, out, errOut)
+	}
+	code, out, errOut = runSimple(t, api, "recurring", "update", "--help", "--language", "es")
+	if code != 0 || errOut != "" || !strings.Contains(out, "elimina la cuenta de origen") || !strings.Contains(out, "descripción") {
+		t.Fatalf("code=%d out=%q stderr=%q", code, out, errOut)
 	}
 }

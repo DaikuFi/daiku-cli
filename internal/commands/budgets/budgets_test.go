@@ -68,6 +68,17 @@ func TestUpdatePreservesOmittedAndExplicitNull(t *testing.T) {
 	}
 }
 
+func TestCreateDoesNotRegisterPatchOnlyClearFlags(t *testing.T) {
+	api := &fakeAPI{}
+	code, _, errOut := runSimple(t, api, "budgets", "rules", "create", "--household", "hh_1", "--category", "cat_1", "--amount", "10", "--currency", "UYU", "--scope", "monthly", "--clear-month", "--json")
+	if code != int(cli.ExitUsage) || !strings.Contains(errOut, "unknown flag: --clear-month") {
+		t.Fatalf("code=%d stderr=%q", code, errOut)
+	}
+	if api.created != nil {
+		t.Fatal("create reached the API with a PATCH-only flag")
+	}
+}
+
 func TestBudgetRuleAcceptsPublishedCurrency(t *testing.T) {
 	api := &fakeAPI{}
 	code, _, errOut := runSimple(t, api, "budgets", "rules", "create", "--household", "hh_1", "--category", "cat_1", "--amount", "10", "--currency", "BRL", "--scope", "monthly", "--json")
@@ -105,6 +116,18 @@ func TestSpanishHumanOutputAndForbiddenError(t *testing.T) {
 	cliErr, ok := err.(*cli.Error)
 	if !ok || cliErr.ExitCode != cli.ExitForbidden || cliErr.Code != "forbidden" {
 		t.Fatalf("error=%#v", err)
+	}
+}
+
+func TestSpanishValidationAndFlagHelp(t *testing.T) {
+	api := &fakeAPI{}
+	code, out, errOut := runSimple(t, api, "budgets", "summary", "--household", "hh_1", "--month", "13", "--year", "2026", "--currency", "UYU", "--language", "es")
+	if code != int(cli.ExitUsage) || out != "" || !strings.Contains(errOut, "el mes debe estar entre 1 y 12") {
+		t.Fatalf("code=%d out=%q stderr=%q", code, out, errOut)
+	}
+	code, out, errOut = runSimple(t, api, "budgets", "rules", "update", "--help", "--language", "es")
+	if code != 0 || errOut != "" || !strings.Contains(out, "elimina el mes fijado") || !strings.Contains(out, "moneda: UYU, USD o EUR") {
+		t.Fatalf("code=%d out=%q stderr=%q", code, out, errOut)
 	}
 }
 func (f *fakeAPI) Delete(_ context.Context, _ string, id string) error { f.deleted = id; return nil }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -44,7 +45,8 @@ func New(store profiles.Store, manager *authcore.Manager) Module {
 		if err != nil {
 			return nil, authError()
 		}
-		client, err := daikuv1.NewClientWithResponses(profile.APIURL, daikuv1.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+		serverURL := strings.TrimSuffix(profile.APIURL, "api/v1/")
+		client, err := daikuv1.NewClientWithResponses(serverURL, daikuv1.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
 			req.Header.Set("Authorization", "Bearer "+token)
 			return nil
 		}))
@@ -101,14 +103,15 @@ func addTemplateFlags(cmd *cobra.Command, f *templateFlags, create bool) {
 	cmd.Flags().IntVar(&f.day, "day", 0, "day of month (1-31)")
 	cmd.Flags().IntVar(&f.month, "month", 0, "month of year for yearly templates (1-12)")
 	cmd.Flags().BoolVar(&f.active, "active", true, "whether the template is active")
-	cmd.Flags().BoolVar(&f.clearAccount, "clear-account", false, "clear the source account")
-	cmd.Flags().BoolVar(&f.clearDestinationAccount, "clear-destination-account", false, "clear the destination account")
-	cmd.Flags().BoolVar(&f.clearCategory, "clear-category", false, "clear the category")
-	cmd.Flags().BoolVar(&f.clearMonth, "clear-month", false, "clear the month of year")
 	if create {
 		for _, n := range []string{"description", "amount", "currency", "frequency", "type", "creation-mode", "day"} {
 			_ = cmd.MarkFlagRequired(n)
 		}
+	} else {
+		cmd.Flags().BoolVar(&f.clearAccount, "clear-account", false, "clear the source account")
+		cmd.Flags().BoolVar(&f.clearDestinationAccount, "clear-destination-account", false, "clear the destination account")
+		cmd.Flags().BoolVar(&f.clearCategory, "clear-category", false, "clear the category")
+		cmd.Flags().BoolVar(&f.clearMonth, "clear-month", false, "clear the month of year")
 	}
 }
 func validateTemplate(f templateFlags, partial bool) error {
