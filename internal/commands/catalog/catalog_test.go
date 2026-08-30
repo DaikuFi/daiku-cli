@@ -186,3 +186,19 @@ func TestAccountAdjustUsesGeneratedContractShape(t *testing.T) {
 		t.Fatal(out.String())
 	}
 }
+
+func TestCategoryReorderUsesGeneratedArrayBody(t *testing.T) {
+	h := apiHandler(t, "POST", "/api/v1/households/hh_1/categories/reorder/", 200, `[]`, func(r *http.Request) {
+		var body []map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if len(body) != 2 || body[0]["id"] != "cat_a" || body[0]["sort_order"] != float64(0) || body[1]["id"] != "cat_b" {
+			t.Fatalf("body=%v", body)
+		}
+	})
+	app, _, errOut := testApp(t, h, "", false)
+	if code := app.Run([]string{"categories", "reorder", "--household", "hh_1", "--id", "cat_a,cat_b", "--json"}); code != 0 {
+		t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+	}
+}
