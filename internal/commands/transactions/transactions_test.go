@@ -527,10 +527,14 @@ func TestSpanishTransactionHelpAndHumanValidationError(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("list help code=%d err=%s", code, stderr)
 	}
-	for _, translated := range []string{"mes 1-12", "año de cuatro dígitos", "código de moneda de la transacción", "número de página", "resultados por página", "obtiene todas las transacciones coincidentes sin paginación"} {
+	for _, translated := range []string{"mes 1-12", "año de cuatro dígitos", "código de moneda de la transacción", "gasto, ingreso o transferencia (omitir para incluir ajustes)", "número de página", "resultados por página", "obtiene todas las transacciones coincidentes sin paginación"} {
 		if !strings.Contains(out, translated) {
 			t.Fatalf("list help missing %q: %s", translated, out)
 		}
+	}
+	code, out, stderr = run(t, svc, "", "transactions", "list", "--language", "en", "--help")
+	if code != 0 || stderr != "" || !strings.Contains(out, "expense, income, or transfer (omit to include adjustments)") {
+		t.Fatalf("English list help code=%d out=%s err=%s", code, out, stderr)
 	}
 	code, out, stderr = run(t, svc, "", "installments", "list", "--language", "es", "--help")
 	if code != 0 || !strings.Contains(out, "Lista planes de cuotas") || !strings.Contains(out, "ID del hogar") {
