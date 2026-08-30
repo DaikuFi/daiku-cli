@@ -220,6 +220,12 @@ func TestBucketTypesAreDiscoverableInHelpValidationAndCompletion(t *testing.T) {
 	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "tipo de grupo inválido; valores aceptados: "+want) {
 		t.Fatalf("validation code=%d stderr=%q", code, stderr)
 	}
+
+	f := &fakeService{}
+	code, _, stderr = execute(t, f, "portfolios", "buckets", "update", "bkt_1", "--portfolio", "prt_1", "--type=", "--json")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "invalid bucket type; accepted values: "+want) || f.lastPatch != nil {
+		t.Fatalf("empty update validation code=%d patch=%v stderr=%q", code, f.lastPatch, stderr)
+	}
 }
 
 func TestAssetPatchClearFlagsProduceExplicitNullAndOmitOthers(t *testing.T) {

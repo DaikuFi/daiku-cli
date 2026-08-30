@@ -222,6 +222,16 @@ func TestRootVersionFlagUsesConfiguredVersion(t *testing.T) {
 	}
 }
 
+func TestRootVersionFlagHonorsJSONModeInEitherPosition(t *testing.T) {
+	for _, args := range [][]string{{"--version", "--json"}, {"--json", "--version"}} {
+		exitCode, stdout, stderr := run(t, false, args...)
+		want := "{\"ok\":true,\"data\":{\"version\":\"1.2.3\"}}\n"
+		if exitCode != int(cli.ExitOK) || stdout != want || stderr != "" {
+			t.Fatalf("args=%v exit=%d stdout=%q stderr=%q", args, exitCode, stdout, stderr)
+		}
+	}
+}
+
 func TestVersionJSONSuccessEnvelope(t *testing.T) {
 	exitCode, stdout, stderr := run(t, false, "version", "--json")
 

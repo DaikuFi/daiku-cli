@@ -463,7 +463,7 @@ func (m Module) bucketUpdate() *cobra.Command {
 		if !anyChanged(c, "name", "type", "emoji", "sort-order") {
 			return usage("provide at least one field to update")
 		}
-		if f.kind != "" && !validBucket(f.kind) {
+		if c.Flags().Changed("type") && !validBucket(f.kind) {
 			return usage("invalid bucket type; accepted values: " + strings.Join(bucketTypes, ", "))
 		}
 		b := map[string]any{}
