@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/DaikuFi/daiku-cli/internal/agent"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	versioncommand "github.com/DaikuFi/daiku-cli/internal/commands/version"
 	"github.com/spf13/cobra"
@@ -112,12 +113,15 @@ func TestRootHelpForTerminalUsesHumanStyling(t *testing.T) {
 func TestRootHelpSpanishGolden(t *testing.T) {
 	exitCode, stdout, stderr := run(t, false, "--language", "es", "--help")
 	want := "DAIKU\n\nGestiona Daiku desde la línea de comandos\n\nUso:\n  daiku [flags]\n\nComandos:\n" +
+		"  commands     Lista metadatos de comandos para máquinas\n" +
 		"  completion   Genera el script de autocompletado para el shell indicado\n" +
 		"  help         Ayuda sobre cualquier comando\n" +
 		"  version      Muestra la versión del CLI de Daiku\n\nOpciones:\n" +
+		"      --agent             habilita salida JSON segura para agentes y desactiva la entrada\n" +
 		"  -h, --help              ayuda de daiku\n" +
 		"      --json              escribe un envelope JSON estable\n" +
 		"      --language string   idioma de salida humana: en o es\n" +
+		"      --no-input          desactiva toda entrada interactiva\n" +
 		"  -v, --version           versión de daiku\n"
 	if exitCode != int(cli.ExitOK) || stderr != "" || stdout != want {
 		t.Fatalf("exit=%d stderr=%q\noutput:\n%q\nwant:\n%q", exitCode, stderr, stdout, want)
@@ -166,8 +170,11 @@ func TestHelpCommandShowsVersionHelpAsJSON(t *testing.T) {
 	if exitCode != int(cli.ExitOK) || stderr != "" || !json.Valid([]byte(stdout)) {
 		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
 	}
-	if !strings.Contains(stdout, `"command":"daiku version"`) || !strings.Contains(stdout, "Print the Daiku CLI version") {
+	if !strings.Contains(stdout, `"command":"daiku version"`) || !strings.Contains(stdout, `"metadata":{"name":"version","path":"daiku version"`) || !strings.Contains(stdout, "Print the Daiku CLI version") {
 		t.Fatalf("unexpected help envelope: %q", stdout)
+	}
+	if !strings.Contains(stdout, `"command":"daiku help version --agent"`) {
+		t.Fatalf("help breadcrumbs do not target version: %q", stdout)
 	}
 }
 
@@ -438,5 +445,169 @@ func TestJSONHelpIsMachineReadable(t *testing.T) {
 		if envelope["ok"] != true {
 			t.Fatalf("args=%v unexpected envelope: %#v", args, envelope)
 		}
+	}
+}
+
+func TestCommandsJSONDiscoversCompleteCobraTreeOnce(t *testing.T) {
+	exitCode, stdout, stderr := run(t, false, "commands", "--json")
+	if exitCode != int(cli.ExitOK) || stderr != "" {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+	}
+	var envelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Commands []agent.Command `json:"commands"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &envelope); err != nil {
+		t.Fatalf("invalid JSON %q: %v", stdout, err)
+	}
+	seen := map[string]bool{}
+	for _, command := range envelope.Data.Commands {
+		if seen[command.Path] {
+			t.Fatalf("duplicate command path %q", command.Path)
+		}
+		seen[command.Path] = true
+		if command.Path == "daiku" {
+			for _, flag := range command.Flags {
+				if flag.Name == "json" && flag.Default != "false" {
+					t.Errorf("json default depends on introspection invocation: %+v", flag)
+				}
+			}
+		}
+	}
+	for _, path := range []string{"daiku", "daiku commands", "daiku completion", "daiku help", "daiku version"} {
+		if !seen[path] {
+			t.Errorf("missing command %q", path)
+		}
+	}
+}
+
+func TestAgentModeImpliesJSONNoInputAndBreadcrumbs(t *testing.T) {
+	exitCode, stdout, stderr := run(t, true, "version", "--agent", "--json=false")
+	if exitCode != int(cli.ExitOK) || stderr != "" || strings.Contains(stdout, "\x1b[") {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+	}
+	var envelope struct {
+		OK          bool               `json:"ok"`
+		Breadcrumbs []agent.Breadcrumb `json:"breadcrumbs"`
+		Data        struct {
+			Version string `json:"version"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &envelope); err != nil {
+		t.Fatalf("invalid JSON %q: %v", stdout, err)
+	}
+	if !envelope.OK || envelope.Data.Version != "1.2.3" || len(envelope.Breadcrumbs) == 0 {
+		t.Fatalf("unexpected envelope: %+v", envelope)
+	}
+}
+
+type agentSafetyModule struct{ executed *bool }
+
+func (module agentSafetyModule) Register(root *cobra.Command) {
+	contextCommand := &cobra.Command{Use: "agent-context", RunE: func(command *cobra.Command, _ []string) error {
+		human := cli.Human(command)
+		return cli.WriteSuccess(command.OutOrStdout(), map[string]bool{
+			"agent": human.Agent, "interactive": human.Interactive, "no_color": human.NoColor, "no_input": human.NoInput,
+		})
+	}}
+	rawCommand := &cobra.Command{Use: "agent-raw", RunE: func(command *cobra.Command, _ []string) error {
+		_, err := io.WriteString(command.OutOrStdout(), "raw output\n")
+		return err
+	}}
+	readCommand := &cobra.Command{Use: "agent-read", RunE: func(command *cobra.Command, _ []string) error {
+		buffer := make([]byte, 1)
+		count, err := command.InOrStdin().Read(buffer)
+		return cli.WriteSuccess(command.OutOrStdout(), map[string]any{"bytes_read": count, "eof": errors.Is(err, io.EOF)})
+	}}
+	largeNumberCommand := &cobra.Command{Use: "agent-large-number", RunE: func(command *cobra.Command, _ []string) error {
+		_, err := io.WriteString(command.OutOrStdout(), `{"ok":true,"data":{"value":9007199254740993}}`+"\n")
+		return err
+	}}
+	interactiveCommand := &cobra.Command{Use: "agent-interactive", RunE: func(*cobra.Command, []string) error {
+		*module.executed = true
+		return nil
+	}}
+	agent.MarkRequiresInput(interactiveCommand)
+	root.AddCommand(contextCommand, rawCommand, readCommand, largeNumberCommand, interactiveCommand)
+}
+
+func agentSafetyApp(t *testing.T, executed *bool, args ...string) (int, string, string) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	app := cli.New(
+		cli.WithIO(strings.NewReader("unexpected input"), &stdout, &stderr),
+		cli.WithTerminalDetector(func(io.Writer) bool { return true }),
+		cli.WithInteractiveDetector(func(io.Reader, io.Writer) bool { return true }),
+		cli.WithEnvironment(func(string) (string, bool) { return "", false }),
+		cli.WithModule(agentSafetyModule{executed: executed}),
+	)
+	return app.Run(args), stdout.String(), stderr.String()
+}
+
+func TestAgentContextCannotBeInteractive(t *testing.T) {
+	executed := false
+	exitCode, stdout, stderr := agentSafetyApp(t, &executed, "agent-context", "--agent")
+	if exitCode != int(cli.ExitOK) || stderr != "" || !strings.Contains(stdout, `"agent":true`) ||
+		!strings.Contains(stdout, `"interactive":false`) || !strings.Contains(stdout, `"no_color":true`) || !strings.Contains(stdout, `"no_input":true`) {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+	}
+}
+
+func TestAgentModeRejectsInteractiveCommandBeforeExecution(t *testing.T) {
+	executed := false
+	exitCode, stdout, stderr := agentSafetyApp(t, &executed, "agent-interactive", "--agent")
+	if exitCode != int(cli.ExitUsage) || stdout != "" || executed || !strings.Contains(stderr, `"code":"interaction_required"`) || !strings.Contains(stderr, `"breadcrumbs"`) {
+		t.Fatalf("exit=%d executed=%t stdout=%q stderr=%q", exitCode, executed, stdout, stderr)
+	}
+}
+
+func TestNoInputRejectsInteractiveCommandWithoutEnablingAgentOutput(t *testing.T) {
+	executed := false
+	exitCode, stdout, stderr := agentSafetyApp(t, &executed, "agent-interactive", "--no-input", "--json")
+	if exitCode != int(cli.ExitUsage) || stdout != "" || executed || !strings.Contains(stderr, `"code":"interaction_required"`) || strings.Contains(stderr, `"breadcrumbs"`) {
+		t.Fatalf("exit=%d executed=%t stdout=%q stderr=%q", exitCode, executed, stdout, stderr)
+	}
+}
+
+func TestAgentModeFailsClosedOnNonEnvelopeOutput(t *testing.T) {
+	executed := false
+	exitCode, stdout, stderr := agentSafetyApp(t, &executed, "agent-raw", "--agent")
+	if exitCode != int(cli.ExitFailure) || stdout != "" || !strings.Contains(stderr, `"code":"agent_output_invalid"`) || strings.Contains(stderr, "raw output") {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+	}
+}
+
+type panicReader struct{}
+
+func (panicReader) Read([]byte) (int, error) { panic("real stdin was read") }
+
+func TestNoInputPhysicallyDisconnectsStdin(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	executed := false
+	app := cli.New(
+		cli.WithIO(panicReader{}, &stdout, &stderr),
+		cli.WithEnvironment(func(string) (string, bool) { return "", false }),
+		cli.WithModule(agentSafetyModule{executed: &executed}),
+	)
+	exitCode := app.Run([]string{"agent-read", "--no-input", "--json"})
+	if exitCode != int(cli.ExitOK) || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"bytes_read":0`) || !strings.Contains(stdout.String(), `"eof":true`) {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+}
+
+func TestAgentModePreservesLargeJSONNumbers(t *testing.T) {
+	executed := false
+	exitCode, stdout, stderr := agentSafetyApp(t, &executed, "agent-large-number", "--agent")
+	if exitCode != int(cli.ExitOK) || stderr != "" || !strings.Contains(stdout, `"value":9007199254740993`) {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+	}
+}
+
+func TestUnknownCommandInAgentModeHasMachineBreadcrumbs(t *testing.T) {
+	exitCode, stdout, stderr := run(t, false, "does-not-exist", "--agent")
+	if exitCode != int(cli.ExitUsage) || stdout != "" || !json.Valid([]byte(stderr)) || !strings.Contains(stderr, `"code":"usage_error"`) || !strings.Contains(stderr, `"breadcrumbs"`) {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
 	}
 }

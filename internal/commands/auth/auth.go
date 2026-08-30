@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/DaikuFi/daiku-cli/internal/agent"
 	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	"github.com/DaikuFi/daiku-cli/internal/credentials"
@@ -36,7 +37,7 @@ func (m Module) selected() (string, error) {
 	return cfg.Current, nil
 }
 func (m Module) login() *cobra.Command {
-	return &cobra.Command{Use: "login", Short: "Sign in using OAuth", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(cmd *cobra.Command, _ []string) error {
+	command := &cobra.Command{Use: "login", Short: "Sign in using OAuth", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(cmd *cobra.Command, _ []string) error {
 		profile, err := m.selected()
 		if err != nil {
 			return err
@@ -63,6 +64,8 @@ func (m Module) login() *cobra.Command {
 		_, err = fmt.Fprint(cmd.OutOrStdout(), cli.Human(cmd).Localizer.Humanf("Logged in as profile %s.\n", profile))
 		return err
 	}}
+	agent.MarkRequiresInput(command)
+	return command
 }
 func (m Module) logout() *cobra.Command {
 	var local bool

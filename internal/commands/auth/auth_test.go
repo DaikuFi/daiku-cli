@@ -76,6 +76,16 @@ func TestStatusHelpDocumentsExitZeroForLoggedOutState(t *testing.T) {
 	}
 }
 
+func TestLoginAgentAndNoInputFailBeforeStartingOAuth(t *testing.T) {
+	for _, args := range [][]string{{"auth", "login", "--agent"}, {"auth", "login", "--no-input", "--json"}} {
+		app, _, stdout, stderr := authApp(t, true, true, "unexpected input")
+		exit := app.Run(args)
+		if exit != int(cli.ExitUsage) || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code":"interaction_required"`) {
+			t.Fatalf("args=%v exit=%d stdout=%q stderr=%q", args, exit, stdout.String(), stderr.String())
+		}
+	}
+}
+
 func TestStatusLoggedOutIsReadableStateWithExitZero(t *testing.T) {
 	app, store, stdout, stderr := authApp(t, false, false, "")
 	if err := store.Delete("personal"); err != nil {

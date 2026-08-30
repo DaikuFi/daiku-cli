@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DaikuFi/daiku-cli/internal/agent"
 	"github.com/DaikuFi/daiku-cli/internal/i18n"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -118,24 +120,32 @@ func terminalWidth(writer io.Writer) int {
 }
 
 func (a *App) Run(args []string) int {
-	jsonOutput := jsonMode(args)
+	agentOutput := boolMode(args, "agent")
+	noInput := boolMode(args, "no-input") || agentOutput
+	jsonOutput := jsonMode(args) || agentOutput
 	language, err := i18n.Resolve(languageMode(args), a.options.lookupEnv)
 	if err != nil {
 		cliError := usageError(err.Error())
-		writeError(a.options.errOut, cliError, jsonOutput, i18n.New(i18n.English))
+		writeError(a.options.errOut, cliError, jsonOutput, i18n.New(i18n.English), breadcrumbs(agentOutput, nil)...)
 		return int(cliError.ExitCode)
 	}
 	localizer := i18n.New(language)
 	var helpErr error
-	root := a.rootCommand(jsonOutput, localizer, &helpErr)
+	root := a.rootCommand(agentOutput, jsonOutput, noInput, localizer, &helpErr)
+	var agentOut bytes.Buffer
+	if agentOutput {
+		root.SetOut(&agentOut)
+	}
 	_, noColor := a.options.lookupEnv("NO_COLOR")
 	root.SetContext(withHumanContext(context.Background(), HumanContext{
 		Localizer:   localizer,
-		Terminal:    a.options.isTerminal(a.options.out),
-		Interactive: a.options.isInteractive(a.options.in, a.options.out),
+		Terminal:    !agentOutput && a.options.isTerminal(a.options.out),
+		Interactive: !noInput && a.options.isInteractive(a.options.in, a.options.out),
 		Width:       a.options.terminalWidth(a.options.out),
-		NoColor:     noColor,
+		NoColor:     noColor || agentOutput,
 		JSON:        jsonOutput,
+		Agent:       agentOutput,
+		NoInput:     noInput,
 	}))
 	root.SetArgs(args)
 	root.InitDefaultHelpCmd()
@@ -146,7 +156,7 @@ func (a *App) Run(args []string) int {
 	if !isShellCompletionRequest(args) {
 		if _, _, err := root.Find(args); err != nil {
 			cliError := usageError(err.Error())
-			writeError(a.options.errOut, cliError, jsonOutput, localizer)
+			writeError(a.options.errOut, cliError, jsonOutput, localizer, breadcrumbs(agentOutput, root)...)
 			return int(cliError.ExitCode)
 		}
 	}
@@ -157,16 +167,31 @@ func (a *App) Run(args []string) int {
 			err = usageError(err.Error())
 		}
 		cliError := normalizeError(err)
-		writeError(a.options.errOut, cliError, jsonOutput, localizer)
+		writeError(a.options.errOut, cliError, jsonOutput, localizer, breadcrumbs(agentOutput, executed)...)
 		return int(cliError.ExitCode)
 	}
 	if helpErr != nil {
 		cliError := normalizeError(helpErr)
-		writeError(a.options.errOut, cliError, jsonOutput, localizer)
+		writeError(a.options.errOut, cliError, jsonOutput, localizer, breadcrumbs(agentOutput, executed)...)
 		return int(cliError.ExitCode)
+	}
+	if agentOutput {
+		crumbs := agent.Breadcrumbs(executed)
+		if err := writeAgentSuccess(a.options.out, agentOut.Bytes(), crumbs); err != nil {
+			cliError := &Error{Code: "agent_output_invalid", Message: err.Error(), ExitCode: ExitFailure}
+			writeError(a.options.errOut, cliError, true, localizer, crumbs...)
+			return int(cliError.ExitCode)
+		}
 	}
 
 	return int(ExitOK)
+}
+
+func breadcrumbs(enabled bool, command *cobra.Command) []agent.Breadcrumb {
+	if !enabled {
+		return nil
+	}
+	return agent.Breadcrumbs(command)
 }
 
 func isShellCompletionRequest(args []string) bool {
@@ -176,15 +201,36 @@ func isShellCompletionRequest(args []string) bool {
 	return args[0] == cobra.ShellCompRequestCmd || args[0] == cobra.ShellCompNoDescRequestCmd
 }
 
-func (a *App) rootCommand(jsonOutput bool, localizer i18n.Localizer, helpErr *error) *cobra.Command {
+func (a *App) rootCommand(agentOutput, jsonOutput, noInput bool, localizer i18n.Localizer, helpErr *error) *cobra.Command {
+	var agentFlag bool
+	var jsonFlag bool
+	var noInputFlag bool
 	root := &cobra.Command{
 		Use:           "daiku",
 		Short:         "Manage Daiku from the command line",
 		Version:       a.options.version,
 		SilenceErrors: true,
 		SilenceUsage:  true,
+		PersistentPreRunE: func(command *cobra.Command, _ []string) error {
+			if agentFlag {
+				if err := command.Flags().Set("json", "true"); err != nil {
+					return err
+				}
+			}
+			if (agentFlag || noInputFlag) && agent.RequiresInput(command) {
+				return &Error{
+					Code: "interaction_required", Message: "command requires interactive input; rerun without --agent or --no-input",
+					ExitCode: ExitUsage, Details: map[string]string{"command": command.CommandPath()},
+				}
+			}
+			return nil
+		},
 	}
-	root.SetIn(a.options.in)
+	if noInput {
+		root.SetIn(strings.NewReader(""))
+	} else {
+		root.SetIn(a.options.in)
+	}
 	root.SetOut(a.options.out)
 	root.SetErr(a.options.errOut)
 	if jsonOutput {
@@ -192,7 +238,12 @@ func (a *App) rootCommand(jsonOutput bool, localizer i18n.Localizer, helpErr *er
 		_ = WriteSuccess(&versionOutput, map[string]string{"version": a.options.version})
 		root.SetVersionTemplate(fmt.Sprintf("{{print %q}}", versionOutput.String()))
 	}
-	root.PersistentFlags().Bool("json", false, "write a stable JSON envelope")
+	root.PersistentFlags().BoolVar(&jsonFlag, "json", false, "write a stable JSON envelope")
+	root.PersistentFlags().BoolVar(&agentFlag, "agent", false, "enable agent-safe JSON output and disable input")
+	root.PersistentFlags().BoolVar(&noInputFlag, "no-input", false, "disable all interactive input")
+	jsonFlag = jsonOutput
+	agentFlag = agentOutput
+	noInputFlag = noInput
 	root.PersistentFlags().String("language", "", "human output language: en or es")
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		return usageError(err.Error())
@@ -203,8 +254,32 @@ func (a *App) rootCommand(jsonOutput bool, localizer i18n.Localizer, helpErr *er
 	for _, module := range a.options.modules {
 		module.Register(root)
 	}
+	root.AddCommand(newCommandsCommand(root, localizer))
 
 	return root
+}
+
+func newCommandsCommand(root *cobra.Command, localizer i18n.Localizer) *cobra.Command {
+	return &cobra.Command{
+		Use:   "commands",
+		Short: "List machine-readable command metadata",
+		Args:  UsageArgs(cobra.NoArgs),
+		RunE: func(command *cobra.Command, _ []string) error {
+			commands := agent.List(root)
+			jsonOutput, _ := command.Flags().GetBool("json")
+			if jsonOutput {
+				return WriteSuccess(command.OutOrStdout(), struct {
+					Commands []agent.Command `json:"commands"`
+				}{Commands: commands})
+			}
+			for _, item := range commands {
+				if _, err := fmt.Fprintf(command.OutOrStdout(), "%s\t%s\n", item.Path, localizer.Human(item.Short)); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
 }
 
 func newHelpCommand(root *cobra.Command) *cobra.Command {
@@ -250,10 +325,15 @@ func (a *App) helpFunc(jsonOutput bool, localizer i18n.Localizer, helpErr *error
 			return
 		}
 		if jsonOutput {
-			*helpErr = WriteSuccess(command.OutOrStdout(), map[string]any{
-				"command": command.CommandPath(),
-				"help":    commandDescription(command),
-				"usage":   command.UseLine(),
+			*helpErr = writeJSON(command.OutOrStdout(), successEnvelope{
+				OK: true,
+				Data: map[string]any{
+					"command":  command.CommandPath(),
+					"help":     commandDescription(command),
+					"usage":    command.UseLine(),
+					"metadata": agent.Describe(command),
+				},
+				Breadcrumbs: agent.Breadcrumbs(command),
 			})
 			return
 		}
@@ -336,17 +416,22 @@ func commandDescription(command *cobra.Command) string {
 // fail before a command or persistent flag value can be inspected, but error
 // rendering still needs to know whether the caller requested JSON.
 func jsonMode(args []string) bool {
+	return boolMode(args, "json")
+}
+
+func boolMode(args []string, name string) bool {
 	enabled := false
+	long := "--" + name
 	for _, arg := range args {
 		if arg == "--" {
 			break
 		}
-		if arg == "--json" {
+		if arg == long {
 			enabled = true
 			continue
 		}
-		if strings.HasPrefix(arg, "--json=") {
-			value, err := strconv.ParseBool(strings.TrimPrefix(arg, "--json="))
+		if strings.HasPrefix(arg, long+"=") {
+			value, err := strconv.ParseBool(strings.TrimPrefix(arg, long+"="))
 			if err != nil {
 				return false
 			}
