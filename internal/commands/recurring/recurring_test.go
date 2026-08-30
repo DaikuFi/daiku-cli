@@ -156,3 +156,12 @@ func TestAcceptsPublishedCurrencyAndRejectsUnknown(t *testing.T) {
 		t.Fatalf("XYZ code=%d stderr=%q", code, errOut)
 	}
 }
+
+func TestStatusMapsRolesAndResolvedConflict(t *testing.T) {
+	for code, want := range map[int]cli.ExitCode{403: cli.ExitForbidden, 409: cli.ExitConflict} {
+		err, ok := status(code).(*cli.Error)
+		if !ok || err.ExitCode != want {
+			t.Fatalf("status(%d)=%#v", code, err)
+		}
+	}
+}
