@@ -17,7 +17,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var decimalPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)(\.[0-9]+)?$`)
+var positiveMoneyPattern = regexp.MustCompile(`^(?:0\.(?:0[1-9]|[1-9][0-9]?)|[1-9][0-9]*(?:\.[0-9]{1,2})?)$`)
+var signedMoneyPattern = regexp.MustCompile(`^-?[0-9]{1,10}(?:\.[0-9]{1,2})?$`)
 
 type Module struct{ Factory ServiceFactory }
 
@@ -64,17 +65,17 @@ func decimal(raw string, required bool) (*string, error) {
 	if raw == "" && !required {
 		return nil, nil
 	}
-	if !decimalPattern.MatchString(raw) {
-		return nil, &cli.Error{Code: "invalid_amount", Message: "amount must be a positive decimal string without exponent notation", ExitCode: cli.ExitUsage}
+	if !positiveMoneyPattern.MatchString(raw) {
+		return nil, &cli.Error{Code: "invalid_amount", Message: "amount must be a positive decimal string with at most two fractional digits", ExitCode: cli.ExitUsage}
 	}
-	zero := true
-	for _, r := range raw {
-		if r >= '1' && r <= '9' {
-			zero = false
-		}
+	return &raw, nil
+}
+func expenseDecimal(raw string, required bool) (*string, error) {
+	if raw == "" && !required {
+		return nil, nil
 	}
-	if zero {
-		return nil, &cli.Error{Code: "invalid_amount", Message: "amount must be greater than zero", ExitCode: cli.ExitUsage}
+	if !signedMoneyPattern.MatchString(raw) {
+		return nil, &cli.Error{Code: "invalid_amount", Message: "amount must be a decimal string with at most ten whole and two fractional digits", ExitCode: cli.ExitUsage}
 	}
 	return &raw, nil
 }
@@ -268,7 +269,7 @@ func (m Module) create() *cobra.Command {
 	amount, description, cur, date, account, category, tags := expenseFlags(cmd, true)
 	kind := optionalString(cmd, "type", "expense or income")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		a, e := decimal(*amount, true)
+		a, e := expenseDecimal(*amount, true)
 		if e != nil {
 			return e
 		}
@@ -317,7 +318,7 @@ func (m Module) update() *cobra.Command {
 		b := daikuv1.PatchedExpenseRequest{Account: nil, Category: nil, RecurringExpense: nil}
 		changed := false
 		if *amount != "" {
-			a, e := decimal(*amount, true)
+			a, e := expenseDecimal(*amount, true)
 			if e != nil {
 				return e
 			}
@@ -435,7 +436,7 @@ func (m Module) bulkCreate() *cobra.Command {
 			return usage("expenses must not be empty")
 		}
 		for _, x := range b.Expenses {
-			if _, e := decimal(x.Amount, true); e != nil {
+			if _, e := expenseDecimal(x.Amount, true); e != nil {
 				return e
 			}
 			if x.Currency != nil {
@@ -650,8 +651,8 @@ func (m Module) installmentCreate() *cobra.Command {
 		if e != nil {
 			return e
 		}
-		if count < 2 || count > 120 {
-			return usage("count must be between 2 and 120")
+		if count < 2 || count > 60 {
+			return usage("count must be between 2 and 60")
 		}
 		b := daikuv1.InstallmentCreateRequestRequest{Amount: *a, Description: *description, Currency: daikuv1.Currency43eEnum(*c), ExpenseDate: *d, Installments: count, Account: nil, Category: nil}
 		if *account != "" {

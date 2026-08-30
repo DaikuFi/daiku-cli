@@ -28,14 +28,14 @@ func TestGeneratedServiceSendsTransferLegsWithoutRecalculation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	toAmount := "2.5000"
+	toAmount := "2.50"
 	_, err = (generatedService{client}).CreateTransfer(context.Background(), "hh_1", daikuv1.TransferCreateRequestRequest{
 		Amount: "100.00", FromAccount: "acc_a", ToAccount: "acc_b", ToAmount: &toAmount,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if request["amount"] != "100.00" || request["to_amount"] != "2.5000" {
+	if request["amount"] != "100.00" || request["to_amount"] != "2.50" {
 		t.Fatalf("amounts changed: %#v", request)
 	}
 	if _, exists := request["balance"]; exists {

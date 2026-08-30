@@ -81,15 +81,15 @@ func run(t *testing.T, svc *fakeService, input string, args ...string) (int, str
 
 func TestCreatePreservesDecimalStringAndJSONEnvelope(t *testing.T) {
 	svc := &fakeService{}
-	code, out, stderr := run(t, svc, "", "transactions", "create", "--household", "hh_1", "--amount", "001.2300", "--description", "Lunch", "--currency", "USD", "--json")
+	code, out, stderr := run(t, svc, "", "transactions", "create", "--household", "hh_1", "--amount", "1.2300", "--description", "Lunch", "--currency", "USD", "--json")
 	if code != int(cli.ExitUsage) {
 		t.Fatalf("code=%d out=%s err=%s", code, out, stderr)
 	}
-	code, out, stderr = run(t, svc, "", "transactions", "create", "--household", "hh_1", "--amount", "1.2300", "--description", "Lunch", "--currency", "USD", "--json")
+	code, out, stderr = run(t, svc, "", "transactions", "create", "--household", "hh_1", "--amount", "1.20", "--description", "Lunch", "--currency", "USD", "--json")
 	if code != 0 {
 		t.Fatalf("code=%d err=%s", code, stderr)
 	}
-	if svc.created == nil || svc.created.Amount != "1.2300" {
+	if svc.created == nil || svc.created.Amount != "1.20" {
 		t.Fatalf("amount changed: %#v", svc.created)
 	}
 	var envelope map[string]any
@@ -120,11 +120,11 @@ func TestDeleteNeedsYesWhenNonInteractive(t *testing.T) {
 
 func TestTransferKeepsExplicitLegAmounts(t *testing.T) {
 	svc := &fakeService{}
-	code, _, stderr := run(t, svc, "", "transfers", "create", "--household", "hh_1", "--from-account", "acc_a", "--to-account", "acc_b", "--amount", "100.00", "--to-amount", "2.500", "--json")
+	code, _, stderr := run(t, svc, "", "transfers", "create", "--household", "hh_1", "--from-account", "acc_a", "--to-account", "acc_b", "--amount", "100.00", "--to-amount", "2.50", "--json")
 	if code != 0 {
 		t.Fatalf("code=%d err=%s", code, stderr)
 	}
-	if svc.transfer == nil || svc.transfer.Amount != "100.00" || svc.transfer.ToAmount == nil || *svc.transfer.ToAmount != "2.500" {
+	if svc.transfer == nil || svc.transfer.Amount != "100.00" || svc.transfer.ToAmount == nil || *svc.transfer.ToAmount != "2.50" {
 		t.Fatalf("body=%#v", svc.transfer)
 	}
 }
