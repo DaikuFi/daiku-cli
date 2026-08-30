@@ -282,6 +282,81 @@ var humanSpanish = map[string]string{
 	"the Daiku API request failed":                                                       "falló la solicitud a la API de Daiku",
 	"select and authenticate a profile first":                                            "selecciona y autentica un perfil primero",
 	"the active profile is not authenticated":                                            "el perfil activo no está autenticado",
+	"Manage portfolios and inspect server-calculated totals":                             "Gestiona portafolios y consulta totales calculados por el servidor",
+	"List portfolios":                                                                    "Lista portafolios",
+	"Get a portfolio":                                                                    "Muestra un portafolio",
+	"Create a portfolio":                                                                 "Crea un portafolio",
+	"Update a portfolio":                                                                 "Actualiza un portafolio",
+	"Delete a portfolio":                                                                 "Elimina un portafolio",
+	"Show server-calculated assets, liabilities and net worth":                           "Muestra activos, pasivos y patrimonio calculados por el servidor",
+	"Show server-calculated portfolio holdings":                                          "Muestra las tenencias calculadas por el servidor",
+	"Manage portfolio buckets":                                                           "Gestiona grupos del portafolio",
+	"List buckets":                                                                       "Lista grupos",
+	"Create a bucket":                                                                    "Crea un grupo",
+	"Update a bucket":                                                                    "Actualiza un grupo",
+	"Delete a bucket":                                                                    "Elimina un grupo",
+	"Manage assets, cashflows and value history":                                         "Gestiona activos, flujos de caja e historial de valor",
+	"List assets":                                                                        "Lista activos",
+	"Create an asset":                                                                    "Crea un activo",
+	"Update an asset":                                                                    "Actualiza un activo",
+	"Delete an asset":                                                                    "Elimina un activo",
+	"Manage asset cashflows":                                                             "Gestiona flujos de caja del activo",
+	"List cashflows, including transaction links":                                        "Lista flujos de caja, incluidos sus vínculos a transacciones",
+	"Create a cashflow":                                                                  "Crea un flujo de caja",
+	"Update a cashflow":                                                                  "Actualiza un flujo de caja",
+	"Delete a cashflow":                                                                  "Elimina un flujo de caja",
+	"Manage asset value history":                                                         "Gestiona el historial de valor del activo",
+	"List value history":                                                                 "Lista el historial de valor",
+	"Create a value-history point":                                                       "Crea un punto del historial de valor",
+	"Update a value-history point":                                                       "Actualiza un punto del historial de valor",
+	"Delete a value-history point":                                                       "Elimina un punto del historial de valor",
+	"portfolio name":                                                                     "nombre del portafolio",
+	"portfolio emoji":                                                                    "emoji del portafolio",
+	"portfolio ID":                                                                       "ID del portafolio",
+	"make this the default portfolio":                                                    "lo establece como portafolio predeterminado",
+	"bucket name":                                                                        "nombre del grupo",
+	"bucket type":                                                                        "tipo de grupo",
+	"bucket emoji":                                                                       "emoji del grupo",
+	"bucket ID":                                                                          "ID del grupo",
+	"sort order":                                                                         "orden",
+	"asset name":                                                                         "nombre del activo",
+	"asset type":                                                                         "tipo de activo",
+	"asset ID":                                                                           "ID del activo",
+	"current value (sent verbatim to Daiku)":                                             "valor actual (enviado sin cambios a Daiku)",
+	"quantity":                                                                           "cantidad",
+	"price per unit":                                                                     "precio por unidad",
+	"ticker symbol":                                                                      "símbolo bursátil",
+	"notes":                                                                              "notas",
+	"mark as liability":                                                                  "lo marca como pasivo",
+	"exclude from projections":                                                           "lo excluye de las proyecciones",
+	"date (YYYY-MM-DD)":                                                                  "fecha (AAAA-MM-DD)",
+	"cash in amount":                                                                     "monto de entrada",
+	"cash out amount":                                                                    "monto de salida",
+	"cash in currency":                                                                   "moneda de entrada",
+	"cash out currency":                                                                  "moneda de salida",
+	"recorded value":                                                                     "valor registrado",
+	"recorded quantity":                                                                  "cantidad registrada",
+	"ISO currency supported by Daiku":                                                    "moneda ISO admitida por Daiku",
+	"last price update (RFC3339)":                                                        "última actualización de precio (RFC3339)",
+	"clear quantity":                                                                     "borra la cantidad",
+	"clear price per unit":                                                               "borra el precio por unidad",
+	"clear ticker symbol":                                                                "borra el símbolo bursátil",
+	"clear last price update":                                                            "borra la última actualización de precio",
+	"clear cash in amount":                                                               "borra el monto de entrada",
+	"clear cash out amount":                                                              "borra el monto de salida",
+	"clear cash in currency":                                                             "borra la moneda de entrada",
+	"clear cash out currency":                                                            "borra la moneda de salida",
+	"clear recorded quantity":                                                            "borra la cantidad registrada",
+	"select a profile before using portfolios":                                           "selecciona un perfil antes de usar portafolios",
+	"authenticate the active profile before using portfolios":                            "autentica el perfil activo antes de usar portafolios",
+	"the active profile has an invalid API URL":                                          "el perfil activo tiene una URL de API inválida",
+	"the Daiku API client could not be created":                                          "no se pudo crear el cliente de la API de Daiku",
+	"the request body could not be encoded":                                              "no se pudo codificar el cuerpo de la solicitud",
+	"unsupported currency":                                                               "moneda no admitida",
+	"invalid asset type":                                                                 "tipo de activo inválido",
+	"last-price-update must use RFC3339":                                                 "last-price-update debe usar RFC3339",
+	"invalid bucket type":                                                                "tipo de grupo inválido",
+	"type must be cash, investments, crypto, real_estate, vehicles or other": "el tipo debe ser cash, investments, crypto, real_estate, vehicles u other",
 }
 
 // Parse accepts only the two product languages. Empty means auto-detect.
@@ -347,6 +422,17 @@ func (l Localizer) Human(value string) string {
 	if l.Language == Spanish {
 		if strings.HasPrefix(value, "help for ") {
 			return "ayuda de " + strings.TrimPrefix(value, "help for ")
+		}
+		if strings.HasPrefix(value, "cannot set and clear ") {
+			field := strings.TrimSuffix(strings.TrimPrefix(value, "cannot set and clear "), " together")
+			translated := map[string]string{"quantity": "cantidad", "price-per-unit": "precio por unidad", "ticker": "símbolo bursátil", "last-price-update": "última actualización de precio", "cash-in": "entrada", "cash-out": "salida", "cash-in-currency": "moneda de entrada", "cash-out-currency": "moneda de salida"}
+			if localized, ok := translated[field]; ok {
+				field = localized
+			}
+			return "no se puede establecer y borrar " + field + " a la vez"
+		}
+		if strings.HasPrefix(value, "Daiku API returned HTTP ") {
+			return "La API de Daiku respondió HTTP " + strings.TrimPrefix(value, "Daiku API returned HTTP ")
 		}
 		if translated, ok := humanSpanish[value]; ok {
 			return translated
