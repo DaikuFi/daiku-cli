@@ -133,3 +133,26 @@ app := cli.New(
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for checks and the stacked-PR workflow.
+
+## API contract and generated client
+
+The typed Go client in `generated/daikuv1` is generated from the pinned public
+API snapshot at `openapi/daiku-v1.json`. Do not edit generated files by hand.
+`openapi/SOURCE.json` records the exact Daiku repository commit and export
+command, while the SHA-256 file and `METHOD PATH operationId` manifest make
+contract changes explicit in review.
+
+After intentionally exporting a new schema from that exact Daiku commit, update
+the checksum and operation ID manifest, then regenerate:
+
+```sh
+make contract-generate
+make contract-check
+```
+
+`contract-check` regenerates into a temporary directory and compares byte for
+byte. It fails on a stale generated client, checksum drift, broken schema
+references, missing or duplicate operation IDs, or any unreviewed operation
+addition/removal/rename/move. The generator is pinned as a Go tool in `go.mod`, so a
+normal `go mod download` is the only dependency bootstrap required by a clean
+checkout.
