@@ -52,3 +52,19 @@ func TestLocalizerHandlesUTF8(t *testing.T) {
 		t.Fatalf("translation = %q", got)
 	}
 }
+
+func TestLocalizerTranslatesTransactionSurfaceAndHTTPStatus(t *testing.T) {
+	localizer := i18n.New(i18n.Spanish)
+	translations := map[string]string{
+		"Manage transactions":                          "Gestiona transacciones",
+		"Create a balanced transfer":                   "Crea una transferencia balanceada",
+		"Create an installment plan":                   "Crea un plan de cuotas",
+		"amount must be at least 0.01 per installment": "el importe debe ser al menos 0,01 por cuota",
+		"Daiku API returned HTTP 403: forbidden":       "La API de Daiku respondió HTTP 403: forbidden",
+	}
+	for input, want := range translations {
+		if got := localizer.Human(input); got != want {
+			t.Fatalf("Human(%q) = %q, want %q", input, got, want)
+		}
+	}
+}

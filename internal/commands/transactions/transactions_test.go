@@ -162,6 +162,18 @@ func TestInstallmentsSendPurchaseTotalAndCount(t *testing.T) {
 	}
 }
 
+func TestInstallmentsRequireAtLeastOneCentPerInstallment(t *testing.T) {
+	svc := &fakeService{}
+	code, _, stderr := run(t, svc, "", "installments", "create", "--household", "hh_1", "--amount", "0.01", "--description", "Purchase", "--currency", "UYU", "--date", "2026-08-29", "--count", "2", "--json")
+	if code != int(cli.ExitUsage) || svc.installment != nil {
+		t.Fatalf("code=%d body=%#v err=%s", code, svc.installment, stderr)
+	}
+	code, _, stderr = run(t, svc, "", "installments", "create", "--household", "hh_1", "--amount", "0.60", "--description", "Purchase", "--currency", "UYU", "--date", "2026-08-29", "--count", "60", "--json")
+	if code != 0 || svc.installment == nil {
+		t.Fatalf("boundary code=%d body=%#v err=%s", code, svc.installment, stderr)
+	}
+}
+
 func TestBulkCreateUsesContractShapeAndPreservesAmounts(t *testing.T) {
 	svc := &fakeService{}
 	input := `{"expenses":[{"amount":"10.50","description":"one","account":null,"category":null,"recurring_expense":null,"currency":"USD"}]}`
@@ -213,6 +225,26 @@ func TestBulkUpdateRequiresConfirmationAndKeepsContractBody(t *testing.T) {
 	code, _, stderr := run(t, svc, input, "transactions", "bulk-update", "--household", "hh_1", "--file", "-", "--yes", "--json")
 	if code != 0 || svc.bulkUpdated == nil {
 		t.Fatalf("code=%d body=%#v err=%s", code, svc.bulkUpdated, stderr)
+	}
+	if !svc.bulkUpdated.Updates.Account.Present || svc.bulkUpdated.Updates.Account.Value == nil || *svc.bulkUpdated.Updates.Account.Value != "acc_2" {
+		t.Fatalf("account=%#v", svc.bulkUpdated.Updates.Account)
+	}
+	if !svc.bulkUpdated.Updates.Category.Present || svc.bulkUpdated.Updates.Category.Value != nil {
+		t.Fatalf("category=%#v", svc.bulkUpdated.Updates.Category)
+	}
+}
+
+func TestBulkUpdateRejectsUnknownAndInvalidNestedFields(t *testing.T) {
+	for _, input := range []string{
+		`{"ids":["exp_1"],"updates":{"description":"changed"}}`,
+		`{"ids":["exp_1"],"updates":{"account":42}}`,
+		`{"ids":["exp_1"],"updates":{"category":""}}`,
+	} {
+		svc := &fakeService{}
+		code, _, stderr := run(t, svc, input, "transactions", "bulk-update", "--household", "hh_1", "--file", "-", "--yes", "--json")
+		if code != int(cli.ExitUsage) || svc.bulkUpdated != nil {
+			t.Fatalf("input=%s code=%d body=%#v err=%s", input, code, svc.bulkUpdated, stderr)
+		}
 	}
 }
 
@@ -281,5 +313,23 @@ func TestSpanishDestructivePromptAndStableJSONError(t *testing.T) {
 	}
 	if !strings.Contains(errOut.String(), `"code":"invalid_currency"`) || strings.Contains(errOut.String(), "moneda") {
 		t.Fatalf("json error=%q", errOut.String())
+	}
+}
+
+func TestSpanishTransactionHelpAndHumanValidationError(t *testing.T) {
+	svc := &fakeService{}
+	code, out, stderr := run(t, svc, "", "transactions", "create", "--language", "es", "--help")
+	if code != 0 {
+		t.Fatalf("code=%d err=%s", code, stderr)
+	}
+	for _, translated := range []string{"Crea una transacción", "ID del hogar", "importe decimal", "descripción"} {
+		if !strings.Contains(out, translated) {
+			t.Fatalf("help missing %q: %s", translated, out)
+		}
+	}
+
+	code, _, stderr = run(t, svc, "", "transactions", "create", "--household", "hh_1", "--amount", "invalid", "--description", "x", "--language", "es")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "el importe debe ser un decimal") {
+		t.Fatalf("code=%d err=%s", code, stderr)
 	}
 }

@@ -30,9 +30,65 @@ type Service interface {
 }
 
 type PatchBody map[string]any
+
+type OptionalNullableString struct {
+	Present bool
+	Value   *string
+}
+
+type BulkUpdateFields struct {
+	Account  OptionalNullableString
+	Category OptionalNullableString
+}
+
+func (f *BulkUpdateFields) UnmarshalJSON(data []byte) error {
+	*f = BulkUpdateFields{}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	for name, raw := range fields {
+		var target *OptionalNullableString
+		switch name {
+		case "account":
+			target = &f.Account
+		case "category":
+			target = &f.Category
+		default:
+			return fmt.Errorf("unknown bulk update field %q", name)
+		}
+		target.Present = true
+		if string(raw) == "null" {
+			target.Value = nil
+			continue
+		}
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil || value == "" {
+			return fmt.Errorf("bulk update field %q must be a non-empty string or null", name)
+		}
+		target.Value = &value
+	}
+	return nil
+}
+
+func (f BulkUpdateFields) MarshalJSON() ([]byte, error) {
+	fields := make(map[string]any, 2)
+	if f.Account.Present {
+		fields["account"] = f.Account.Value
+	}
+	if f.Category.Present {
+		fields["category"] = f.Category.Value
+	}
+	return json.Marshal(fields)
+}
+
+func (f BulkUpdateFields) Empty() bool {
+	return !f.Account.Present && !f.Category.Present
+}
+
 type BulkUpdateBody struct {
-	IDs     []string  `json:"ids"`
-	Updates PatchBody `json:"updates"`
+	IDs     []string         `json:"ids"`
+	Updates BulkUpdateFields `json:"updates"`
 }
 
 type ServiceFactory func(context.Context) (Service, error)
@@ -74,12 +130,34 @@ type generatedService struct{ client *daikuv1.ClientWithResponses }
 
 func responseError(status int, body []byte) error {
 	var public daikuv1.PublicError
-	_ = json.Unmarshal(body, &public)
 	message := fmt.Sprintf("Daiku API returned HTTP %d", status)
-	if encoded, err := json.Marshal(public); err == nil && string(encoded) != "{}" {
-		message += ": " + string(encoded)
+	if err := json.Unmarshal(body, &public); err == nil && meaningfulPublicError(public) {
+		if encoded, marshalErr := json.Marshal(public); marshalErr == nil {
+			message += ": " + string(encoded)
+		}
+	} else if detail := responseDetail(body); detail != "" {
+		message += ": " + detail
 	}
 	return safeStatus(status, message)
+}
+
+func meaningfulPublicError(public daikuv1.PublicError) bool {
+	return public.Error.Message != "" || public.Error.StatusCode != 0 ||
+		(public.Error.Errors != nil && len(*public.Error.Errors) > 0)
+}
+
+func responseDetail(body []byte) string {
+	var fallback struct {
+		Detail json.RawMessage `json:"detail"`
+	}
+	if err := json.Unmarshal(body, &fallback); err != nil || len(fallback.Detail) == 0 || string(fallback.Detail) == "null" {
+		return ""
+	}
+	var detail string
+	if err := json.Unmarshal(fallback.Detail, &detail); err == nil {
+		return detail
+	}
+	return string(fallback.Detail)
 }
 
 func (s generatedService) List(ctx context.Context, hh string, p *daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams) (any, error) {

@@ -125,6 +125,25 @@ func TestResponseErrorMapsRoleRejectionToForbidden(t *testing.T) {
 	if !errors.As(err, &cliErr) || cliErr.ExitCode != cli.ExitForbidden {
 		t.Fatalf("error = %#v", err)
 	}
+	if cliErr.Message != "Daiku API returned HTTP 403: editor role required" {
+		t.Fatalf("message = %q", cliErr.Message)
+	}
+}
+
+func TestResponseErrorOnlyIncludesMeaningfulPublicError(t *testing.T) {
+	err := responseError(http.StatusNotFound, []byte(`{"error":{"errors":null,"message":"","status_code":0}}`))
+	var cliErr *cli.Error
+	if !errors.As(err, &cliErr) {
+		t.Fatal(err)
+	}
+	if cliErr.Message != "Daiku API returned HTTP 404" {
+		t.Fatalf("message = %q", cliErr.Message)
+	}
+
+	err = responseError(http.StatusBadRequest, []byte(`{"error":{"errors":{"amount":["invalid"]},"message":"Invalid request.","status_code":400}}`))
+	if !errors.As(err, &cliErr) || !strings.Contains(cliErr.Message, `"message":"Invalid request."`) {
+		t.Fatalf("error = %#v", err)
+	}
 }
 
 type memoryCredentials struct{ token credentials.Token }
@@ -185,5 +204,37 @@ func TestGeneratedPatchPreservesOmittedAndNullOnWire(t *testing.T) {
 	}
 	if _, ok := payload["category"]; ok {
 		t.Fatalf("omitted category sent: %#v", payload)
+	}
+}
+
+func TestGeneratedBulkUpdatePreservesTypedOmittedAndNullOnWire(t *testing.T) {
+	var payload map[string]any
+	doer := roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.Method != http.MethodPatch {
+			t.Fatalf("method=%s", request.Method)
+		}
+		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"updated":1,"skipped":0}`))}, nil
+	})
+	client, err := daikuv1.NewClientWithResponses("https://api.daiku.test", daikuv1.WithHTTPClient(doer))
+	if err != nil {
+		t.Fatal(err)
+	}
+	account := "acc_2"
+	_, err = (generatedService{client}).BulkUpdate(context.Background(), "hh_1", BulkUpdateBody{
+		IDs: []string{"exp_1"},
+		Updates: BulkUpdateFields{
+			Account:  OptionalNullableString{Present: true, Value: &account},
+			Category: OptionalNullableString{Present: true},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updates, ok := payload["updates"].(map[string]any)
+	if !ok || len(updates) != 2 || updates["account"] != "acc_2" || updates["category"] != nil {
+		t.Fatalf("payload=%#v", payload)
 	}
 }

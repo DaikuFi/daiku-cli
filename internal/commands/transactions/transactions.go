@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"regexp"
 	"time"
@@ -106,6 +107,14 @@ func installmentCurrency(raw string) (*daikuv1.Currency43eEnum, error) {
 		return nil, &cli.Error{Code: "invalid_currency", Message: "currency is not supported by the installment API contract", ExitCode: cli.ExitUsage}
 	}
 	return &v, nil
+}
+func validInstallmentTotal(amount string, count int) bool {
+	total, ok := new(big.Rat).SetString(amount)
+	if !ok {
+		return false
+	}
+	minimum := big.NewRat(int64(count), 100)
+	return total.Cmp(minimum) >= 0
 }
 func printResult(cmd *cobra.Command, value any) error {
 	jsonOut, _ := cmd.Flags().GetBool("json")
@@ -536,7 +545,7 @@ func (m Module) bulkUpdate() *cobra.Command {
 		if e := readJSON(cmd, *file, &b); e != nil {
 			return e
 		}
-		if len(b.IDs) == 0 || len(b.Updates) == 0 {
+		if len(b.IDs) == 0 || b.Updates.Empty() {
 			return usage("ids and updates are required")
 		}
 		if e := confirm(cmd, yes, humanText(cmd, fmt.Sprintf("Update %d transactions.", len(b.IDs)), fmt.Sprintf("Actualizar %d transacciones.", len(b.IDs)))); e != nil {
@@ -724,6 +733,9 @@ func (m Module) installmentCreate() *cobra.Command {
 		}
 		if count < 2 || count > 60 {
 			return usage("count must be between 2 and 60")
+		}
+		if !validInstallmentTotal(*a, count) {
+			return usage("amount must be at least 0.01 per installment")
 		}
 		b := daikuv1.InstallmentCreateRequestRequest{Amount: *a, Description: *description, Currency: *c, ExpenseDate: *d, Installments: count, Account: nil, Category: nil}
 		if *accountAmount != "" {
