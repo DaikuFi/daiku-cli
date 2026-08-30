@@ -71,8 +71,11 @@ func TestLocalizerTranslatesTransactionSurfaceAndHTTPStatus(t *testing.T) {
 	localizer := i18n.New(i18n.Spanish)
 	translations := map[string]string{
 		"Manage transactions":                          "Gestiona transacciones",
+		"Get a transaction":                            "Muestra una transacción",
 		"Create a balanced transfer":                   "Crea una transferencia balanceada",
 		"Create an installment plan":                   "Crea un plan de cuotas",
+		"List installment plans":                       "Lista planes de cuotas",
+		"page-size must be between 1 and 200":          "page-size debe estar entre 1 y 200",
 		"amount must be at least 0.01 per installment": "el importe debe ser al menos 0,01 por cuota",
 		"Daiku API returned HTTP 403: forbidden":       "La API de Daiku respondió HTTP 403: forbidden",
 	}

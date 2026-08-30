@@ -3,7 +3,7 @@
   "info": {
     "title": "Daiku API",
     "version": "1.0.0",
-    "description": "Programmatic access to **your own** Daiku personal-finance data —\ncurrently including expenses, households, categories, portfolios, assets,\nprojection scenarios, and exchange rates. Only operations shown in this reference\nare part of the public contract.\n\nUse OAuth 2.0 for interactive clients: `finance:read` authorizes reads and\n`finance:write` authorizes writes. Existing household roles and database row\nsecurity still apply. Personal **integration keys** (`dk_ro_…`) remain GET-only.\n\n## Authentication\n\nFor OAuth, use the authorization-code flow and request only the scopes your\nclient needs. For scripts, create a key under **Settings → Integrations**. The secret\n(`dk_ro_…`) is shown **once, at creation** — copy it immediately, as only a hash\nis stored. You can have up to **3 active keys**; revoking one frees a slot.\n\nSend the key as a bearer token on every request:\n\n```bash\ncurl https://api.daiku.app/api/v1/exchange-rates/ \\\n  -H \"Authorization: Bearer dk_ro_your_key_here\"\n```\n\nQuery-string keys are not accepted. Secrets in URLs leak into logs, history,\nand `Referer` headers.\n\n\n**Integration-key read-only access is enforced server-side:** any `POST`, `PATCH`, `PUT`, or `DELETE`\nreturns `403`. The endpoints that create or revoke keys require an app session\nand are intentionally not part of this key-authenticated surface.\n\n## Quickstart\n\n```bash\nexport DAIKU_API_KEY=dk_ro_your_key_here\nBASE=https://api.daiku.app/api/v1\nH=\"Authorization: Bearer $DAIKU_API_KEY\"\n\n# 1. Confirm your key works (account-independent)\ncurl \"$BASE/exchange-rates/\" -H \"$H\"\n\n# 2. Find a household id\ncurl \"$BASE/households/\" -H \"$H\"\n\n# 3. List that household's expenses for a month\ncurl \"$BASE/households/<household_id>/expenses/?month=6&year=2026\" -H \"$H\"\n\n# 4. Read a portfolio (detail embeds buckets[] -> assets[])\ncurl \"$BASE/portfolios/\" -H \"$H\"\n```\n\n## Rate limits\n\nEach key is limited to **15 requests per minute**. Exceeding it returns `429`\nwith a `Retry-After` header (seconds to wait). Cache data that rarely changes\n(exchange rates, categories) and respect `Retry-After` when backing off.\n\n## Errors & conventions\n\n| Status | Meaning |\n| ------ | ------- |\n| `400`  | Invalid query parameter. |\n| `401`  | Missing, malformed, expired, or revoked key. |\n| `403`  | Missing OAuth scope, insufficient role, or a non-`GET` integration-key request. |\n| `404`  | The resource doesn't exist **or** isn't yours. |\n| `429`  | Rate limit exceeded (15/min per key). |\n\n- **List endpoints** return a plain JSON **array**; detail endpoints return a\n  single object, often with related data embedded.\n- **Money and exchange rates** are decimal **strings** (`\"1234.56\"`), never\n  floats. **Dates** are `YYYY-MM-DD`; **timestamps** are ISO 8601 UTC.\n- Supported **currencies** are `UYU`, `USD`, and `EUR` only.\n\n## Data sources\n\nExchange rates are sourced from Uruguay's central bank, the **Banco Central del\nUruguay (BCU)**.\n"
+    "description": "Programmatic access to **your own** Daiku personal-finance data —\ncurrently including expenses, households, categories, portfolios, assets,\nprojection scenarios, and exchange rates. Only operations shown in this reference\nare part of the public contract.\n\nUse OAuth 2.0 for interactive clients: `finance:read` authorizes reads and\n`finance:write` authorizes writes. Existing household roles and database row\nsecurity still apply. Personal **integration keys** (`dk_ro_…`) remain GET-only.\n\n## Authentication\n\nFor OAuth, use the authorization-code flow and request only the scopes your\nclient needs. For scripts, create a key under **Settings → Integrations**. The secret\n(`dk_ro_…`) is shown **once, at creation** — copy it immediately, as only a hash\nis stored. You can have up to **3 active keys**; revoking one frees a slot.\n\nSend the key as a bearer token on every request:\n\n```bash\ncurl https://api.daiku.app/api/v1/exchange-rates/ \\\n  -H \"Authorization: Bearer dk_ro_your_key_here\"\n```\n\nQuery-string keys are not accepted. Secrets in URLs leak into logs, history,\nand `Referer` headers.\n\n\n**Integration-key read-only access is enforced server-side:** any `POST`, `PATCH`, `PUT`, or `DELETE`\nreturns `403`. The endpoints that create or revoke keys require an app session\nand are intentionally not part of this key-authenticated surface.\n\n## Quickstart\n\n```bash\nexport DAIKU_API_KEY=dk_ro_your_key_here\nBASE=https://api.daiku.app/api/v1\nH=\"Authorization: Bearer $DAIKU_API_KEY\"\n\n# 1. Confirm your key works (account-independent)\ncurl \"$BASE/exchange-rates/\" -H \"$H\"\n\n# 2. Find a household id\ncurl \"$BASE/households/\" -H \"$H\"\n\n# 3. List that household's expenses for a month\ncurl \"$BASE/households/<household_id>/expenses/?month=6&year=2026\" -H \"$H\"\n\n# 4. Read a portfolio (detail embeds buckets[] -> assets[])\ncurl \"$BASE/portfolios/\" -H \"$H\"\n```\n\n## Rate limits\n\nEach key is limited to **15 requests per minute**. Exceeding it returns `429`\nwith a `Retry-After` header (seconds to wait). Cache data that rarely changes\n(exchange rates, categories) and respect `Retry-After` when backing off.\n\n## Errors & conventions\n\n| Status | Meaning |\n| ------ | ------- |\n| `400`  | Invalid query parameter. |\n| `401`  | Missing, malformed, expired, or revoked key. |\n| `403`  | Missing OAuth scope, insufficient role, or a non-`GET` integration-key request. |\n| `404`  | The resource doesn't exist **or** isn't yours. |\n| `429`  | Rate limit exceeded (15/min per key). |\n\n- **List endpoints** return a plain JSON **array**; detail endpoints return a\n  single object, often with related data embedded.\n- **Money and exchange rates** are decimal **strings** (`\"1234.56\"`), never\n  floats. **Dates** are `YYYY-MM-DD`; **timestamps** are ISO 8601 UTC.\n- Supported **currencies** include UYU, USD, EUR, UI, major regional currencies,\n  and the additional codes declared by each endpoint's schema.\n\n## Data sources\n\nThe **Banco Central del Uruguay (BCU)** is authoritative for Uruguay's local\nmarket rates; the API supplements coverage for supported currencies when needed.\n"
   },
   "paths": {
     "/api/v1/assets/{id}/cashflows/": {
@@ -3071,9 +3071,26 @@
             "schema": {
               "type": "string",
               "enum": [
+                "ARS",
+                "BOB",
+                "BRL",
+                "CLP",
+                "COP",
+                "CRC",
+                "DOP",
                 "EUR",
+                "GBP",
+                "GTQ",
+                "HNL",
+                "MXN",
+                "NIO",
+                "PAB",
+                "PEN",
+                "PYG",
+                "UI",
                 "USD",
-                "UYU"
+                "UYU",
+                "VES"
               ]
             }
           },
@@ -3190,9 +3207,26 @@
             "schema": {
               "type": "string",
               "enum": [
+                "ARS",
+                "BOB",
+                "BRL",
+                "CLP",
+                "COP",
+                "CRC",
+                "DOP",
                 "EUR",
+                "GBP",
+                "GTQ",
+                "HNL",
+                "MXN",
+                "NIO",
+                "PAB",
+                "PEN",
+                "PYG",
+                "UI",
                 "USD",
-                "UYU"
+                "UYU",
+                "VES"
               ]
             }
           },
@@ -3316,9 +3350,26 @@
             "schema": {
               "type": "string",
               "enum": [
+                "ARS",
+                "BOB",
+                "BRL",
+                "CLP",
+                "COP",
+                "CRC",
+                "DOP",
                 "EUR",
+                "GBP",
+                "GTQ",
+                "HNL",
+                "MXN",
+                "NIO",
+                "PAB",
+                "PEN",
+                "PYG",
+                "UI",
                 "USD",
-                "UYU"
+                "UYU",
+                "VES"
               ]
             }
           },
@@ -5144,6 +5195,36 @@
           },
           {
             "in": "query",
+            "name": "currency",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ARS",
+                "BOB",
+                "BRL",
+                "CLP",
+                "COP",
+                "CRC",
+                "DOP",
+                "EUR",
+                "GBP",
+                "GTQ",
+                "HNL",
+                "MXN",
+                "NIO",
+                "PAB",
+                "PEN",
+                "PYG",
+                "UI",
+                "USD",
+                "UYU",
+                "VES"
+              ]
+            },
+            "description": "Filter by transaction currency."
+          },
+          {
+            "in": "query",
             "name": "date_from",
             "schema": {
               "type": "string",
@@ -5191,6 +5272,22 @@
               "type": "string"
             },
             "description": "Sort: newest (default), oldest, amount_high, amount_low."
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number. Its presence opts into pagination."
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Results per page (1–200; default 50)."
           },
           {
             "in": "query",
@@ -5643,6 +5740,107 @@
       }
     },
     "/api/v1/households/{household_pk}/expenses/installments/": {
+      "get": {
+        "operationId": "daiku_households_household_pk_expenses_installments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "household_pk",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "tags": [
+          "Households & expenses"
+        ],
+        "security": [
+          {
+            "DaikuOAuth": [
+              "finance:read"
+            ]
+          },
+          {
+            "IntegrationKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InstallmentPlan"
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "The request or its parameters are invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, malformed, expired, or revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The scope, household role, or authentication mode forbids this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The caller exceeded the applicable rate limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "summary": "Daiku households household pk expenses installments get"
+      },
       "post": {
         "operationId": "daiku_households_household_pk_expenses_installments_post",
         "parameters": [
@@ -5853,6 +6051,112 @@
           }
         },
         "summary": "Daiku households household pk expenses id delete"
+      },
+      "get": {
+        "operationId": "daiku_households_household_pk_expenses_id_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "household_pk",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "tags": [
+          "Households & expenses"
+        ],
+        "security": [
+          {
+            "DaikuOAuth": [
+              "finance:read"
+            ]
+          },
+          {
+            "IntegrationKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Expense"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "The request or its parameters are invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, malformed, expired, or revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The scope, household role, or authentication mode forbids this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The caller exceeded the applicable rate limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "summary": "Daiku households household pk expenses id get"
       },
       "patch": {
         "operationId": "daiku_households_household_pk_expenses_id_patch",
@@ -12512,7 +12816,7 @@
             "minimum": 1
           },
           "display_currency": {
-            "$ref": "#/components/schemas/DisplayCurrency43eEnum"
+            "$ref": "#/components/schemas/DisplayCurrency3e8Enum"
           },
           "window": {
             "type": "integer",
@@ -12525,11 +12829,12 @@
             }
           },
           "unconverted": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnconvertedCurrencies"
+              }
+            ],
+            "nullable": true
           }
         },
         "required": [
@@ -12545,7 +12850,7 @@
         "type": "object",
         "properties": {
           "display_currency": {
-            "$ref": "#/components/schemas/DisplayCurrency43eEnum"
+            "$ref": "#/components/schemas/DisplayCurrency3e8Enum"
           },
           "total_monthly_budget": {
             "type": "string",
@@ -12598,11 +12903,12 @@
             }
           },
           "unconverted": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnconvertedCurrencies"
+              }
+            ],
+            "nullable": true
           }
         },
         "required": [
@@ -14638,7 +14944,7 @@
             "description": "Purchase total; must be at least 0.01 per installment."
           },
           "currency": {
-            "$ref": "#/components/schemas/Currency43eEnum"
+            "$ref": "#/components/schemas/Currency3e8Enum"
           },
           "expense_date": {
             "type": "string",
@@ -15713,7 +16019,7 @@
             "pattern": "^-?\\d{0,16}(?:\\.\\d{0,2})?$"
           },
           "currency": {
-            "$ref": "#/components/schemas/Currency43eEnum"
+            "$ref": "#/components/schemas/Currency3e8Enum"
           },
           "scope": {
             "$ref": "#/components/schemas/Scope625Enum"
@@ -15754,7 +16060,7 @@
             "type": "integer"
           },
           "display_currency": {
-            "$ref": "#/components/schemas/DisplayCurrency43eEnum"
+            "$ref": "#/components/schemas/DisplayCurrency3e8Enum"
           },
           "categories": {
             "type": "array",
@@ -15766,11 +16072,12 @@
             "$ref": "#/components/schemas/PlannedBudgetTotals"
           },
           "unconverted": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": {}
-            }
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnconvertedCurrencies"
+              }
+            ],
+            "nullable": true
           }
         },
         "required": [
@@ -18427,6 +18734,25 @@
         ],
         "type": "string",
         "description": "* `amount` - amount\n* `asset` - asset\n* `bucket_type` - bucket_type\n* `currency` - currency\n* `date` - date\n* `frequency` - frequency\n* `month` - month\n* `number` - number\n* `percentage` - percentage\n* `text` - text\n* `ticker` - ticker\n* `year` - year"
+      },
+      "UnconvertedCurrencies": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "count",
+          "currencies"
+        ]
       },
       "User": {
         "type": "object",

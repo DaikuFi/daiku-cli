@@ -131,7 +131,7 @@ func TestGeneratedServiceListSendsPublishedPaginationControlsOverHTTP(t *testing
 		w.Header().Set("Content-Type", "application/json")
 		switch requests {
 		case 1:
-			if r.URL.Query().Get("paginated") != "true" || r.URL.Query().Get("month") != "8" || r.URL.Query().Get("year") != "2026" {
+			if r.URL.Query().Get("paginated") != "true" || r.URL.Query().Get("month") != "8" || r.URL.Query().Get("year") != "2026" || r.URL.Query().Get("currency") != "BRL" || r.URL.Query().Get("page") != "2" || r.URL.Query().Get("page_size") != "25" {
 				http.Error(w, "unexpected query", http.StatusBadRequest)
 				return
 			}
@@ -154,9 +154,10 @@ func TestGeneratedServiceListSendsPublishedPaginationControlsOverHTTP(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	month, year, paginated := 8, 2026, true
+	month, year, page, pageSize, paginated := 8, 2026, 2, 25, true
+	currency := daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency("BRL")
 	result, err := (generatedService{client}).List(context.Background(), "hh_1", &daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams{
-		Month: &month, Year: &year, Paginated: &paginated,
+		Month: &month, Year: &year, Currency: &currency, Page: &page, PageSize: &pageSize, Paginated: &paginated,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -170,6 +171,77 @@ func TestGeneratedServiceListSendsPublishedPaginationControlsOverHTTP(t *testing
 	}
 	if _, ok := result.([]daikuv1.Expense); !ok {
 		t.Fatalf("all result=%#v", result)
+	}
+}
+
+func TestGeneratedServiceDecodesTransactionDetailAndInstallmentSchedule(t *testing.T) {
+	doer := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.Header.Get("Authorization") != "Bearer fixture-token" {
+			t.Fatalf("authorization=%q", r.Header.Get("Authorization"))
+		}
+		var body string
+		switch r.URL.Path {
+		case "/api/v1/households/hh_1/expenses/exp_1/":
+			body = `{"id":"exp_1","amount":"525.50","description":"Transferencia","currency":"BRL","transaction_type":"transfer","installment_total":12,"transfer_peer":{"account":"acc_peer","account_name":"Conta","amount":"525.50","currency":"BRL"},"cash_flow_link":{"id":"cfl_1","side":"cash_out"}}`
+		case "/api/v1/households/hh_1/expenses/installments/":
+			body = `[{"id":"inp_1","household":"hh_1","category":null,"account":null,"description":"Laptop","amount":"1200.00","currency":"BRL","count":12,"start_date":"2026-08-30","is_active":true,"tags":[],"schedule":[{"number":1,"amount":"100.00","date":"2026-08-30","expense":{"id":"exp_1","amount":"100.00","description":"Laptop","currency":"BRL","installment_plan":"inp_1","installment_number":1,"installment_total":12}}],"charged_count":1,"created_by":null,"created_at":"2026-08-30T12:00:00Z","updated_at":"2026-08-30T12:00:00Z"}]`
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body))}, nil
+	})
+	client, err := daikuv1.NewClientWithResponses("https://api.daiku.test", daikuv1.WithHTTPClient(doer), daikuv1.WithRequestEditorFn(func(_ context.Context, request *http.Request) error {
+		request.Header.Set("Authorization", "Bearer fixture-token")
+		return nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := generatedService{client}
+
+	detailResult, err := service.GetTransaction(context.Background(), "hh_1", "exp_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail, ok := detailResult.(daikuv1.Expense)
+	if !ok || detail.TransferPeer == nil || detail.TransferPeer.Currency != daikuv1.Currency3e8EnumBRL || detail.CashFlowLink == nil || detail.InstallmentTotal == nil || *detail.InstallmentTotal != 12 {
+		t.Fatalf("detail=%#v", detailResult)
+	}
+
+	listResult, err := service.ListInstallments(context.Background(), "hh_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plans, ok := listResult.([]InstallmentPlanResponse)
+	if !ok || len(plans) != 1 || len(plans[0].Schedule) != 1 || plans[0].ChargedCount != 1 || plans[0].Schedule[0].Expense == nil || plans[0].Schedule[0].Expense.InstallmentTotal == nil || *plans[0].Schedule[0].Expense.InstallmentTotal != 12 {
+		t.Fatalf("plans=%#v", listResult)
+	}
+}
+
+func TestGeneratedReadServicesMapForbiddenAndNotFound(t *testing.T) {
+	doer := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		status := http.StatusNotFound
+		body := `{"error":{"errors":null,"message":"transaction missing","status_code":404}}`
+		if r.URL.Path == "/api/v1/households/hh_1/expenses/installments/" {
+			status = http.StatusForbidden
+			body = `{"error":{"errors":null,"message":"household access denied","status_code":403}}`
+		}
+		return &http.Response{StatusCode: status, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body))}, nil
+	})
+	client, err := daikuv1.NewClientWithResponses("https://api.daiku.test", daikuv1.WithHTTPClient(doer))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := generatedService{client}
+
+	_, err = service.GetTransaction(context.Background(), "hh_1", "missing")
+	var cliErr *cli.Error
+	if !errors.As(err, &cliErr) || cliErr.Code != "not_found" || cliErr.ExitCode != cli.ExitNotFound || !strings.Contains(cliErr.Message, "transaction missing") {
+		t.Fatalf("transaction error=%#v", err)
+	}
+	_, err = service.ListInstallments(context.Background(), "hh_1")
+	if !errors.As(err, &cliErr) || cliErr.Code != "forbidden" || cliErr.ExitCode != cli.ExitForbidden || !strings.Contains(cliErr.Message, "household access denied") {
+		t.Fatalf("installments error=%#v", err)
 	}
 }
 
