@@ -27,6 +27,8 @@ type fakeAPI struct {
 	scenarios       []daikuv1.ProjectionScenario
 	rules           []daikuv1.ProjectionRule
 	series          *daikuv1.NetWorthSeries
+	netWorthParams  *daikuv1.DaikuPortfoliosReportsNetWorthGetParams
+	exposureParams  *daikuv1.DaikuPortfoliosReportsCurrencyExposureGetParams
 	rates           []daikuv1.ExchangeRate
 	rateDate        *types.Date
 	created         *daikuv1.ProjectionRuleRequest
@@ -71,13 +73,15 @@ func (f *fakeAPI) RuleDelete(_ context.Context, _ string, id string) error {
 	f.deleted = id
 	return f.err
 }
-func (f *fakeAPI) NetWorth(context.Context) (*daikuv1.NetWorthSeries, error) {
+func (f *fakeAPI) NetWorth(_ context.Context, params *daikuv1.DaikuPortfoliosReportsNetWorthGetParams) (*daikuv1.NetWorthSeries, error) {
+	f.netWorthParams = params
 	if f.series == nil {
 		return &daikuv1.NetWorthSeries{Series: []daikuv1.NetWorthPoint{}}, f.err
 	}
 	return f.series, f.err
 }
-func (f *fakeAPI) CurrencyExposure(context.Context) (*daikuv1.CurrencyExposure, error) {
+func (f *fakeAPI) CurrencyExposure(_ context.Context, params *daikuv1.DaikuPortfoliosReportsCurrencyExposureGetParams) (*daikuv1.CurrencyExposure, error) {
+	f.exposureParams = params
 	return &daikuv1.CurrencyExposure{ByCurrency: []daikuv1.CurrencyExposureItem{}}, f.err
 }
 func (f *fakeAPI) Rates(_ context.Context, p *daikuv1.DaikuExchangeRatesGetParams) ([]daikuv1.ExchangeRate, error) {
@@ -337,6 +341,35 @@ func TestEmptySeriesHasStableJSONAndHumanEmptyState(t *testing.T) {
 	code, human, _ := run(t, api, true, "reports", "net-worth", "--language", "es")
 	if code != 0 || strings.TrimSpace(human) != "No hay resultados." {
 		t.Fatalf("code=%d human=%q", code, human)
+	}
+}
+
+func TestReportFiltersAreValidatedAndSentToBackend(t *testing.T) {
+	api := &fakeAPI{series: &daikuv1.NetWorthSeries{Currency: "BRL", Series: []daikuv1.NetWorthPoint{}}}
+	code, _, stderr := run(t, api, false, "reports", "net-worth", "--currency", "brl", "--months", "24", "--end", "2026-08", "--json")
+	if code != 0 || stderr != "" || api.netWorthParams == nil || api.netWorthParams.Currency == nil || string(*api.netWorthParams.Currency) != "BRL" || api.netWorthParams.Months == nil || *api.netWorthParams.Months != 24 || api.netWorthParams.End == nil || *api.netWorthParams.End != "2026-08" {
+		t.Fatalf("code=%d params=%+v stderr=%q", code, api.netWorthParams, stderr)
+	}
+
+	code, _, stderr = run(t, api, false, "reports", "currency-exposure", "--currency", "uyu", "--date", "2026-08-29", "--json")
+	if code != 0 || stderr != "" || api.exposureParams == nil || api.exposureParams.Currency == nil || string(*api.exposureParams.Currency) != "UYU" || api.exposureParams.Date == nil || api.exposureParams.Date.String() != "2026-08-29" {
+		t.Fatalf("code=%d params=%+v stderr=%q", code, api.exposureParams, stderr)
+	}
+}
+
+func TestReportFiltersRejectInvalidValuesBeforeAPI(t *testing.T) {
+	for _, args := range [][]string{
+		{"reports", "net-worth", "--currency", "XXX", "--json"},
+		{"reports", "net-worth", "--months", "0", "--json"},
+		{"reports", "net-worth", "--months", "61", "--json"},
+		{"reports", "net-worth", "--end", "2026-13", "--json"},
+		{"reports", "currency-exposure", "--date", "29/08/2026", "--json"},
+	} {
+		api := &fakeAPI{}
+		code, _, stderr := run(t, api, false, args...)
+		if code != int(cli.ExitUsage) || api.netWorthParams != nil || api.exposureParams != nil || stderr == "" {
+			t.Fatalf("args=%v code=%d net=%+v exposure=%+v stderr=%q", args, code, api.netWorthParams, api.exposureParams, stderr)
+		}
 	}
 }
 
