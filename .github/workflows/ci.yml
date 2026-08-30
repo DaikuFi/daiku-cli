@@ -28,6 +28,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - run: test -z "$(gofmt -l .)"
+      - run: make contract-check
       - run: go vet ./...
       - run: go test -race ./...
 
@@ -77,5 +78,5 @@ jobs:
           command -v shellcheck
           goreleaser check
           actionlint
-          shellcheck scripts/install/*.sh scripts/release/*.sh
+          shellcheck scripts/contract/*.sh scripts/install/*.sh scripts/release/*.sh
           make release-check
