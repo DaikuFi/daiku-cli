@@ -14,6 +14,7 @@ import (
 	daikuv1 "github.com/DaikuFi/daiku-cli/generated/daikuv1"
 	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
+	"github.com/DaikuFi/daiku-cli/internal/currency"
 	"github.com/DaikuFi/daiku-cli/internal/output"
 	"github.com/DaikuFi/daiku-cli/internal/profiles"
 	"github.com/DaikuFi/daiku-cli/internal/prompt"
@@ -329,7 +330,7 @@ func parseConfig(raw string) (daikuv1.ProjectionRuleConfigRequest, error) {
 	}
 	return v, nil
 }
-func validConfigCurrency(v string) bool { return v == "UYU" || v == "USD" || v == "EUR" }
+func validConfigCurrency(v string) bool { return currency.IsSupported(v) }
 func validFrequency(v string) bool {
 	return v == "monthly" || v == "quarterly" || v == "semiannual" || v == "yearly"
 }

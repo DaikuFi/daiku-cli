@@ -13,6 +13,7 @@ import (
 	daikuv1 "github.com/DaikuFi/daiku-cli/generated/daikuv1"
 	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
+	"github.com/DaikuFi/daiku-cli/internal/currency"
 	"github.com/DaikuFi/daiku-cli/internal/profiles"
 	"github.com/DaikuFi/daiku-cli/internal/prompt"
 	"github.com/spf13/cobra"
@@ -41,12 +42,44 @@ type UnconvertedCurrencies struct {
 	Currencies []string `json:"currencies"`
 }
 
+// decimalString accepts the API's decimal string and numeric wire forms while
+// preserving the exact decimal text for stable JSON output.
+type decimalString string
+
+func (d *decimalString) UnmarshalJSON(data []byte) error {
+	if len(data) > 0 && data[0] == '"' {
+		var value string
+		if err := json.Unmarshal(data, &value); err != nil {
+			return err
+		}
+		*d = decimalString(value)
+		return nil
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var value json.Number
+	if err := decoder.Decode(&value); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return errors.New("decimal contains more than one JSON value")
+	}
+	*d = decimalString(value.String())
+	return nil
+}
+
+type budgetDailyProgress struct {
+	Actual *decimalString `json:"actual"`
+	Day    int            `json:"day"`
+	Ideal  *decimalString `json:"ideal"`
+}
+
 // SummaryResponse is the backend's actual budget summary response. Keep this
 // adapter local until the source schema models unconverted as object-or-null.
 type SummaryResponse struct {
 	BudgetedSpent      string                          `json:"budgeted_spent"`
 	CategoryRows       []daikuv1.BudgetCategorySummary `json:"category_rows"`
-	DailyProgress      []daikuv1.BudgetDailyProgress   `json:"daily_progress"`
+	DailyProgress      []budgetDailyProgress           `json:"daily_progress"`
 	DaysElapsed        int                             `json:"days_elapsed"`
 	DaysInMonth        int                             `json:"days_in_month"`
 	DisplayCurrency    daikuv1.DisplayCurrency43eEnum  `json:"display_currency"`
@@ -112,7 +145,7 @@ type periodFlags struct {
 
 func addPeriodFlags(cmd *cobra.Command, f *periodFlags, month bool) {
 	cmd.Flags().StringVar(&f.household, "household", "", "household ID")
-	cmd.Flags().StringVar(&f.currency, "currency", "", "display currency: UYU, USD or EUR")
+	cmd.Flags().StringVar(&f.currency, "currency", "", "ISO currency supported by Daiku")
 	if month {
 		cmd.Flags().IntVar(&f.month, "month", 0, "month (1-12)")
 	}
@@ -127,8 +160,8 @@ func validatePeriod(f periodFlags, month bool) error {
 	if f.year < 1 {
 		return usage("year must be provided and greater than zero")
 	}
-	if f.currency != "UYU" && f.currency != "USD" && f.currency != "EUR" {
-		return usage("currency must be UYU, USD or EUR")
+	if !currency.IsSupported(f.currency) {
+		return usage("currency is not supported by the Daiku API contract")
 	}
 	return nil
 }
@@ -222,7 +255,7 @@ func addRuleFlags(cmd *cobra.Command, f *ruleFlags, create bool) {
 	householdFlag(cmd, &f.household)
 	cmd.Flags().StringVar(&f.category, "category", "", "category ID")
 	cmd.Flags().StringVar(&f.amount, "amount", "", "budget amount")
-	cmd.Flags().StringVar(&f.currency, "currency", "", "currency: UYU, USD or EUR")
+	cmd.Flags().StringVar(&f.currency, "currency", "", "ISO currency supported by Daiku")
 	cmd.Flags().StringVar(&f.scope, "scope", "", "scope: monthly, yearly or month")
 	cmd.Flags().IntVar(&f.month, "month", 0, "month (required for month scope)")
 	cmd.Flags().IntVar(&f.year, "year", 0, "pinned year (required for month scope)")
@@ -257,12 +290,7 @@ func validateRule(f ruleFlags, partial bool) error {
 	return nil
 }
 func validCurrency(value string) bool {
-	for _, currency := range []string{"ARS", "BOB", "BRL", "CLP", "COP", "CRC", "DOP", "EUR", "GBP", "GTQ", "HNL", "MXN", "NIO", "PAB", "PEN", "PYG", "UI", "USD", "UYU", "VES"} {
-		if value == currency {
-			return true
-		}
-	}
-	return false
+	return currency.IsSupported(value)
 }
 func ruleRequest(f ruleFlags) daikuv1.CategoryBudgetRequest {
 	currency := daikuv1.Currency3e8Enum(f.currency)
