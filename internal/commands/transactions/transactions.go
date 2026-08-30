@@ -247,7 +247,7 @@ func (m Module) list(search bool) *cobra.Command {
 	return cmd
 }
 
-func expenseFlags(cmd *cobra.Command, required bool) (amount, description, cur, date, account, category *string, tags *[]string) {
+func expenseFlags(cmd *cobra.Command, required bool) (amount, accountAmount, description, cur, date, account, category *string, tags *[]string) {
 	if required {
 		amount = requiredString(cmd, "amount", "decimal amount")
 		description = requiredString(cmd, "description", "description")
@@ -255,6 +255,7 @@ func expenseFlags(cmd *cobra.Command, required bool) (amount, description, cur, 
 		amount = optionalString(cmd, "amount", "decimal amount")
 		description = optionalString(cmd, "description", "description")
 	}
+	accountAmount = optionalString(cmd, "account-amount", "amount posted to the selected account")
 	cur = optionalString(cmd, "currency", "UYU, USD, or EUR")
 	date = optionalString(cmd, "date", "transaction date (YYYY-MM-DD)")
 	account = optionalString(cmd, "account", "account ID")
@@ -266,7 +267,7 @@ func expenseFlags(cmd *cobra.Command, required bool) (amount, description, cur, 
 func (m Module) create() *cobra.Command {
 	cmd := &cobra.Command{Use: "create", Short: "Create a transaction", Args: cli.UsageArgs(cobra.NoArgs)}
 	hh := requiredString(cmd, "household", "household ID")
-	amount, description, cur, date, account, category, tags := expenseFlags(cmd, true)
+	amount, accountAmount, description, cur, date, account, category, tags := expenseFlags(cmd, true)
 	kind := optionalString(cmd, "type", "expense or income")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		a, e := expenseDecimal(*amount, true)
@@ -282,6 +283,13 @@ func (m Module) create() *cobra.Command {
 			return e
 		}
 		b := daikuv1.ExpenseRequest{Amount: *a, Description: *description, Account: nil, Category: nil, RecurringExpense: nil, Currency: c, ExpenseDate: d}
+		if *accountAmount != "" {
+			aa, err := expenseDecimal(*accountAmount, true)
+			if err != nil {
+				return err
+			}
+			b.AccountAmount = aa
+		}
 		if *account != "" {
 			b.Account = account
 		}
@@ -313,10 +321,18 @@ func (m Module) create() *cobra.Command {
 func (m Module) update() *cobra.Command {
 	cmd := &cobra.Command{Use: "update ID", Short: "Update a transaction", Args: cli.UsageArgs(cobra.ExactArgs(1))}
 	hh := requiredString(cmd, "household", "household ID")
-	amount, description, cur, date, account, category, tags := expenseFlags(cmd, false)
+	amount, accountAmount, description, cur, date, account, category, tags := expenseFlags(cmd, false)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		b := daikuv1.PatchedExpenseRequest{Account: nil, Category: nil, RecurringExpense: nil}
 		changed := false
+		if *accountAmount != "" {
+			aa, err := expenseDecimal(*accountAmount, true)
+			if err != nil {
+				return err
+			}
+			b.AccountAmount = aa
+			changed = true
+		}
 		if *amount != "" {
 			a, e := expenseDecimal(*amount, true)
 			if e != nil {
@@ -637,6 +653,7 @@ func (m Module) installmentCreate() *cobra.Command {
 	cmd.Flags().IntVar(&count, "count", 0, "number of installments")
 	_ = cmd.MarkFlagRequired("count")
 	account := optionalString(cmd, "account", "account ID")
+	accountAmount := optionalString(cmd, "account-amount", "amount posted to the selected account")
 	category := optionalString(cmd, "category", "category ID")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		a, e := decimal(*amount, true)
@@ -655,6 +672,13 @@ func (m Module) installmentCreate() *cobra.Command {
 			return usage("count must be between 2 and 60")
 		}
 		b := daikuv1.InstallmentCreateRequestRequest{Amount: *a, Description: *description, Currency: daikuv1.Currency43eEnum(*c), ExpenseDate: *d, Installments: count, Account: nil, Category: nil}
+		if *accountAmount != "" {
+			aa, err := expenseDecimal(*accountAmount, true)
+			if err != nil {
+				return err
+			}
+			b.AccountAmount = aa
+		}
 		if *account != "" {
 			b.Account = account
 		}
