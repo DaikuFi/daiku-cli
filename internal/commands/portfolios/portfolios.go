@@ -120,7 +120,14 @@ func humanHeader(cmd *cobra.Command, key string) string {
 	if cli.Human(cmd).Localizer.Language != i18n.Spanish {
 		return english
 	}
-	translated := map[string]string{"display_currency": "MONEDA", "net_worth": "PATRIMONIO", "total_assets": "ACTIVOS TOTALES", "total_liabilities": "PASIVOS TOTALES", "name": "NOMBRE", "asset_type": "TIPO DE ACTIVO", "current_value": "VALOR ACTUAL", "is_liability": "ES PASIVO", "currency": "MONEDA", "quantity": "CANTIDAD", "price_per_unit": "PRECIO POR UNIDAD", "ticker_symbol": "SÍMBOLO", "date": "FECHA", "cash_in": "ENTRADA", "cash_out": "SALIDA", "cash_in_currency": "MONEDA DE ENTRADA", "cash_out_currency": "MONEDA DE SALIDA", "notes": "NOTAS", "transaction_links": "VÍNCULOS A TRANSACCIONES", "id": "ID", "bucket_type": "TIPO DE GRUPO", "sort_order": "ORDEN"}
+	translated := map[string]string{
+		"id": "ID", "name": "NOMBRE", "emoji": "EMOJI", "created_at": "CREADO", "updated_at": "ACTUALIZADO", "owner": "PROPIETARIO", "permission": "PERMISO", "is_default": "PREDETERMINADO",
+		"display_currency": "MONEDA", "net_worth": "PATRIMONIO", "total_assets": "ACTIVOS TOTALES", "total_liabilities": "PASIVOS TOTALES", "buckets": "GRUPOS",
+		"portfolio": "PORTAFOLIO", "bucket_type": "TIPO DE GRUPO", "sort_order": "ORDEN", "assets": "ACTIVOS", "asset": "ACTIVO", "asset_type": "TIPO DE ACTIVO",
+		"current_value": "VALOR ACTUAL", "is_liability": "ES PASIVO", "currency": "MONEDA", "quantity": "CANTIDAD", "price_per_unit": "PRECIO POR UNIDAD", "ticker_symbol": "SÍMBOLO", "institution": "INSTITUCIÓN", "exclude_from_projections": "EXCLUIDO DE PROYECCIONES", "last_price_update": "ÚLTIMO PRECIO", "linked_account": "CUENTA VINCULADA",
+		"date": "FECHA", "cash_in": "ENTRADA", "cash_out": "SALIDA", "cash_in_currency": "MONEDA DE ENTRADA", "cash_out_currency": "MONEDA DE SALIDA", "cash_in_converted": "ENTRADA CONVERTIDA", "cash_out_converted": "SALIDA CONVERTIDA", "notes": "NOTAS", "transaction_links": "VÍNCULOS A TRANSACCIONES",
+		"value": "VALOR", "recorded_at": "REGISTRADO",
+	}
 	if value, ok := translated[key]; ok {
 		return value
 	}
@@ -919,7 +926,7 @@ func (m Module) historyList() *cobra.Command {
 
 type historyFlags struct {
 	asset, date, value, quantity, currency, notes string
-	clearQuantity, clearValue                     bool
+	clearQuantity                                 bool
 }
 
 func addHistoryFlags(c *cobra.Command, f *historyFlags, create bool) {
@@ -934,7 +941,6 @@ func addHistoryFlags(c *cobra.Command, f *historyFlags, create bool) {
 		_ = c.MarkFlagRequired("quantity")
 	} else {
 		c.Flags().BoolVar(&f.clearQuantity, "clear-quantity", false, "clear recorded quantity")
-		c.Flags().BoolVar(&f.clearValue, "clear-value", false, "clear recorded value")
 	}
 }
 func (m Module) historyCreate() *cobra.Command {
@@ -974,7 +980,7 @@ func (m Module) historyCreate() *cobra.Command {
 func (m Module) historyUpdate() *cobra.Command {
 	var f historyFlags
 	c := run("update <id>", "Update a value-history point", cobra.ExactArgs(1), func(c *cobra.Command, a []string) error {
-		if !anyChanged(c, "date", "value", "quantity", "currency", "notes", "clear-quantity", "clear-value") {
+		if !anyChanged(c, "date", "value", "quantity", "currency", "notes", "clear-quantity") {
 			return usage("provide at least one field to update")
 		}
 		if f.currency != "" && !validCurrency(f.currency) {
@@ -982,9 +988,6 @@ func (m Module) historyUpdate() *cobra.Command {
 		}
 		if c.Flags().Changed("quantity") && f.clearQuantity {
 			return usage("cannot set and clear quantity together")
-		}
-		if c.Flags().Changed("value") && f.clearValue {
-			return usage("cannot set and clear value together")
 		}
 		b := map[string]any{}
 		if c.Flags().Changed("date") {
@@ -1009,9 +1012,6 @@ func (m Module) historyUpdate() *cobra.Command {
 		}
 		if f.clearQuantity {
 			b["quantity"] = nil
-		}
-		if f.clearValue {
-			b["value"] = nil
 		}
 		s, e := m.service(c)
 		if e != nil {

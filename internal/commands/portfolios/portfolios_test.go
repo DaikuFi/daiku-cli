@@ -213,6 +213,17 @@ func TestHistoryQuantityOmittedOrExplicitlyCleared(t *testing.T) {
 	}
 }
 
+func TestHistoryRejectsClearValueBecauseValueIsNotNullable(t *testing.T) {
+	f := &fakeService{}
+	code, _, stderr := execute(t, f, "assets", "value-history", "update", "vh_1", "--asset", "ast_1", "--clear-value", "--json")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, `"code":"usage_error"`) || !strings.Contains(stderr, "unknown flag: --clear-value") {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	if f.lastPatch != nil {
+		t.Fatalf("service should not be called: %#v", f.lastPatch)
+	}
+}
+
 func TestInvalidCurrencyRejected(t *testing.T) {
 	code, _, stderr := execute(t, &fakeService{}, "assets", "create", "--bucket", "bkt_1", "--name", "x", "--type", "other", "--currency", "BTC", "--json")
 	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "unsupported currency") {
@@ -224,6 +235,31 @@ func TestSetAndClearFlagsConflict(t *testing.T) {
 	code, _, stderr := execute(t, &fakeService{}, "assets", "cashflows", "update", "cf_1", "--asset", "ast_1", "--cash-in", "2", "--clear-cash-in", "--json")
 	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "cannot set and clear cash-in together") {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+}
+
+func TestSetAndClearErrorIsFullySpanish(t *testing.T) {
+	code, _, stderr := execute(t, &fakeService{}, "assets", "cashflows", "update", "cf_1", "--asset", "ast_1", "--cash-in", "2", "--clear-cash-in", "--language", "es")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "no se puede establecer y borrar entrada a la vez") || strings.Contains(stderr, "together") {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+}
+
+func TestContractHeadersAreSpanish(t *testing.T) {
+	now := time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC)
+	currency := daikuv1.Currency3e8Enum("BRL")
+	value := "10"
+	excluded := true
+	institution := "ins_1"
+	f := &fakeService{assets: []daikuv1.PublicAsset{{Name: "Casa", AssetType: "property", Currency: &currency, CurrentValue: &value, ExcludeFromProjections: &excluded, Institution: &institution, LastPriceUpdate: &now, LinkedAccount: &daikuv1.LinkedAccount{Id: "acc_1", Name: "Cuenta"}}}}
+	code, out, stderr := execute(t, f, "assets", "list", "--bucket", "bkt_1", "--language", "es")
+	if code != 0 {
+		t.Fatalf("stderr=%s", stderr)
+	}
+	for _, want := range []string{"MONEDA", "VALOR ACTUAL", "EXCLUIDO DE PROYECCIONES", "INSTITUCIÓN", "ÚLTIMO PRECIO", "CUENTA VINCULADA", "TIPO DE ACTIVO"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in %s", want, out)
+		}
 	}
 }
 

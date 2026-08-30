@@ -347,7 +347,6 @@ var humanSpanish = map[string]string{
 	"clear cash in currency":                                                             "borra la moneda de entrada",
 	"clear cash out currency":                                                            "borra la moneda de salida",
 	"clear recorded quantity":                                                            "borra la cantidad registrada",
-	"clear recorded value":                                                               "borra el valor registrado",
 	"select a profile before using portfolios":                                           "selecciona un perfil antes de usar portafolios",
 	"authenticate the active profile before using portfolios":                           "autentica el perfil activo antes de usar portafolios",
 	"the active profile has an invalid API URL":                                          "el perfil activo tiene una URL de API inválida",
@@ -356,6 +355,8 @@ var humanSpanish = map[string]string{
 	"unsupported currency":                                                               "moneda no admitida",
 	"invalid asset type":                                                                 "tipo de activo inválido",
 	"last-price-update must use RFC3339":                                                 "last-price-update debe usar RFC3339",
+	"invalid bucket type":                                                                "tipo de grupo inválido",
+	"type must be cash, investments, crypto, real_estate, vehicles or other":             "el tipo debe ser cash, investments, crypto, real_estate, vehicles u other",
 }
 
 // Parse accepts only the two product languages. Empty means auto-detect.
@@ -423,7 +424,12 @@ func (l Localizer) Human(value string) string {
 			return "ayuda de " + strings.TrimPrefix(value, "help for ")
 		}
 		if strings.HasPrefix(value, "cannot set and clear ") {
-			return "no se puede establecer y borrar " + strings.TrimPrefix(value, "cannot set and clear ")
+			field := strings.TrimSuffix(strings.TrimPrefix(value, "cannot set and clear "), " together")
+			translated := map[string]string{"quantity": "cantidad", "price-per-unit": "precio por unidad", "ticker": "símbolo bursátil", "last-price-update": "última actualización de precio", "cash-in": "entrada", "cash-out": "salida", "cash-in-currency": "moneda de entrada", "cash-out-currency": "moneda de salida"}
+			if localized, ok := translated[field]; ok {
+				field = localized
+			}
+			return "no se puede establecer y borrar " + field + " a la vez"
 		}
 		if strings.HasPrefix(value, "Daiku API returned HTTP ") {
 			return "La API de Daiku respondió HTTP " + strings.TrimPrefix(value, "Daiku API returned HTTP ")
