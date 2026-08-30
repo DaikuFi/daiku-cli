@@ -22,6 +22,14 @@ sha256_file() {
   fi
 }
 
+file_mode() {
+  if stat -c '%a' "$1" >/dev/null 2>&1; then
+    stat -c '%a' "$1"
+  else
+    stat -f '%Lp' "$1"
+  fi
+}
+
 make_case() {
   name=$1
   dir="$case_root/$name"
@@ -159,13 +167,13 @@ current_test=rollback
 dir=$(make_case rollback)
 printf '#!/bin/sh\necho old\n' > "$dir/install/daiku"; chmod +x "$dir/install/daiku"
 old_digest=$(sha256_file "$dir/install/daiku")
-old_mode=$(stat -f '%Lp' "$dir/install/daiku" 2>/dev/null || stat -c '%a' "$dir/install/daiku")
+old_mode=$(file_mode "$dir/install/daiku")
 # shellcheck disable=SC2016 # Deliberately generate a mock whose variables expand when invoked.
 printf '#!/bin/sh\nsrc= dst=; for arg do src=$dst; dst=$arg; done\ncase "$src:$dst" in */.daiku.install.*:*/daiku) exit 1;; esac\nexec /bin/mv "$@"\n' > "$dir/bin/mv"; chmod +x "$dir/bin/mv"
 if run_installer "$dir" >/dev/null 2>&1; then echo 'interrupted install succeeded' >&2; exit 1; fi
 [ "$("$dir/install/daiku")" = old ]
 [ "$(sha256_file "$dir/install/daiku")" = "$old_digest" ]
-[ "$(stat -f '%Lp' "$dir/install/daiku" 2>/dev/null || stat -c '%a' "$dir/install/daiku")" = "$old_mode" ]
+[ "$(file_mode "$dir/install/daiku")" = "$old_mode" ]
 
 current_test=concurrent
 dir=$(make_case concurrent)
