@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -253,6 +254,46 @@ func TestHouseholdPatchPreservesOmissionAndAllowsClearingEmoji(t *testing.T) {
 				t.Fatalf("exit=%d stderr=%s", code, errOut.String())
 			}
 		})
+	}
+}
+
+func TestHouseholdModePreservesExplicitBoolean(t *testing.T) {
+	id := "hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	for _, enabled := range []bool{true, false} {
+		t.Run(strconv.FormatBool(enabled), func(t *testing.T) {
+			h := apiHandler(t, "POST", "/api/v1/households/"+id+"/mode/", 200, `{"id":"`+id+`"}`, func(r *http.Request) {
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Fatal(err)
+				}
+				if body["uses_accounts"] != enabled {
+					t.Fatalf("body=%v", body)
+				}
+			})
+			app, _, errOut := testApp(t, h, "", false)
+			if code := app.Run([]string{"households", "mode", id, "--uses-accounts=" + strconv.FormatBool(enabled), "--json"}); code != 0 {
+				t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+			}
+		})
+	}
+}
+
+func TestHouseholdModeRequiresUsesAccountsFlag(t *testing.T) {
+	helpApp, out, _ := testApp(t, func(http.ResponseWriter, *http.Request) {}, "", false)
+	if code := helpApp.Run([]string{"households", "mode", "--help"}); code != 0 {
+		t.Fatalf("help exit=%d", code)
+	}
+	if !strings.Contains(out.String(), "--uses-accounts") || !strings.Contains(out.String(), "required") {
+		t.Fatalf("help=%s", out.String())
+	}
+
+	called := false
+	app, _, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { called = true }, "", false)
+	if code := app.Run([]string{"households", "mode", "hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--json"}); code != 2 {
+		t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+	}
+	if called {
+		t.Fatal("network called")
 	}
 }
 
