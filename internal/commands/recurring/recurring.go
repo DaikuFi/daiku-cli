@@ -16,6 +16,7 @@ import (
 	daikuv1 "github.com/DaikuFi/daiku-cli/generated/daikuv1"
 	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
+	"github.com/DaikuFi/daiku-cli/internal/currency"
 	"github.com/DaikuFi/daiku-cli/internal/profiles"
 	"github.com/DaikuFi/daiku-cli/internal/prompt"
 )
@@ -159,12 +160,7 @@ func validateTemplate(f templateFlags, partial bool) error {
 	return nil
 }
 func validCurrency(value string) bool {
-	for _, currency := range []string{"ARS", "BOB", "BRL", "CLP", "COP", "CRC", "DOP", "EUR", "GBP", "GTQ", "HNL", "MXN", "NIO", "PAB", "PEN", "PYG", "UI", "USD", "UYU", "VES"} {
-		if value == currency {
-			return true
-		}
-	}
-	return false
+	return currency.IsSupported(value)
 }
 func request(f templateFlags) (daikuv1.RecurringExpenseRequest, error) {
 	r := daikuv1.RecurringExpenseRequest{Description: f.description, Amount: f.amount, DayOfMonth: f.day, Frequency: daikuv1.FrequencyDceEnum(f.frequency)}

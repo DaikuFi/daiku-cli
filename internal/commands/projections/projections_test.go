@@ -133,12 +133,12 @@ func TestInvalidScenarioAndMissingPortfolioAreTypedUsageErrors(t *testing.T) {
 
 func TestRuleConfigIsForwardedWithoutLocalFinancialLogic(t *testing.T) {
 	api := &fakeAPI{}
-	config := `{"amount":"123.45","currency":"USD","frequency":"monthly","start_date":"2026-08-30"}`
+	config := `{"amount":"123.45","currency":"BRL","frequency":"monthly","start_date":"2026-08-30"}`
 	code, _, errOut := run(t, api, false, "projections", "rules", "create", "--scenario", "scn_1", "--category", "income", "--type", "salary", "--config", config, "--json")
 	if code != 0 {
 		t.Fatalf("code=%d stderr=%q", code, errOut)
 	}
-	if api.created == nil || api.created.Config.Amount == nil || *api.created.Config.Amount != "123.45" || api.created.Config.Currency == nil || string(*api.created.Config.Currency) != "USD" {
+	if api.created == nil || api.created.Config.Amount == nil || *api.created.Config.Amount != "123.45" || api.created.Config.Currency == nil || string(*api.created.Config.Currency) != "BRL" {
 		t.Fatalf("request=%+v", api.created)
 	}
 }
