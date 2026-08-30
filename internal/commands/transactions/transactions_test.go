@@ -150,12 +150,15 @@ func TestTransferRejectsSameAccount(t *testing.T) {
 
 func TestInstallmentsSendPurchaseTotalAndCount(t *testing.T) {
 	svc := &fakeService{}
-	code, _, stderr := run(t, svc, "", "installments", "create", "--household", "hh_1", "--amount", "1200.00", "--description", "Laptop", "--currency", "UYU", "--date", "2026-08-29", "--count", "12", "--json")
+	code, _, stderr := run(t, svc, "", "installments", "create", "--household", "hh_1", "--amount", "1200.00", "--description", "Laptop", "--currency", "UYU", "--date", "2026-08-29", "--count", "12", "--tag-ids", "tag_1,tag_2", "--json")
 	if code != 0 {
 		t.Fatalf("code=%d err=%s", code, stderr)
 	}
 	if svc.installment == nil || svc.installment.Amount != "1200.00" || svc.installment.Installments != 12 {
 		t.Fatalf("body=%#v", svc.installment)
+	}
+	if svc.installment.TagIds == nil || len(*svc.installment.TagIds) != 2 {
+		t.Fatalf("tags=%#v", svc.installment.TagIds)
 	}
 }
 
