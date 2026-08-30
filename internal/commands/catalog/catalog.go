@@ -106,7 +106,10 @@ func (m Module) householdCreate() *cobra.Command {
 	cmd := run("create", "Create a household", cobra.NoArgs, func(cmd *cobra.Command, _ []string) error {
 		body := daikuv1.HouseholdRequest{Name: name}
 		if currency != "" {
-			value := daikuv1.DisplayCurrency3e8Enum(currency)
+			value, err := displayCurrency(currency)
+			if err != nil {
+				return err
+			}
 			body.DisplayCurrency = &value
 		}
 		if emoji != "" {
@@ -143,7 +146,10 @@ func (m Module) householdUpdate() *cobra.Command {
 			body.Emoji = &emoji
 		}
 		if currency != "" {
-			value := daikuv1.DisplayCurrency3e8Enum(currency)
+			value, parseErr := displayCurrency(currency)
+			if parseErr != nil {
+				return parseErr
+			}
 			body.DisplayCurrency = &value
 		}
 		var item map[string]any
@@ -433,7 +439,10 @@ func (m Module) accountCreate() *cobra.Command {
 			body.IsDefault = &isDefault
 		}
 		if currency != "" {
-			v := daikuv1.Currency595Enum(currency)
+			v, err := accountCurrency(currency)
+			if err != nil {
+				return err
+			}
 			body.Currency = &v
 		}
 		if kind != "" {
@@ -486,6 +495,13 @@ func (m Module) accountUpdate() *cobra.Command {
 			return err
 		}
 		body := map[string]any{}
+		if cmd.Flags().Changed("currency") {
+			parsed, parseErr := accountCurrency(currency)
+			if parseErr != nil {
+				return parseErr
+			}
+			currency = string(parsed)
+		}
 		for flag, value := range map[string]any{"name": name, "group": group, "institution": institution, "currency": currency, "account_type": kind, "opening_balance": balance, "emoji": emoji, "account_number": number, "account_holder": holder, "is_default": isDefault} {
 			flagName := strings.ReplaceAll(flag, "account_type", "type")
 			flagName = strings.ReplaceAll(flagName, "opening_balance", "opening-balance")
@@ -605,6 +621,32 @@ func optional(value string) *string {
 		return nil
 	}
 	return &value
+}
+
+var publishedCurrencies = map[string]struct{}{
+	string(daikuv1.Currency595EnumARS): {}, string(daikuv1.Currency595EnumBOB): {}, string(daikuv1.Currency595EnumBRL): {},
+	string(daikuv1.Currency595EnumCLP): {}, string(daikuv1.Currency595EnumCOP): {}, string(daikuv1.Currency595EnumCRC): {},
+	string(daikuv1.Currency595EnumDOP): {}, string(daikuv1.Currency595EnumEUR): {}, string(daikuv1.Currency595EnumGBP): {},
+	string(daikuv1.Currency595EnumGTQ): {}, string(daikuv1.Currency595EnumHNL): {}, string(daikuv1.Currency595EnumMXN): {},
+	string(daikuv1.Currency595EnumNIO): {}, string(daikuv1.Currency595EnumPAB): {}, string(daikuv1.Currency595EnumPEN): {},
+	string(daikuv1.Currency595EnumPYG): {}, string(daikuv1.Currency595EnumUI): {}, string(daikuv1.Currency595EnumUSD): {},
+	string(daikuv1.Currency595EnumUYU): {}, string(daikuv1.Currency595EnumVES): {},
+}
+
+func normalizeCurrency(value string) (string, error) {
+	value = strings.ToUpper(strings.TrimSpace(value))
+	if _, ok := publishedCurrencies[value]; !ok {
+		return "", usage("currency is not published by the Daiku API contract")
+	}
+	return value, nil
+}
+func accountCurrency(value string) (daikuv1.Currency595Enum, error) {
+	normalized, err := normalizeCurrency(value)
+	return daikuv1.Currency595Enum(normalized), err
+}
+func displayCurrency(value string) (daikuv1.DisplayCurrency3e8Enum, error) {
+	normalized, err := normalizeCurrency(value)
+	return daikuv1.DisplayCurrency3e8Enum(normalized), err
 }
 func singular(value string) string {
 	if value == "categories" {

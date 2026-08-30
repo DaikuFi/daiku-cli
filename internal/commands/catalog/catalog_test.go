@@ -383,3 +383,45 @@ func TestCatalogMapsHTTPStatusesToStableExitCodes(t *testing.T) {
 		})
 	}
 }
+
+func TestPublishedCurrenciesBeyondLegacyThreeAreAccepted(t *testing.T) {
+	tests := []struct {
+		name, path, currency, field string
+		args                        []string
+	}{{"household BRL", "/api/v1/households/", "BRL", "display_currency", []string{"households", "create", "--name", "Casa", "--display-currency", "brl"}}, {"account VES", "/api/v1/households/hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/accounts/", "VES", "currency", []string{"accounts", "create", "--household", "hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--name", "Banco", "--currency", "ves"}}}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := apiHandler(t, "POST", tc.path, 201, `{}`, func(r *http.Request) {
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Fatal(err)
+				}
+				if body[tc.field] != tc.currency {
+					t.Fatalf("body=%v", body)
+				}
+			})
+			app, _, errOut := testApp(t, h, "", false)
+			if code := app.Run(append(tc.args, "--json")); code != 0 {
+				t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+			}
+		})
+	}
+}
+
+func TestUnpublishedCurrencyIsRejectedBeforeNetwork(t *testing.T) {
+	for _, args := range [][]string{{"households", "create", "--name", "Home", "--display-currency", "BTC", "--json"}, {"accounts", "create", "--household", "hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--name", "Wallet", "--currency", "BTC", "--json"}, {"accounts", "update", "acc_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--household", "hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--currency", "BTC", "--json"}} {
+		t.Run(strings.Join(args[:2], " "), func(t *testing.T) {
+			called := false
+			app, _, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { called = true }, "", false)
+			if code := app.Run(args); code != 2 {
+				t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+			}
+			if called {
+				t.Fatal("network called")
+			}
+			if !strings.Contains(errOut.String(), "not published") {
+				t.Fatal(errOut.String())
+			}
+		})
+	}
+}
