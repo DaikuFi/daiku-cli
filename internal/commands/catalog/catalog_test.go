@@ -171,6 +171,17 @@ func TestWrongResourceIDPrefixFailsBeforeNetwork(t *testing.T) {
 	}
 }
 
+func TestMalformedExpectedResourceIDFailsBeforeNetwork(t *testing.T) {
+	called := false
+	app, _, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { called = true }, "", false)
+	if code := app.Run([]string{"tags", "delete", "tag_not-an-id", "--household", "hh_1", "--yes", "--json"}); code != 2 {
+		t.Fatalf("exit=%d %s", code, errOut.String())
+	}
+	if called {
+		t.Fatal("network called")
+	}
+}
+
 func TestInapplicableResourceFlagIsRejected(t *testing.T) {
 	called := false
 	app, _, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { called = true }, "", false)
