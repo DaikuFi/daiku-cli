@@ -24,9 +24,9 @@ type provenance struct {
 }
 
 // Verify validates the pinned schema, its provenance, checksum, references and
-// exact operationId surface. Any contract update must intentionally update all
+// exact method/path/operationId surface. Any contract update must intentionally update all
 // four artifacts before generated code can change.
-func Verify(schemaPath, operationIDsPath, checksumPath, provenancePath string) error {
+func Verify(schemaPath, operationsPath, checksumPath, provenancePath string) error {
 	schemaBytes, err := os.ReadFile(schemaPath)
 	if err != nil {
 		return fmt.Errorf("read schema: %w", err)
@@ -55,9 +55,9 @@ func Verify(schemaPath, operationIDsPath, checksumPath, provenancePath string) e
 	if err := validateReferences(document); err != nil {
 		return err
 	}
-	expectedBytes, err := os.ReadFile(operationIDsPath)
+	expectedBytes, err := os.ReadFile(operationsPath)
 	if err != nil {
-		return fmt.Errorf("read operationId manifest: %w", err)
+		return fmt.Errorf("read operation manifest: %w", err)
 	}
 	expected := nonemptyLines(string(expectedBytes))
 	if err := compareOperations(expected, actual); err != nil {
@@ -141,12 +141,12 @@ func validateOperations(document map[string]any) ([]string, error) {
 			seen[id] = owner
 		}
 	}
-	ids := make([]string, 0, len(seen))
-	for id := range seen {
-		ids = append(ids, id)
+	operations := make([]string, 0, len(seen))
+	for id, owner := range seen {
+		operations = append(operations, owner+" "+id)
 	}
-	sort.Strings(ids)
-	return ids, nil
+	sort.Strings(operations)
+	return operations, nil
 }
 
 func validateReferences(document map[string]any) error {
@@ -198,7 +198,7 @@ func compareOperations(expected, actual []string) error {
 	if len(missing) == 0 && len(added) == 0 {
 		return nil
 	}
-	return fmt.Errorf("incompatible operationId surface: missing=%v added=%v", missing, added)
+	return fmt.Errorf("incompatible operation surface: missing=%v added=%v", missing, added)
 }
 
 func difference(left, right []string) []string {

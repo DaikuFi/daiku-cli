@@ -29,7 +29,7 @@ func TestVerifyAcceptsPinnedContract(t *testing.T) {
 	root := repositoryRoot(t)
 	err := contract.Verify(
 		filepath.Join(root, "openapi/daiku-v1.json"),
-		filepath.Join(root, "openapi/operation-ids.txt"),
+		filepath.Join(root, "openapi/operations.txt"),
 		filepath.Join(root, "openapi/daiku-v1.sha256"),
 		filepath.Join(root, "openapi/SOURCE.json"),
 	)
@@ -40,7 +40,7 @@ func TestVerifyAcceptsPinnedContract(t *testing.T) {
 
 func TestVerifyRejectsMissingOperationID(t *testing.T) {
 	schema := strings.Replace(validSchema, `"operationId": "daiku_things_get",`, "", 1)
-	paths := writeFixture(t, schema, "daiku_things_get\n")
+	paths := writeFixture(t, schema, "GET /api/v1/things/ daiku_things_get\n")
 
 	err := contract.Verify(paths.schema, paths.operations, paths.checksum, paths.source)
 	if err == nil || !strings.Contains(err.Error(), "has no operationId") {
@@ -50,17 +50,29 @@ func TestVerifyRejectsMissingOperationID(t *testing.T) {
 
 func TestVerifyRejectsChangedOperationID(t *testing.T) {
 	schema := strings.Replace(validSchema, "daiku_things_get", "daiku_things_list", 1)
-	paths := writeFixture(t, schema, "daiku_things_get\n")
+	paths := writeFixture(t, schema, "GET /api/v1/things/ daiku_things_get\n")
 
 	err := contract.Verify(paths.schema, paths.operations, paths.checksum, paths.source)
-	if err == nil || !strings.Contains(err.Error(), "incompatible operationId surface") {
-		t.Fatalf("Verify() error = %v, want incompatible operationId surface", err)
+	if err == nil || !strings.Contains(err.Error(), "incompatible operation surface") {
+		t.Fatalf("Verify() error = %v, want incompatible operation surface", err)
+	}
+}
+
+func TestVerifyRejectsOperationMovedWithoutRename(t *testing.T) {
+	schema := strings.Replace(validSchema, `"/api/v1/things/"`, `"/api/v1/archived-things/"`, 1)
+	paths := writeFixture(t, schema, "GET /api/v1/things/ daiku_things_get\n")
+
+	err := contract.Verify(paths.schema, paths.operations, paths.checksum, paths.source)
+	if err == nil || !strings.Contains(err.Error(), "incompatible operation surface") ||
+		!strings.Contains(err.Error(), "GET /api/v1/things/ daiku_things_get") ||
+		!strings.Contains(err.Error(), "GET /api/v1/archived-things/ daiku_things_get") {
+		t.Fatalf("Verify() error = %v, want old and moved operation signatures", err)
 	}
 }
 
 func TestVerifyRejectsUnresolvedSchemaReference(t *testing.T) {
 	schema := strings.Replace(validSchema, "#/components/schemas/Thing", "#/components/schemas/Missing", 1)
-	paths := writeFixture(t, schema, "daiku_things_get\n")
+	paths := writeFixture(t, schema, "GET /api/v1/things/ daiku_things_get\n")
 
 	err := contract.Verify(paths.schema, paths.operations, paths.checksum, paths.source)
 	if err == nil || !strings.Contains(err.Error(), "unresolved schema reference") {
@@ -69,7 +81,7 @@ func TestVerifyRejectsUnresolvedSchemaReference(t *testing.T) {
 }
 
 func TestVerifyRejectsChecksumDrift(t *testing.T) {
-	paths := writeFixture(t, validSchema, "daiku_things_get\n")
+	paths := writeFixture(t, validSchema, "GET /api/v1/things/ daiku_things_get\n")
 	if err := os.WriteFile(paths.schema, []byte(validSchema+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +101,7 @@ func writeFixture(t *testing.T, schema, operations string) fixturePaths {
 	dir := t.TempDir()
 	paths := fixturePaths{
 		schema:     filepath.Join(dir, "daiku-v1.json"),
-		operations: filepath.Join(dir, "operation-ids.txt"),
+		operations: filepath.Join(dir, "operations.txt"),
 		checksum:   filepath.Join(dir, "daiku-v1.sha256"),
 		source:     filepath.Join(dir, "SOURCE.json"),
 	}
