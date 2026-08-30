@@ -729,7 +729,7 @@ func (a generatedAPI) RuleDelete(c context.Context, s, id string) error {
 	return status(r.StatusCode())
 }
 func (a generatedAPI) NetWorth(c context.Context) (*daikuv1.NetWorthSeries, error) {
-	r, e := a.c.DaikuPortfoliosReportsNetWorthGetWithResponse(c)
+	r, e := a.c.DaikuPortfoliosReportsNetWorthGetWithResponse(c, nil)
 	if e != nil {
 		return nil, apiFailure()
 	}
@@ -739,7 +739,7 @@ func (a generatedAPI) NetWorth(c context.Context) (*daikuv1.NetWorthSeries, erro
 	return r.JSON200, nil
 }
 func (a generatedAPI) CurrencyExposure(c context.Context) (*daikuv1.CurrencyExposure, error) {
-	r, e := a.c.DaikuPortfoliosReportsCurrencyExposureGetWithResponse(c)
+	r, e := a.c.DaikuPortfoliosReportsCurrencyExposureGetWithResponse(c, nil)
 	if e != nil {
 		return nil, apiFailure()
 	}
