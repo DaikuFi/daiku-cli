@@ -380,12 +380,36 @@ func validBucket(v string) bool {
 	}
 	return false
 }
-func validAssetType(v string) bool {
-	switch v {
-	case "checking", "savings", "brokerage", "stock", "etf", "mutual_fund", "bond", "crypto_wallet", "crypto_exchange", "property", "vehicle", "loan", "mortgage", "credit_card", "other":
-		return true
+
+var assetTypes = []string{
+	string(daikuv1.AssetTypeEnumChecking),
+	string(daikuv1.AssetTypeEnumSavings),
+	string(daikuv1.AssetTypeEnumBrokerage),
+	string(daikuv1.AssetTypeEnumStock),
+	string(daikuv1.AssetTypeEnumEtf),
+	string(daikuv1.AssetTypeEnumMutualFund),
+	string(daikuv1.AssetTypeEnumBond),
+	string(daikuv1.AssetTypeEnumCryptoWallet),
+	string(daikuv1.AssetTypeEnumCryptoExchange),
+	string(daikuv1.AssetTypeEnumProperty),
+	string(daikuv1.AssetTypeEnumVehicle),
+	string(daikuv1.AssetTypeEnumLoan),
+	string(daikuv1.AssetTypeEnumMortgage),
+	string(daikuv1.AssetTypeEnumCreditCard),
+	string(daikuv1.AssetTypeEnumOther),
+}
+
+func validAssetType(value string) bool {
+	for _, assetType := range assetTypes {
+		if value == assetType {
+			return true
+		}
 	}
 	return false
+}
+
+func assetTypeUsage() string {
+	return "asset type: " + strings.Join(assetTypes, ", ")
 }
 func (m Module) bucketCreate() *cobra.Command {
 	var f bucketFlags
@@ -504,7 +528,16 @@ type assetFlags struct {
 func addAssetFlags(c *cobra.Command, f *assetFlags, create bool) {
 	bucketFlag(c, &f.bucket)
 	c.Flags().StringVar(&f.name, "name", "", "asset name")
-	c.Flags().StringVar(&f.kind, "type", "", "asset type")
+	c.Flags().StringVar(&f.kind, "type", "", assetTypeUsage())
+	_ = c.RegisterFlagCompletionFunc("type", func(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		matches := make([]string, 0, len(assetTypes))
+		for _, assetType := range assetTypes {
+			if strings.HasPrefix(assetType, toComplete) {
+				matches = append(matches, assetType)
+			}
+		}
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	})
 	c.Flags().StringVar(&f.currency, "currency", "", "ISO currency supported by Daiku")
 	c.Flags().StringVar(&f.value, "current-value", "", "current value (sent verbatim to Daiku)")
 	c.Flags().StringVar(&f.quantity, "quantity", "", "quantity")
@@ -530,7 +563,7 @@ func (m Module) assetCreate() *cobra.Command {
 	var f assetFlags
 	c := run("create", "Create an asset", cobra.NoArgs, func(c *cobra.Command, _ []string) error {
 		if !validAssetType(f.kind) {
-			return usage("invalid asset type")
+			return usage("invalid asset type; accepted values: " + strings.Join(assetTypes, ", "))
 		}
 		if c.Flags().Changed("currency") && !validCurrency(f.currency) {
 			return usage("unsupported currency")
@@ -600,7 +633,7 @@ func (m Module) assetUpdate() *cobra.Command {
 			return usage("unsupported currency")
 		}
 		if c.Flags().Changed("type") && !validAssetType(f.kind) {
-			return usage("invalid asset type")
+			return usage("invalid asset type; accepted values: " + strings.Join(assetTypes, ", "))
 		}
 		for _, pair := range [][2]string{{"quantity", "clear-quantity"}, {"price-per-unit", "clear-price-per-unit"}, {"ticker", "clear-ticker"}, {"last-price-update", "clear-last-price-update"}} {
 			if c.Flags().Changed(pair[0]) && c.Flags().Changed(pair[1]) {

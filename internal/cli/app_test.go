@@ -186,6 +186,18 @@ func TestCompletionCommandForBash(t *testing.T) {
 	}
 }
 
+func TestGeneratedShellCompletionRequestReachesCobra(t *testing.T) {
+	for _, request := range []string{cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd} {
+		t.Run(request, func(t *testing.T) {
+			exitCode, stdout, stderr := run(t, false, request, "version", "")
+
+			if exitCode != int(cli.ExitOK) || strings.Contains(stderr, "unknown command") || !strings.HasPrefix(stdout, ":") {
+				t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+			}
+		})
+	}
+}
+
 func firstBytes(value string, limit int) string {
 	if len(value) <= limit {
 		return value

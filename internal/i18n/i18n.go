@@ -595,6 +595,12 @@ func (l Localizer) Human(value string) string {
 		if strings.HasPrefix(value, "help for ") {
 			return "ayuda de " + strings.TrimPrefix(value, "help for ")
 		}
+		if rest, ok := strings.CutPrefix(value, "asset type: "); ok {
+			return "tipo de activo: " + rest
+		}
+		if rest, ok := strings.CutPrefix(value, "invalid asset type; accepted values: "); ok {
+			return "tipo de activo inválido; valores aceptados: " + rest
+		}
 		if strings.HasPrefix(value, "cannot set and clear ") {
 			field := strings.TrimSuffix(strings.TrimPrefix(value, "cannot set and clear "), " together")
 			translated := map[string]string{"quantity": "cantidad", "price-per-unit": "precio por unidad", "ticker": "símbolo bursátil", "last-price-update": "última actualización de precio", "cash-in": "entrada", "cash-out": "salida", "cash-in-currency": "moneda de entrada", "cash-out-currency": "moneda de salida"}
