@@ -24,7 +24,7 @@ import (
 type API interface {
 	ScenarioList(context.Context, string) ([]daikuv1.ProjectionScenario, error)
 	ScenarioCreate(context.Context, string, daikuv1.ProjectionScenarioRequest) (*daikuv1.ProjectionScenario, error)
-	ScenarioUpdate(context.Context, string, string, daikuv1.PatchedProjectionScenarioRequest) (*daikuv1.ProjectionScenario, error)
+	ScenarioUpdate(context.Context, string, string, scenarioPatch) (*daikuv1.ProjectionScenario, error)
 	ScenarioDelete(context.Context, string, string) error
 	Calculate(context.Context, string, string) (*daikuv1.ProjectionResult, error)
 	Retirement(context.Context, string, string) (*daikuv1.RetirementResult, error)
@@ -39,6 +39,17 @@ type API interface {
 
 type Factory func(context.Context) (API, error)
 type Module struct{ Factory Factory }
+
+// scenarioPatch preserves the three states required by PATCH: omitted, a
+// concrete value, and explicit null. The generated request collapses omitted
+// and null for birth_year because that nullable field lacks omitempty.
+type scenarioPatch struct {
+	Name         *string `json:"name,omitempty"`
+	Color        *string `json:"color,omitempty"`
+	BirthYear    **int   `json:"birth_year,omitempty"`
+	DisplayOrder *int    `json:"display_order,omitempty"`
+	IsActive     *bool   `json:"is_active,omitempty"`
+}
 
 func New(store profiles.Store, manager *authcore.Manager) Module {
 	return Module{Factory: func(ctx context.Context) (API, error) {
@@ -108,7 +119,7 @@ func (m Module) scenarioList() *cobra.Command {
 type scenarioFields struct {
 	portfolio, name, color  string
 	birthYear, displayOrder int
-	active                  bool
+	active, clearBirthYear  bool
 }
 
 func addScenarioFields(c *cobra.Command, f *scenarioFields, create bool) {
@@ -120,6 +131,8 @@ func addScenarioFields(c *cobra.Command, f *scenarioFields, create bool) {
 	c.Flags().BoolVar(&f.active, "active", false, "make scenario active")
 	if create {
 		_ = c.MarkFlagRequired("name")
+	} else {
+		c.Flags().BoolVar(&f.clearBirthYear, "clear-birth-year", false, "clear the birth year")
 	}
 }
 func (m Module) scenarioCreate() *cobra.Command {
@@ -157,8 +170,11 @@ func (m Module) scenarioCreate() *cobra.Command {
 func (m Module) scenarioUpdate() *cobra.Command {
 	var f scenarioFields
 	c := &cobra.Command{Use: "update <id>", Short: "Update a projection scenario", Args: cli.UsageArgs(cobra.ExactArgs(1)), RunE: func(c *cobra.Command, args []string) error {
-		if !anyChanged(c, "name", "color", "birth-year", "display-order", "active") {
+		if !anyChanged(c, "name", "color", "birth-year", "clear-birth-year", "display-order", "active") {
 			return usage("provide at least one field to update")
+		}
+		if c.Flags().Changed("birth-year") && f.clearBirthYear {
+			return usage("birth-year and clear-birth-year cannot be used together")
 		}
 		if c.Flags().Changed("name") && strings.TrimSpace(f.name) == "" {
 			return usage("name must not be empty")
@@ -166,7 +182,7 @@ func (m Module) scenarioUpdate() *cobra.Command {
 		if c.Flags().Changed("birth-year") && (f.birthYear < 1900 || f.birthYear > time.Now().Year()) {
 			return usage("birth year is invalid")
 		}
-		body := daikuv1.PatchedProjectionScenarioRequest{}
+		body := scenarioPatch{}
 		if c.Flags().Changed("name") {
 			body.Name = &f.name
 		}
@@ -174,7 +190,11 @@ func (m Module) scenarioUpdate() *cobra.Command {
 			body.Color = &f.color
 		}
 		if c.Flags().Changed("birth-year") {
-			body.BirthYear = &f.birthYear
+			value := &f.birthYear
+			body.BirthYear = &value
+		}
+		if f.clearBirthYear {
+			body.BirthYear = new(*int)
 		}
 		if c.Flags().Changed("display-order") {
 			body.DisplayOrder = &f.displayOrder
@@ -293,7 +313,23 @@ func parseConfig(raw string) (daikuv1.ProjectionRuleConfigRequest, error) {
 	if json.Unmarshal([]byte(raw), &object) != nil || object == nil {
 		return v, usage("config must be a valid JSON object")
 	}
+	if v.Currency != nil && !validConfigCurrency(string(*v.Currency)) {
+		return v, usage("config currency is not allowed by the API contract")
+	}
+	if v.Frequency != nil && !validFrequency(string(*v.Frequency)) {
+		return v, usage("config frequency is not allowed by the API contract")
+	}
+	if v.TargetBucketType != nil && !validTargetBucketType(string(*v.TargetBucketType)) {
+		return v, usage("config target_bucket_type is not allowed by the API contract")
+	}
 	return v, nil
+}
+func validConfigCurrency(v string) bool { return v == "UYU" || v == "USD" || v == "EUR" }
+func validFrequency(v string) bool {
+	return v == "monthly" || v == "quarterly" || v == "semiannual" || v == "yearly"
+}
+func validTargetBucketType(v string) bool {
+	return v == "cash" || v == "investments" || v == "crypto" || v == "real_estate" || v == "vehicles" || v == "other"
 }
 func validCategory(v string) bool {
 	return v == "asset" || v == "debt" || v == "income" || v == "expense"
@@ -579,8 +615,12 @@ func (a generatedAPI) ScenarioCreate(c context.Context, p string, b daikuv1.Proj
 	}
 	return r.JSON201, nil
 }
-func (a generatedAPI) ScenarioUpdate(c context.Context, p, id string, b daikuv1.PatchedProjectionScenarioRequest) (*daikuv1.ProjectionScenario, error) {
-	r, e := a.c.DaikuPortfoliosPortfolioPkScenariosIdPatchWithResponse(c, p, id, b)
+func (a generatedAPI) ScenarioUpdate(c context.Context, p, id string, b scenarioPatch) (*daikuv1.ProjectionScenario, error) {
+	payload, e := json.Marshal(b)
+	if e != nil {
+		return nil, apiFailure()
+	}
+	r, e := a.c.DaikuPortfoliosPortfolioPkScenariosIdPatchWithBodyWithResponse(c, p, id, "application/json", bytes.NewReader(payload))
 	if e != nil {
 		return nil, apiFailure()
 	}

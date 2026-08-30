@@ -3,8 +3,11 @@ package projections
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -15,14 +18,16 @@ import (
 )
 
 type fakeAPI struct {
-	scenarios []daikuv1.ProjectionScenario
-	rules     []daikuv1.ProjectionRule
-	series    *daikuv1.NetWorthSeries
-	rates     []daikuv1.ExchangeRate
-	rateDate  *types.Date
-	created   *daikuv1.ProjectionRuleRequest
-	deleted   string
-	err       error
+	scenarios       []daikuv1.ProjectionScenario
+	rules           []daikuv1.ProjectionRule
+	series          *daikuv1.NetWorthSeries
+	rates           []daikuv1.ExchangeRate
+	rateDate        *types.Date
+	created         *daikuv1.ProjectionRuleRequest
+	updatedScenario *scenarioPatch
+	updatedRule     *daikuv1.PatchedProjectionRuleRequest
+	deleted         string
+	err             error
 }
 
 func (f *fakeAPI) ScenarioList(context.Context, string) ([]daikuv1.ProjectionScenario, error) {
@@ -31,7 +36,8 @@ func (f *fakeAPI) ScenarioList(context.Context, string) ([]daikuv1.ProjectionSce
 func (f *fakeAPI) ScenarioCreate(_ context.Context, _ string, b daikuv1.ProjectionScenarioRequest) (*daikuv1.ProjectionScenario, error) {
 	return &daikuv1.ProjectionScenario{Name: b.Name}, f.err
 }
-func (f *fakeAPI) ScenarioUpdate(context.Context, string, string, daikuv1.PatchedProjectionScenarioRequest) (*daikuv1.ProjectionScenario, error) {
+func (f *fakeAPI) ScenarioUpdate(_ context.Context, _, _ string, body scenarioPatch) (*daikuv1.ProjectionScenario, error) {
+	f.updatedScenario = &body
 	return &daikuv1.ProjectionScenario{Name: "updated"}, f.err
 }
 func (f *fakeAPI) ScenarioDelete(_ context.Context, _ string, id string) error {
@@ -51,7 +57,8 @@ func (f *fakeAPI) RuleCreate(_ context.Context, _ string, b daikuv1.ProjectionRu
 	f.created = &b
 	return &daikuv1.ProjectionRule{Category: b.Category, Config: daikuv1.ProjectionRuleConfig{}, RuleType: b.RuleType}, f.err
 }
-func (f *fakeAPI) RuleUpdate(context.Context, string, string, daikuv1.PatchedProjectionRuleRequest) (*daikuv1.ProjectionRule, error) {
+func (f *fakeAPI) RuleUpdate(_ context.Context, _, _ string, body daikuv1.PatchedProjectionRuleRequest) (*daikuv1.ProjectionRule, error) {
+	f.updatedRule = &body
 	return &daikuv1.ProjectionRule{Category: daikuv1.ProjectionRuleCategoryEnumIncome, Config: daikuv1.ProjectionRuleConfig{}, RuleType: "salary"}, f.err
 }
 func (f *fakeAPI) RuleDelete(_ context.Context, _ string, id string) error {
@@ -138,6 +145,101 @@ func TestRuleConfigRejectsFieldsOutsidePinnedContract(t *testing.T) {
 	}
 }
 
+func TestRuleConfigRejectsInvalidContractEnums(t *testing.T) {
+	for _, config := range []string{
+		`{"currency":"BTC"}`,
+		`{"frequency":"weekly"}`,
+		`{"target_bucket_type":"banana"}`,
+	} {
+		api := &fakeAPI{}
+		code, _, errOut := run(t, api, false, "projections", "rules", "create", "--scenario", "scn_1", "--category", "income", "--type", "salary", "--config", config, "--json")
+		if code != int(cli.ExitUsage) || api.created != nil || !strings.Contains(errOut, "API contract") {
+			t.Fatalf("config=%s code=%d request=%+v stderr=%q", config, code, api.created, errOut)
+		}
+	}
+}
+
+func TestScenarioPatchDistinguishesOmittedValueAndNull(t *testing.T) {
+	api := &fakeAPI{}
+	code, _, stderr := run(t, api, false, "projections", "scenarios", "update", "scn_1", "--portfolio", "prt_1", "--name", "Plan", "--json")
+	if code != 0 || api.updatedScenario == nil || api.updatedScenario.BirthYear != nil {
+		t.Fatalf("name update code=%d body=%+v stderr=%q", code, api.updatedScenario, stderr)
+	}
+	code, _, stderr = run(t, api, false, "projections", "scenarios", "update", "scn_1", "--portfolio", "prt_1", "--clear-birth-year", "--json")
+	if code != 0 || api.updatedScenario == nil || api.updatedScenario.BirthYear == nil || *api.updatedScenario.BirthYear != nil {
+		t.Fatalf("clear update code=%d body=%+v stderr=%q", code, api.updatedScenario, stderr)
+	}
+	encoded, _ := json.Marshal(api.updatedScenario)
+	if string(encoded) != `{"birth_year":null}` {
+		t.Fatalf("encoded=%s", encoded)
+	}
+}
+
+func TestScenarioPatchRejectsValueAndClearTogether(t *testing.T) {
+	api := &fakeAPI{}
+	code, _, stderr := run(t, api, false, "projections", "scenarios", "update", "scn_1", "--portfolio", "prt_1", "--birth-year", "1990", "--clear-birth-year", "--json")
+	if code != int(cli.ExitUsage) || api.updatedScenario != nil || !strings.Contains(stderr, "cannot be used together") {
+		t.Fatalf("code=%d body=%+v stderr=%q", code, api.updatedScenario, stderr)
+	}
+}
+
+func TestGeneratedScenarioPatchSendsAuthAndExactJSON(t *testing.T) {
+	var authorization, body string
+	httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		authorization = r.Header.Get("Authorization")
+		payload, _ := io.ReadAll(r.Body)
+		body = string(payload)
+		return &http.Response{StatusCode: http.StatusOK, Status: "200 OK", Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(`{}`)), Request: r}, nil
+	})}
+	client, err := daikuv1.NewClientWithResponses("https://api.example.test", daikuv1.WithHTTPClient(httpClient), daikuv1.WithRequestEditorFn(func(_ context.Context, request *http.Request) error {
+		request.Header.Set("Authorization", "Bearer token")
+		return nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := generatedAPI{client}
+	if _, err = api.ScenarioUpdate(context.Background(), "prt_1", "scn_1", scenarioPatch{Name: ptr("Plan")}); err != nil {
+		t.Fatal(err)
+	}
+	if authorization != "Bearer token" || body != `{"name":"Plan"}` {
+		t.Fatalf("authorization=%q body=%s", authorization, body)
+	}
+	if _, err = api.ScenarioUpdate(context.Background(), "prt_1", "scn_1", scenarioPatch{BirthYear: new(*int)}); err != nil {
+		t.Fatal(err)
+	}
+	if body != `{"birth_year":null}` {
+		t.Fatalf("clear body=%s", body)
+	}
+}
+
+func TestHTTPStatusErrorsAreTyped(t *testing.T) {
+	tests := []struct {
+		status int
+		code   string
+		exit   cli.ExitCode
+	}{
+		{http.StatusBadRequest, "usage_error", cli.ExitUsage},
+		{http.StatusUnauthorized, "unauthorized", cli.ExitAuth},
+		{http.StatusForbidden, "forbidden", cli.ExitForbidden},
+		{http.StatusNotFound, "not_found", cli.ExitNotFound},
+		{http.StatusTooManyRequests, "api_error", cli.ExitFailure},
+	}
+	for _, test := range tests {
+		err := status(test.status)
+		var typed *cli.Error
+		if !errors.As(err, &typed) || typed.Code != test.code || typed.ExitCode != test.exit {
+			t.Fatalf("status=%d err=%+v", test.status, err)
+		}
+	}
+}
+
+func ptr[T any](value T) *T { return &value }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
+
 func TestDestructiveCommandsRequireConfirmation(t *testing.T) {
 	api := &fakeAPI{}
 	code, _, errOut := run(t, api, false, "projections", "scenarios", "delete", "scn_1", "--portfolio", "prt_1", "--json")
@@ -188,5 +290,17 @@ func TestSpanishHumanOutputLocalizesHeadingsButNotValues(t *testing.T) {
 	code, out, _ := run(t, api, true, "reports", "net-worth", "--language", "es")
 	if code != 0 || !strings.Contains(out, "PATRIMONIO") || !strings.Contains(out, "ACTIVOS") || !strings.Contains(out, "99.10") || !strings.Contains(out, "EUR") {
 		t.Fatalf("code=%d out=%q", code, out)
+	}
+}
+
+func TestSpanishLocalizesProjectionValidationAndFlags(t *testing.T) {
+	api := &fakeAPI{}
+	code, _, stderr := run(t, api, false, "projections", "scenarios", "update", "scn_1", "--portfolio", "prt_1", "--birth-year", "1800", "--language", "es")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "año de nacimiento no es válido") {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	code, stdout, _ := run(t, api, false, "projections", "scenarios", "update", "--help", "--language", "es")
+	if code != 0 || !strings.Contains(stdout, "borra el año de nacimiento") {
+		t.Fatalf("code=%d stdout=%q", code, stdout)
 	}
 }
