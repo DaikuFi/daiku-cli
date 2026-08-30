@@ -171,7 +171,7 @@ func (c *Client) doOnce(ctx context.Context, method string, requestURL *url.URL,
 		return newError("response_too_large", "the Daiku API response exceeded the allowed size", response.StatusCode, false, nil)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		apiErr := statusError(response.StatusCode)
+		apiErr := responseError(response.StatusCode, data)
 		apiErr.RetryAfter = parseRetryAfter(response.Header.Get("Retry-After"), c.now())
 		return apiErr
 	}
@@ -187,6 +187,48 @@ func (c *Client) doOnce(ctx context.Context, method string, requestURL *url.URL,
 		return newError("invalid_response", "the Daiku API returned an invalid JSON response", response.StatusCode, false, err)
 	}
 	return nil
+}
+
+func responseError(status int, data []byte) *Error {
+	apiErr := statusError(status)
+	if !allowsPublicErrorDetails(status) {
+		return apiErr
+	}
+	var envelope struct {
+		Error struct {
+			StatusCode int            `json:"status_code"`
+			Message    string         `json:"message"`
+			Errors     map[string]any `json:"errors"`
+		} `json:"error"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := decoder.Decode(&envelope); err != nil {
+		return apiErr
+	}
+	if err := requireJSONEOF(decoder); err != nil {
+		return apiErr
+	}
+	if envelope.Error.StatusCode != status || strings.TrimSpace(envelope.Error.Message) == "" {
+		return apiErr
+	}
+	apiErr.Message = envelope.Error.Message
+	apiErr.Details = envelope.Error.Errors
+	return apiErr
+}
+
+func allowsPublicErrorDetails(status int) bool {
+	switch status {
+	case http.StatusBadRequest,
+		http.StatusUnauthorized,
+		http.StatusForbidden,
+		http.StatusNotFound,
+		http.StatusConflict,
+		http.StatusTooManyRequests:
+		return true
+	default:
+		return false
+	}
 }
 
 func safeRedirectPolicy(base *url.URL, previous func(*http.Request, []*http.Request) error) func(*http.Request, []*http.Request) error {

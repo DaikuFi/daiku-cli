@@ -249,6 +249,41 @@ func TestDoMapsHTTPFailuresWithoutLeakingResponseOrToken(t *testing.T) {
 	}
 }
 
+func TestDoPreservesTypedPublicError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = io.WriteString(w, `{"error":{"status_code":400,"message":"This household is in simple mode.","errors":{"uses_accounts":["Enable advanced mode first."]}}}`)
+	}))
+	defer server.Close()
+	client := testClient(t, server.URL+"/api/v1/", Config{})
+	err := client.Do(context.Background(), http.MethodPost, "x/", "secret", nil, nil)
+	apiErr := assertAPIError(t, err, "api_error")
+	if apiErr.Message != "This household is in simple mode." {
+		t.Fatalf("message = %q", apiErr.Message)
+	}
+	if got := apiErr.Details["uses_accounts"].([]any)[0]; got != "Enable advanced mode first." {
+		t.Fatalf("details = %#v", apiErr.Details)
+	}
+}
+
+func TestDoDoesNotExposeTypedServerErrorDetails(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = io.WriteString(w, `{"error":{"status_code":500,"message":"database password is secret","errors":{"trace":"private stack"}}}`)
+	}))
+	defer server.Close()
+	client := testClient(t, server.URL+"/api/v1/", Config{})
+	err := client.Do(context.Background(), http.MethodGet, "x/", "secret", nil, nil)
+	apiErr := assertAPIError(t, err, "api_unavailable")
+	if strings.Contains(apiErr.Error(), "password") || apiErr.Details != nil {
+		t.Fatalf("server error leaked private data: %#v", apiErr)
+	}
+}
+
 func TestRetryAfterDeltaAndDateForSafeRequest(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)

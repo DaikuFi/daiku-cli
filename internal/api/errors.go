@@ -10,6 +10,7 @@ import (
 type Error struct {
 	Code       string
 	Message    string
+	Details    map[string]any
 	StatusCode int
 	Retryable  bool
 	RetryAfter time.Duration
