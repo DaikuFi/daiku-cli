@@ -44,5 +44,5 @@ func writeError(w io.Writer, err *Error, jsonOutput bool, localizer i18n.Localiz
 		return
 	}
 
-	_, _ = fmt.Fprintf(w, "%s: %s\n", localizer.Text(i18n.ErrorPrefix), err.Message)
+	_, _ = fmt.Fprintf(w, "%s: %s\n", localizer.Text(i18n.ErrorPrefix), localizer.Human(err.Message))
 }

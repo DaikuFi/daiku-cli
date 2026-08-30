@@ -82,6 +82,34 @@ var humanSpanish = map[string]string{
 	"human output language: en or es":                            "idioma de salida humana: en o es",
 	"Daiku API URL":                                              "URL de la API de Daiku",
 	"remove local credentials without revoking the token":        "elimina credenciales locales sin revocar el token",
+	"skip the interactive confirmation":                          "omite la confirmación interactiva",
+	"Added profile %s.\n":                                        "Perfil %s agregado.\n",
+	"Using profile %s.\n":                                        "Usando el perfil %s.\n",
+	"Removed profile %s.\n":                                      "Perfil %s eliminado.\n",
+	"Logged in as profile %s.\n":                                 "Sesión iniciada con el perfil %s.\n",
+	"Logged out profile %s.\n":                                   "Sesión cerrada para el perfil %s.\n",
+	"Profile %s is logged in.\n":                                 "El perfil %s tiene una sesión activa.\n",
+	"Profile %s is not logged in.\n":                             "El perfil %s no tiene una sesión activa.\n",
+	"Open this URL to continue authentication:\n%s\n":            "Abre esta URL para continuar la autenticación:\n%s\n",
+	"Remove profile %s.":                                         "Eliminar el perfil %s.",
+	"Log out profile %s.":                                        "Cerrar la sesión del perfil %s.",
+	"profile already exists":                                     "el perfil ya existe",
+	"profile does not exist":                                     "el perfil no existe",
+	"log out this profile before removing it":                    "cierra la sesión de este perfil antes de eliminarlo",
+	"profile configuration could not be updated":                 "no se pudo actualizar la configuración de perfiles",
+	"profile configuration could not be read":                    "no se pudo leer la configuración de perfiles",
+	"select a profile before authenticating":                     "selecciona un perfil antes de autenticarte",
+	"credentials could not be stored securely":                   "no se pudieron guardar las credenciales de forma segura",
+	"credentials could not be read securely":                     "no se pudieron leer las credenciales de forma segura",
+	"local credentials could not be removed":                     "no se pudieron eliminar las credenciales locales",
+	"credentials could not be revoked; use --local-only to remove only the local copy": "no se pudieron revocar las credenciales; usa --local-only para eliminar sólo la copia local",
+	"confirmation requires an interactive terminal; pass --yes to continue":            "la confirmación requiere una terminal interactiva; usa --yes para continuar",
+	"operation cancelled": "operación cancelada",
+	"NAME":                "NOMBRE",
+	"API URL":             "URL DE API",
+	"CURRENT":             "ACTUAL",
+	"yes":                 "sí",
+	"no":                  "no",
 }
 
 // Parse accepts only the two product languages. Empty means auto-detect.
@@ -153,4 +181,8 @@ func (l Localizer) Human(value string) string {
 		}
 	}
 	return value
+}
+
+func (l Localizer) Humanf(format string, args ...any) string {
+	return fmt.Sprintf(l.Human(format), args...)
 }

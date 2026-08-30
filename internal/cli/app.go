@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -20,15 +21,19 @@ const (
 )
 
 type terminalDetector func(io.Writer) bool
+type interactiveDetector func(io.Reader, io.Writer) bool
+type terminalWidthDetector func(io.Writer) int
 
 type options struct {
-	in         io.Reader
-	out        io.Writer
-	errOut     io.Writer
-	version    string
-	modules    []Module
-	isTerminal terminalDetector
-	lookupEnv  func(string) (string, bool)
+	in            io.Reader
+	out           io.Writer
+	errOut        io.Writer
+	version       string
+	modules       []Module
+	isTerminal    terminalDetector
+	isInteractive interactiveDetector
+	terminalWidth terminalWidthDetector
+	lookupEnv     func(string) (string, bool)
 }
 
 // Option configures an App without relying on package globals.
@@ -56,6 +61,14 @@ func WithTerminalDetector(detector func(io.Writer) bool) Option {
 	return func(options *options) { options.isTerminal = detector }
 }
 
+func WithInteractiveDetector(detector func(io.Reader, io.Writer) bool) Option {
+	return func(options *options) { options.isInteractive = detector }
+}
+
+func WithTerminalWidthDetector(detector func(io.Writer) int) Option {
+	return func(options *options) { options.terminalWidth = detector }
+}
+
 // WithEnvironment makes locale and NO_COLOR behavior deterministic in tests.
 func WithEnvironment(lookup func(string) (string, bool)) Option {
 	return func(options *options) { options.lookupEnv = lookup }
@@ -67,12 +80,14 @@ type App struct {
 
 func New(opts ...Option) *App {
 	config := options{
-		in:         os.Stdin,
-		out:        os.Stdout,
-		errOut:     os.Stderr,
-		version:    "dev",
-		isTerminal: isTerminal,
-		lookupEnv:  os.LookupEnv,
+		in:            os.Stdin,
+		out:           os.Stdout,
+		errOut:        os.Stderr,
+		version:       "dev",
+		isTerminal:    isTerminal,
+		isInteractive: isInteractive,
+		terminalWidth: terminalWidth,
+		lookupEnv:     os.LookupEnv,
 	}
 	for _, option := range opts {
 		option(&config)
@@ -83,6 +98,23 @@ func New(opts ...Option) *App {
 func isTerminal(writer io.Writer) bool {
 	file, ok := writer.(*os.File)
 	return ok && term.IsTerminal(int(file.Fd()))
+}
+
+func isInteractive(reader io.Reader, writer io.Writer) bool {
+	input, inputOK := reader.(*os.File)
+	return inputOK && term.IsTerminal(int(input.Fd())) && isTerminal(writer)
+}
+
+func terminalWidth(writer io.Writer) int {
+	file, ok := writer.(*os.File)
+	if !ok {
+		return 0
+	}
+	width, _, err := term.GetSize(int(file.Fd()))
+	if err != nil {
+		return 80
+	}
+	return width
 }
 
 func (a *App) Run(args []string) int {
@@ -96,6 +128,15 @@ func (a *App) Run(args []string) int {
 	localizer := i18n.New(language)
 	var helpErr error
 	root := a.rootCommand(jsonOutput, localizer, &helpErr)
+	_, noColor := a.options.lookupEnv("NO_COLOR")
+	root.SetContext(withHumanContext(context.Background(), HumanContext{
+		Localizer:   localizer,
+		Terminal:    a.options.isTerminal(a.options.out),
+		Interactive: a.options.isInteractive(a.options.in, a.options.out),
+		Width:       a.options.terminalWidth(a.options.out),
+		NoColor:     noColor,
+		JSON:        jsonOutput,
+	}))
 	root.SetArgs(args)
 	root.InitDefaultHelpCmd()
 	root.InitDefaultCompletionCmd(args...)
