@@ -44,7 +44,6 @@ func (p *Prompter) ConfirmDestructive(action string) error {
 		return err
 	}
 	if !strings.EqualFold(strings.TrimSpace(line), word) {
-		_, _ = fmt.Fprintln(p.Out, p.Localize.Text(i18n.Aborted))
 		return ErrAborted
 	}
 	return nil
@@ -84,7 +83,6 @@ func (p *Prompter) Select(choices []Choice) (string, error) {
 	}
 	index, conversionErr := strconv.Atoi(strings.TrimSpace(line))
 	if conversionErr != nil || index < 1 || index > len(choices) {
-		_, _ = fmt.Fprintln(p.Out, p.Localize.Text(i18n.InvalidChoice))
 		return "", ErrAborted
 	}
 	return choices[index-1].Value, nil

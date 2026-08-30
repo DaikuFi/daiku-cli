@@ -152,7 +152,10 @@ func confirmationError(err error) *cli.Error {
 	if errors.Is(err, prompt.ErrNonInteractive) {
 		return &cli.Error{Code: "confirmation_required", Message: "confirmation requires an interactive terminal; pass --yes to continue", ExitCode: cli.ExitUsage}
 	}
-	return &cli.Error{Code: "operation_cancelled", Message: "operation cancelled", ExitCode: cli.ExitConflict}
+	if errors.Is(err, prompt.ErrAborted) {
+		return &cli.Error{Code: "operation_cancelled", Message: "operation cancelled", ExitCode: cli.ExitConflict}
+	}
+	return &cli.Error{Code: "confirmation_failed", Message: "confirmation could not be read", ExitCode: cli.ExitFailure}
 }
 func usage(message string) *cli.Error {
 	return &cli.Error{Code: "usage_error", Message: message, ExitCode: cli.ExitUsage}

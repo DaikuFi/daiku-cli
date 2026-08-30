@@ -104,12 +104,17 @@ var humanSpanish = map[string]string{
 	"local credentials could not be removed":                     "no se pudieron eliminar las credenciales locales",
 	"credentials could not be revoked; use --local-only to remove only the local copy": "no se pudieron revocar las credenciales; usa --local-only para eliminar sólo la copia local",
 	"confirmation requires an interactive terminal; pass --yes to continue":            "la confirmación requiere una terminal interactiva; usa --yes para continuar",
-	"operation cancelled": "operación cancelada",
-	"NAME":                "NOMBRE",
-	"API URL":             "URL DE API",
-	"CURRENT":             "ACTUAL",
-	"yes":                 "sí",
-	"no":                  "no",
+	"operation cancelled":                                              "operación cancelada",
+	"confirmation could not be read":                                   "no se pudo leer la confirmación",
+	"profile name must contain only letters, numbers, '.', '_' or '-'": "el nombre del perfil sólo puede contener letras, números, '.', '_' o '-'",
+	"invalid API URL":                                                  "URL de API inválida",
+	"API URL must be an absolute /api/v1/ URL":                         "la URL de API debe ser una URL absoluta que termine en /api/v1/",
+	"API URL must use HTTPS":                                           "la URL de API debe usar HTTPS",
+	"NAME":                                                             "NOMBRE",
+	"API URL":                                                          "URL DE API",
+	"CURRENT":                                                          "ACTUAL",
+	"yes":                                                              "sí",
+	"no":                                                               "no",
 }
 
 // Parse accepts only the two product languages. Empty means auto-detect.

@@ -134,3 +134,18 @@ func TestRemoveTTYSpanishAndPipeExplicitYes(t *testing.T) {
 		t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 	}
 }
+
+func TestRemoveCancellationIsRenderedOnceByAppBoundary(t *testing.T) {
+	app, store, stdout, stderr := profileApp(t, testConfig(), true, true, 80, "no\n")
+	exit := app.Run([]string{"profile", "remove", "casa", "--language=es"})
+	if exit != int(cli.ExitConflict) || stdout.Len() != 0 || strings.Count(stderr.String(), "Cancelado") != 0 || strings.Count(stderr.String(), "Error:") != 1 || !strings.Contains(stderr.String(), "operación cancelada") {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
+	}
+	cfg, err := store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Profiles["casa"]; !ok {
+		t.Fatal("profile removed after cancellation")
+	}
+}
