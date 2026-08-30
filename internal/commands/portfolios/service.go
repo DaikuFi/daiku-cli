@@ -58,7 +58,11 @@ func GeneratedFactory(store profiles.Store, tokens tokenSource, httpClient *http
 		if err != nil {
 			return nil, commandError("authentication_required", "authenticate the active profile before using portfolios", cli.ExitAuth)
 		}
-		base := strings.TrimSuffix(profile.APIURL, "/api/v1/")
+		apiURL, err := profiles.NormalizeAPIURL(profile.APIURL)
+		if err != nil {
+			return nil, commandError("profile_error", "the active profile has an invalid API URL", cli.ExitFailure)
+		}
+		base := strings.TrimSuffix(apiURL, "/api/v1/")
 		opts := []daikuv1.ClientOption{daikuv1.WithRequestEditorFn(func(_ context.Context, request *http.Request) error {
 			request.Header.Set("Authorization", "Bearer "+token)
 			return nil

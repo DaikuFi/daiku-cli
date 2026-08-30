@@ -24,7 +24,7 @@ func (m Module) Register(root *cobra.Command) {
 	p := &cobra.Command{Use: "portfolios", Short: "Manage portfolios and inspect server-calculated totals", Args: cli.UsageArgs(cobra.NoArgs)}
 	p.AddCommand(m.portfolioList(), m.portfolioGet(), m.portfolioCreate(), m.portfolioUpdate(), m.portfolioDelete(), m.totals(), m.holdings(), m.buckets())
 	root.AddCommand(p)
-	p.Root().AddCommand(m.assets())
+	root.AddCommand(m.assets())
 }
 func (m Module) service(cmd *cobra.Command) (Service, error) { return m.Factory(cmd.Context()) }
 func run(use, short string, args cobra.PositionalArgs, fn func(*cobra.Command, []string) error) *cobra.Command {
