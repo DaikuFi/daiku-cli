@@ -1,6 +1,7 @@
 package i18n_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/DaikuFi/daiku-cli/internal/i18n"
@@ -18,13 +19,30 @@ func TestResolvePrecedenceAndLocaleVariants(t *testing.T) {
 	}
 }
 
-func TestResolveFallsBackAndExplicitInvalidFails(t *testing.T) {
-	lookup := func(string) (string, bool) { return "pt_BR.UTF-8", true }
+func TestResolveDefaultsToEnglishAndExplicitInvalidFails(t *testing.T) {
+	lookup := func(string) (string, bool) { return "", false }
 	if got, err := i18n.Resolve("", lookup); err != nil || got != i18n.English {
 		t.Fatalf("fallback: got %q err=%v", got, err)
 	}
 	if _, err := i18n.Resolve("pt", lookup); err == nil {
 		t.Fatal("expected invalid explicit language to fail")
+	}
+}
+
+func TestResolveFirstPresentVariableWinsEvenWhenInvalid(t *testing.T) {
+	environment := map[string]string{"LC_ALL": "pt_BR.UTF-8", "LANG": "es_UY.UTF-8"}
+	lookup := func(key string) (string, bool) { value, ok := environment[key]; return value, ok }
+	if _, err := i18n.Resolve("", lookup); err == nil || !strings.Contains(err.Error(), "LC_ALL") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestResolveCLocalesAsEnglish(t *testing.T) {
+	for _, value := range []string{"C", "C.UTF-8", "POSIX"} {
+		lookup := func(string) (string, bool) { return value, true }
+		if got, err := i18n.Resolve("", lookup); err != nil || got != i18n.English {
+			t.Fatalf("locale=%q got=%q err=%v", value, got, err)
+		}
 	}
 }
 

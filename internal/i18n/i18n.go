@@ -99,21 +99,27 @@ func Parse(value string) (Language, error) {
 	}
 }
 
-// Resolve uses the explicit flag first, then DAIKU_LANG, then the conventional
-// locale variables. Unknown environment locales safely fall back to English.
+// Resolve uses the explicit flag first, then the first present locale variable.
+// A configured but unsupported value is an error instead of silently consulting
+// a lower-priority variable, which keeps locale selection predictable.
 func Resolve(explicit string, lookup func(string) (string, bool)) (Language, error) {
 	if language, err := Parse(explicit); err != nil || language != "" {
 		return language, err
 	}
 	for _, name := range []string{"DAIKU_LANG", "LC_ALL", "LC_MESSAGES", "LANG"} {
 		value, ok := lookup(name)
-		if !ok || value == "" {
+		if !ok {
 			continue
 		}
-		language, err := Parse(strings.SplitN(value, ".", 2)[0])
-		if err == nil && language != "" {
-			return language, nil
+		locale := strings.TrimSpace(strings.SplitN(value, ".", 2)[0])
+		if strings.EqualFold(locale, "C") || strings.EqualFold(locale, "POSIX") {
+			return English, nil
 		}
+		language, err := Parse(locale)
+		if err != nil || language == "" {
+			return "", fmt.Errorf("unsupported locale in %s: %q (use en or es)", name, value)
+		}
+		return language, nil
 	}
 	return English, nil
 }
