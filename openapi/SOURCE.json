@@ -1,8 +1,8 @@
 {
   "repository": "https://github.com/DaikuFi/Daiku",
-  "commit": "45df1ba1768ae9a4498fa09359ab19c545232dcd",
+  "commit": "e998a92f4843a3ba34e829731d27fe250c6bb51c",
   "schema": "openapi/daiku-v1.json",
-  "sha256": "db9bc13be8ae9b64e157ffee9545ec1116e5b1b7861c19711cce375ee2baad0e",
+  "sha256": "7475048a22c5ffec2c583752b1e2281db7b239c843a706c8b203c17402b2bc3c",
   "export_command": "uv run python manage.py export_public_schema --output openapi/daiku-v1.json --server https://api.daiku.app",
   "server": "https://api.daiku.app"
 }

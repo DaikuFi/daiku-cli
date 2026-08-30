@@ -167,6 +167,58 @@ func TestListWiresPublishedMonthYearAndAllControls(t *testing.T) {
 	}
 }
 
+func TestListAcceptsTransferFilterInJSONAndHumanOutput(t *testing.T) {
+	id := "exp_transfer"
+	typeTransfer := daikuv1.ExpenseTransactionTypeEnumTransfer
+	result := daikuv1.ExpensePage{
+		Count: 1,
+		Results: []daikuv1.Expense{{
+			Id: &id, Amount: "40.00", Description: "Checking to Savings",
+			TransactionType: &typeTransfer,
+		}},
+	}
+	svc := &fakeService{listResult: result}
+	code, out, stderr := run(t, svc, "", "transactions", "list", "--household", "hh_1", "--type", "transfer", "--json")
+	if code != 0 || svc.listed == nil || svc.listed.Type == nil || *svc.listed.Type != daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParamsTypeTransfer {
+		t.Fatalf("code=%d params=%#v out=%s err=%s", code, svc.listed, out, stderr)
+	}
+	var envelope struct {
+		OK   bool                `json:"ok"`
+		Data daikuv1.ExpensePage `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(out), &envelope); err != nil || !envelope.OK || len(envelope.Data.Results) != 1 {
+		t.Fatalf("envelope=%s err=%v", out, err)
+	}
+
+	svc = &fakeService{listResult: result}
+	code, out, stderr = run(t, svc, "", "transactions", "list", "--household", "hh_1", "--type", "transfer", "--language", "es")
+	if code != 0 || !strings.Contains(out, "Checking to Savings") || !strings.Contains(out, "transfer") || !strings.Contains(out, "Tipo") {
+		t.Fatalf("code=%d out=%s err=%s", code, out, stderr)
+	}
+}
+
+func TestListRejectsUnsupportedTypeBeforeCallingAPIInJSONAndHumanOutput(t *testing.T) {
+	svc := &fakeService{}
+	code, out, stderr := run(t, svc, "", "transactions", "list", "--household", "hh_1", "--type", "adjustment", "--json")
+	if code != int(cli.ExitUsage) || svc.listed != nil || out != "" {
+		t.Fatalf("code=%d params=%#v out=%s err=%s", code, svc.listed, out, stderr)
+	}
+	var envelope map[string]any
+	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil || envelope["ok"] != false {
+		t.Fatalf("json=%s err=%v", stderr, err)
+	}
+	errorBody, _ := envelope["error"].(map[string]any)
+	if errorBody["code"] != "usage_error" || errorBody["message"] != "type must be expense, income, or transfer" {
+		t.Fatalf("error=%#v", errorBody)
+	}
+
+	svc = &fakeService{}
+	code, out, stderr = run(t, svc, "", "transactions", "list", "--household", "hh_1", "--type", "unknown", "--language", "es")
+	if code != int(cli.ExitUsage) || svc.listed != nil || out != "" || !strings.Contains(stderr, "type debe ser expense, income o transfer") {
+		t.Fatalf("code=%d params=%#v out=%s err=%s", code, svc.listed, out, stderr)
+	}
+}
+
 func TestListRejectsInvalidOrContradictoryPageControls(t *testing.T) {
 	for _, args := range [][]string{
 		{"transactions", "list", "--household", "hh_1", "--all", "--page", "2", "--json"},

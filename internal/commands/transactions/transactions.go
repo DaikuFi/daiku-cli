@@ -270,7 +270,7 @@ func (m Module) list(search bool) *cobra.Command {
 	var all bool
 	cmd.Flags().BoolVar(&all, "all", false, "fetch every matching transaction without pagination")
 	kind := optionalString(cmd, "kind", "recurring or one-time")
-	typ := optionalString(cmd, "type", "expense or income")
+	typ := optionalString(cmd, "type", "expense, income, or transfer (omit to include adjustments)")
 	ordering := optionalString(cmd, "ordering", "newest, oldest, amount_high, or amount_low")
 	var tags []string
 	cmd.Flags().StringSliceVar(&tags, "tag", nil, "tag ID (repeatable)")
@@ -344,10 +344,11 @@ func (m Module) list(search bool) *cobra.Command {
 			p.Kind = kind
 		}
 		if *typ != "" {
-			if *typ != "expense" && *typ != "income" {
-				return usage("type must be expense or income")
+			if *typ != "expense" && *typ != "income" && *typ != "transfer" {
+				return usage("type must be expense, income, or transfer")
 			}
-			p.Type = typ
+			value := daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParamsType(*typ)
+			p.Type = &value
 		}
 		if *ordering != "" {
 			allowed := map[string]bool{"newest": true, "oldest": true, "amount_high": true, "amount_low": true}

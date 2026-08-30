@@ -518,6 +518,7 @@ var transactionSpanish = map[string]string{
 	"year must be between 1 and 9999":                                                  "el año debe estar entre 1 y 9999",
 	"kind must be recurring or one-time":                                               "kind debe ser recurring o one-time",
 	"type must be expense or income":                                                   "type debe ser expense o income",
+	"type must be expense, income, or transfer":                                        "type debe ser expense, income o transfer",
 	"invalid ordering":                                                                 "orden inválido",
 	"a value flag cannot be combined with its clear flag":                              "una opción con valor no puede combinarse con su opción para limpiar",
 	"invalid transaction type":                                                         "tipo de transacción inválido",
@@ -533,6 +534,8 @@ var transactionSpanish = map[string]string{
 	"count must be between 2 and 60":                                                   "count debe estar entre 2 y 60",
 	"amount must be at least 0.01 per installment":                                     "el importe debe ser al menos 0,01 por cuota",
 	"Showing %d of %d transactions. Use --all to fetch every matching transaction.\n":  "Mostrando %d de %d transacciones. Usa --all para obtener todas las transacciones coincidentes.\n",
+
+	"expense, income, or transfer (omit to include adjustments)": "gasto, ingreso o transferencia (omitir para incluir ajustes)",
 }
 
 // Parse accepts only the two product languages. Empty means auto-detect.

@@ -888,6 +888,13 @@ const (
 	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyVES DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "VES"
 )
 
+// Defines values for DaikuHouseholdsHouseholdPkExpensesGetParamsType.
+const (
+	DaikuHouseholdsHouseholdPkExpensesGetParamsTypeExpense  DaikuHouseholdsHouseholdPkExpensesGetParamsType = "expense"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsTypeIncome   DaikuHouseholdsHouseholdPkExpensesGetParamsType = "income"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsTypeTransfer DaikuHouseholdsHouseholdPkExpensesGetParamsType = "transfer"
+)
+
 // Defines values for DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatus.
 const (
 	DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatusAll        DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatus = "all"
@@ -5222,8 +5229,8 @@ type DaikuHouseholdsHouseholdPkExpensesGetParams struct {
 	// Tag Filter by tag id. Repeatable; matches expenses carrying any of the given tags.
 	Tag *[]string `form:"tag,omitempty" json:"tag,omitempty"`
 
-	// Type Filter by kind: 'expense' or 'income' (transfers/adjustments are excluded from both; omit for all).
-	Type *string `form:"type,omitempty" json:"type,omitempty"`
+	// Type Filter by kind: 'expense', 'income', or 'transfer'. Adjustments remain available only in the unfiltered account history.
+	Type *DaikuHouseholdsHouseholdPkExpensesGetParamsType `form:"type,omitempty" json:"type,omitempty"`
 
 	// Year Filter by year, e.g. 2026.
 	Year *int `form:"year,omitempty" json:"year,omitempty"`
@@ -5231,6 +5238,9 @@ type DaikuHouseholdsHouseholdPkExpensesGetParams struct {
 
 // DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency defines parameters for DaikuHouseholdsHouseholdPkExpensesGet.
 type DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency string
+
+// DaikuHouseholdsHouseholdPkExpensesGetParamsType defines parameters for DaikuHouseholdsHouseholdPkExpensesGet.
+type DaikuHouseholdsHouseholdPkExpensesGetParamsType string
 
 // DaikuHouseholdsHouseholdPkExpensesIdDeleteParams defines parameters for DaikuHouseholdsHouseholdPkExpensesIdDelete.
 type DaikuHouseholdsHouseholdPkExpensesIdDeleteParams struct {

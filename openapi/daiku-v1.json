@@ -5320,9 +5320,14 @@
             "in": "query",
             "name": "type",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "expense",
+                "income",
+                "transfer"
+              ]
             },
-            "description": "Filter by kind: 'expense' or 'income' (transfers/adjustments are excluded from both; omit for all)."
+            "description": "Filter by kind: 'expense', 'income', or 'transfer'. Adjustments remain available only in the unfiltered account history."
           },
           {
             "in": "query",
