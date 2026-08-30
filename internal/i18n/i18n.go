@@ -166,6 +166,13 @@ var humanSpanish = map[string]string{
 	"target balance":                           "saldo objetivo",
 	"adjustment date":                          "fecha del ajuste",
 	"adjustment note":                          "nota del ajuste",
+	"Delete household %s.":                     "Eliminar el hogar %s.",
+	"Delete resource %s.":                      "Eliminar el recurso %s.",
+	"Archive account %s.":                      "Archivar la cuenta %s.",
+	"Adjust account %s balance.":               "Ajustar el saldo de la cuenta %s.",
+	"clear the parent category":                "quita la categoría padre",
+	"clear the account group":                  "quita el grupo de la cuenta",
+	"clear the institution":                    "quita la institución",
 }
 
 // Parse accepts only the two product languages. Empty means auto-detect.
