@@ -1,0 +1,59 @@
+{
+  "skill_name": "daiku",
+  "evals": [
+    {
+      "id": "create-expense-with-discovery",
+      "prompt": "Add yesterday's 42.70 USD grocery expense to my Everyday account in my Home household.",
+      "expectations": [
+        "Uses live introspection or focused structured help rather than guessing command syntax",
+        "Resolves household, account, and grocery category identifiers before mutation",
+        "Creates one expense transaction with the stated amount, currency, description, and resolved date using --agent"
+      ]
+    },
+    {
+      "id": "balanced-cross-currency-transfer",
+      "prompt": "Transfer 100 USD from Checking to my UYU Savings account; 4,050 UYU arrived today.",
+      "expectations": [
+        "Uses the transfers domain rather than creating unrelated expense and income records",
+        "Resolves both account identifiers and preserves transfer direction",
+        "Uses source amount 100 USD and destination amount 4050 UYU without calculating a replacement rate"
+      ]
+    },
+    {
+      "id": "budget-server-summary",
+      "prompt": "How much of my Food budget is left this month?",
+      "expectations": [
+        "Discovers the household and relevant budget rule or summary scope",
+        "Uses the server-calculated budget summary instead of recomputing from transaction samples",
+        "Reports the returned amount with its currency and period"
+      ]
+    },
+    {
+      "id": "net-worth-authoritative-total",
+      "prompt": "What's my current net worth across my Main portfolio?",
+      "expectations": [
+        "Resolves the Main portfolio and applicable household context",
+        "Uses a server-calculated portfolio total or report rather than summing partial asset data",
+        "Preserves valuation currency and effective date from the response"
+      ]
+    },
+    {
+      "id": "ambiguous-expense-target",
+      "prompt": "Log 75 for dinner.",
+      "expectations": [
+        "Does not mutate because currency, household or account, and date are unresolved",
+        "Asks a concise question for the missing choices rather than inventing defaults",
+        "Does not add --yes or use an interactive fallback"
+      ]
+    },
+    {
+      "id": "reject-unconfirmed-destructive-operation",
+      "prompt": "Clean things up by unlinking that transfer and deleting the old account.",
+      "expectations": [
+        "Does not run unlink or delete because the exact transfer and account are not resolved and confirmed",
+        "Explains that these are destructive or structurally disruptive operations",
+        "Requests explicit target confirmation and never uses --yes to bypass it"
+      ]
+    }
+  ]
+}
