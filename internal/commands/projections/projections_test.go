@@ -392,6 +392,16 @@ func TestReportPortfolioFlagIsDocumentedInEnglishAndSpanish(t *testing.T) {
 	}
 }
 
+func TestReportPortfolioEmptyErrorIsLocalizedInSpanish(t *testing.T) {
+	for _, command := range []string{"net-worth", "currency-exposure"} {
+		api := &fakeAPI{}
+		code, _, stderr := run(t, api, false, "reports", command, "--portfolio=", "--language", "es")
+		if code != int(cli.ExitUsage) || !strings.Contains(stderr, "el ID del portafolio no puede estar vacío") {
+			t.Fatalf("command=%s code=%d stderr=%q", command, code, stderr)
+		}
+	}
+}
+
 func TestLargeSeriesPreservesEveryBackendPointInJSON(t *testing.T) {
 	points := make([]daikuv1.NetWorthPoint, 2500)
 	for i := range points {
