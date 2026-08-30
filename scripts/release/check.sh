@@ -4,6 +4,7 @@ set -eu
 root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$root"
 
+printf 'release-check: configuration contracts\n'
 grep -q '^version: 2$' .goreleaser.yaml
 grep -q 'draft: true' .goreleaser.yaml
 grep -q 'prerelease: auto' .goreleaser.yaml
@@ -12,10 +13,15 @@ grep -q 'amd64, arm64' .goreleaser.yaml
 grep -q 'cosign' .goreleaser.yaml
 sh -n scripts/install/daiku.sh scripts/install/test.sh scripts/release/homebrew.sh
 
-if [ "${CI:-}" = true ]; then goreleaser check; fi
+if [ "${CI:-}" = true ]; then
+  printf 'release-check: GoReleaser configuration\n'
+  goreleaser check
+fi
 
+printf 'release-check: installer behavior\n'
 ./scripts/install/test.sh
 
+printf 'release-check: Homebrew generation\n'
 fixture=$(mktemp "${TMPDIR:-/tmp}/daiku-checksums.XXXXXX")
 formula=$(mktemp "${TMPDIR:-/tmp}/daiku-formula.XXXXXX")
 trap 'rm -f "$fixture" "$formula"' EXIT HUP INT TERM
