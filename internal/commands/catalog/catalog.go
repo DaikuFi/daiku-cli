@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -164,7 +165,7 @@ func (m Module) householdDelete() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		if err = confirm(cmd, yes, "Delete household "+id+"."); err != nil {
+		if err = confirm(cmd, yes, "Delete household %s.", id); err != nil {
 			return err
 		}
 		if err = m.call(cmd, http.MethodDelete, "households/"+id+"/", nil, nil); err != nil {
@@ -233,7 +234,7 @@ func (m Module) resourceList(spec resourceSpec) *cobra.Command {
 }
 
 func (m Module) resourceCreate(spec resourceSpec) *cobra.Command {
-	var household, name, emoji, color, domain, parent string
+	var household, name, emoji, color, domain, country, parent string
 	cmd := run("create", "Create "+singular(spec.label), cobra.NoArgs, func(cmd *cobra.Command, _ []string) error {
 		var body any
 		switch spec.path {
@@ -244,7 +245,15 @@ func (m Module) resourceCreate(spec resourceSpec) *cobra.Command {
 		case "tags":
 			body = daikuv1.PublicTagRequest{Name: name, Color: optional(color)}
 		case "institutions":
-			body = daikuv1.PublicFinancialInstitutionRequest{Name: name, Domain: optional(domain)}
+			value := daikuv1.PublicFinancialInstitutionRequest{Name: name, Domain: optional(domain)}
+			if country != "" {
+				var union daikuv1.PublicFinancialInstitutionRequest_Country
+				if err := union.FromCountry806Enum(daikuv1.Country806Enum(country)); err != nil {
+					return usage("invalid country")
+				}
+				value.Country = &union
+			}
+			body = value
 		}
 		var item map[string]any
 		if err := m.call(cmd, http.MethodPost, scopedPath(household, spec.path), body, &item); err != nil {
@@ -255,17 +264,26 @@ func (m Module) resourceCreate(spec resourceSpec) *cobra.Command {
 	addHouseholdFlag(cmd, &household)
 	cmd.Flags().StringVar(&name, "name", "", "name")
 	_ = cmd.MarkFlagRequired("name")
-	cmd.Flags().StringVar(&emoji, "emoji", "", "emoji")
-	cmd.Flags().StringVar(&color, "color", "", "color")
-	cmd.Flags().StringVar(&domain, "domain", "", "domain")
-	cmd.Flags().StringVar(&parent, "parent", "", "parent category ID")
+	switch spec.path {
+	case "account-groups":
+		cmd.Flags().StringVar(&emoji, "emoji", "", "emoji")
+	case "categories":
+		cmd.Flags().StringVar(&emoji, "emoji", "", "emoji")
+		cmd.Flags().StringVar(&parent, "parent", "", "parent category ID")
+	case "tags":
+		cmd.Flags().StringVar(&color, "color", "", "color")
+	case "institutions":
+		cmd.Flags().StringVar(&domain, "domain", "", "domain")
+		cmd.Flags().StringVar(&country, "country", "", "ISO country code")
+	}
 	return cmd
 }
 
 func (m Module) resourceUpdate(spec resourceSpec) *cobra.Command {
-	var household, name, emoji, color, domain, parent string
+	var household, name, emoji, color, domain, country, parent string
+	var clearParent bool
 	cmd := run("update <resource>", "Update "+singular(spec.label), cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
-		if name == "" && emoji == "" && color == "" && domain == "" && parent == "" {
+		if name == "" && emoji == "" && color == "" && domain == "" && country == "" && parent == "" && !clearParent {
 			return usage("provide at least one field to update")
 		}
 		base := scopedPath(household, spec.path)
@@ -278,11 +296,32 @@ func (m Module) resourceUpdate(spec resourceSpec) *cobra.Command {
 		case "account-groups":
 			body = daikuv1.PatchedPublicAccountGroupRequest{Name: optional(name), Emoji: optional(emoji)}
 		case "categories":
-			body = daikuv1.PatchedPublicCategoryRequest{Name: optional(name), Emoji: optional(emoji), Parent: optional(parent)}
+			value := map[string]any{}
+			if name != "" {
+				value["name"] = name
+			}
+			if emoji != "" {
+				value["emoji"] = emoji
+			}
+			if parent != "" {
+				value["parent"] = parent
+			}
+			if clearParent {
+				value["parent"] = nil
+			}
+			body = value
 		case "tags":
 			body = daikuv1.PatchedPublicTagRequest{Name: optional(name), Color: optional(color)}
 		case "institutions":
-			body = daikuv1.PatchedPublicFinancialInstitutionRequest{Name: optional(name), Domain: optional(domain)}
+			value := daikuv1.PatchedPublicFinancialInstitutionRequest{Name: optional(name), Domain: optional(domain)}
+			if country != "" {
+				var union daikuv1.PatchedPublicFinancialInstitutionRequest_Country
+				if err := union.FromCountry806Enum(daikuv1.Country806Enum(country)); err != nil {
+					return usage("invalid country")
+				}
+				value.Country = &union
+			}
+			body = value
 		}
 		var item map[string]any
 		if err = m.call(cmd, http.MethodPatch, base+id+"/", body, &item); err != nil {
@@ -292,10 +331,19 @@ func (m Module) resourceUpdate(spec resourceSpec) *cobra.Command {
 	})
 	addHouseholdFlag(cmd, &household)
 	cmd.Flags().StringVar(&name, "name", "", "name")
-	cmd.Flags().StringVar(&emoji, "emoji", "", "emoji")
-	cmd.Flags().StringVar(&color, "color", "", "color")
-	cmd.Flags().StringVar(&domain, "domain", "", "domain")
-	cmd.Flags().StringVar(&parent, "parent", "", "parent category ID")
+	switch spec.path {
+	case "account-groups":
+		cmd.Flags().StringVar(&emoji, "emoji", "", "emoji")
+	case "categories":
+		cmd.Flags().StringVar(&emoji, "emoji", "", "emoji")
+		cmd.Flags().StringVar(&parent, "parent", "", "parent category ID")
+		cmd.Flags().BoolVar(&clearParent, "clear-parent", false, "clear the parent category")
+	case "tags":
+		cmd.Flags().StringVar(&color, "color", "", "color")
+	case "institutions":
+		cmd.Flags().StringVar(&domain, "domain", "", "domain")
+		cmd.Flags().StringVar(&country, "country", "", "ISO country code")
+	}
 	return cmd
 }
 
@@ -308,7 +356,7 @@ func (m Module) resourceDelete(spec resourceSpec) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		if err = confirm(cmd, yes, "Delete "+id+"."); err != nil {
+		if err = confirm(cmd, yes, "Delete resource %s.", id); err != nil {
 			return err
 		}
 		if err = m.call(cmd, http.MethodDelete, base+id+"/", nil, nil); err != nil {
@@ -390,9 +438,13 @@ func (m Module) accountList() *cobra.Command {
 }
 
 func (m Module) accountCreate() *cobra.Command {
-	var hh, name, currency, kind, group, institution, balance string
+	var hh, name, currency, kind, group, institution, balance, emoji, number, holder string
+	var isDefault bool
 	cmd := run("create", "Create an account", cobra.NoArgs, func(cmd *cobra.Command, _ []string) error {
-		body := daikuv1.PublicAccountWriteRequest{Name: &name, Group: optional(group), Institution: optional(institution), OpeningBalance: optional(balance)}
+		body := daikuv1.PublicAccountWriteRequest{Name: &name, Group: optional(group), Institution: optional(institution), OpeningBalance: optional(balance), Emoji: optional(emoji), AccountNumber: optional(number), AccountHolder: optional(holder)}
+		if cmd.Flags().Changed("is-default") {
+			body.IsDefault = &isDefault
+		}
 		if currency != "" {
 			v := daikuv1.Currency595Enum(currency)
 			body.Currency = &v
@@ -414,14 +466,24 @@ func (m Module) accountCreate() *cobra.Command {
 	cmd.Flags().StringVar(&group, "group", "", "account group ID")
 	cmd.Flags().StringVar(&institution, "institution", "", "institution ID")
 	cmd.Flags().StringVar(&balance, "opening-balance", "", "opening balance")
+	cmd.Flags().StringVar(&emoji, "emoji", "", "emoji")
+	cmd.Flags().StringVar(&number, "account-number", "", "account number")
+	cmd.Flags().StringVar(&holder, "account-holder", "", "account holder")
+	cmd.Flags().BoolVar(&isDefault, "is-default", false, "make this the default account")
 	_ = cmd.MarkFlagRequired("name")
 	return cmd
 }
 
 func (m Module) accountUpdate() *cobra.Command {
-	var hh, name, group, institution string
+	var hh, name, group, institution, currency, kind, balance, emoji, number, holder string
+	var isDefault, clearGroup, clearInstitution bool
 	cmd := run("update <account>", "Update an account", cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
-		if name == "" && group == "" && institution == "" {
+		changed := []string{"name", "group", "institution", "currency", "type", "opening-balance", "emoji", "account-number", "account-holder", "is-default", "clear-group", "clear-institution"}
+		has := false
+		for _, flag := range changed {
+			has = has || cmd.Flags().Changed(flag)
+		}
+		if !has {
 			return usage("provide at least one field to update")
 		}
 		base := scopedPath(hh, "accounts")
@@ -429,7 +491,23 @@ func (m Module) accountUpdate() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		body := daikuv1.PatchedPublicAccountWriteRequest{Name: optional(name), Group: optional(group), Institution: optional(institution)}
+		body := map[string]any{}
+		for flag, value := range map[string]any{"name": name, "group": group, "institution": institution, "currency": currency, "account_type": kind, "opening_balance": balance, "emoji": emoji, "account_number": number, "account_holder": holder, "is_default": isDefault} {
+			flagName := strings.ReplaceAll(flag, "account_type", "type")
+			flagName = strings.ReplaceAll(flagName, "opening_balance", "opening-balance")
+			flagName = strings.ReplaceAll(flagName, "account_number", "account-number")
+			flagName = strings.ReplaceAll(flagName, "account_holder", "account-holder")
+			flagName = strings.ReplaceAll(flagName, "is_default", "is-default")
+			if cmd.Flags().Changed(flagName) {
+				body[flag] = value
+			}
+		}
+		if clearGroup {
+			body["group"] = nil
+		}
+		if clearInstitution {
+			body["institution"] = nil
+		}
 		var item map[string]any
 		if err = m.call(cmd, http.MethodPatch, base+id+"/", body, &item); err != nil {
 			return err
@@ -440,6 +518,15 @@ func (m Module) accountUpdate() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "account name")
 	cmd.Flags().StringVar(&group, "group", "", "account group ID")
 	cmd.Flags().StringVar(&institution, "institution", "", "institution ID")
+	cmd.Flags().StringVar(&currency, "currency", "", "currency")
+	cmd.Flags().StringVar(&kind, "type", "", "account type")
+	cmd.Flags().StringVar(&balance, "opening-balance", "", "opening balance")
+	cmd.Flags().StringVar(&emoji, "emoji", "", "emoji")
+	cmd.Flags().StringVar(&number, "account-number", "", "account number")
+	cmd.Flags().StringVar(&holder, "account-holder", "", "account holder")
+	cmd.Flags().BoolVar(&isDefault, "is-default", false, "make this the default account")
+	cmd.Flags().BoolVar(&clearGroup, "clear-group", false, "clear the account group")
+	cmd.Flags().BoolVar(&clearInstitution, "clear-institution", false, "clear the institution")
 	return cmd
 }
 
@@ -459,7 +546,7 @@ func (m Module) accountAction(name, method, suffix string, destructive bool) *co
 			return err
 		}
 		if destructive {
-			if err = confirm(cmd, yes, "Archive account "+id+"."); err != nil {
+			if err = confirm(cmd, yes, "Archive account %s.", id); err != nil {
 				return err
 			}
 		}
@@ -485,7 +572,7 @@ func (m Module) accountAdjust() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		if err = confirm(cmd, yes, "Adjust account "+id+" balance."); err != nil {
+		if err = confirm(cmd, yes, "Adjust account %s balance.", id); err != nil {
 			return err
 		}
 		body := daikuv1.AccountAdjustRequestRequest{TargetBalance: target, Note: optional(note)}
@@ -544,8 +631,30 @@ func (m Module) call(cmd *cobra.Command, method, path string, body, out any) err
 	return s.do(cmd.Context(), method, path, body, out)
 }
 
+var resourceID = regexp.MustCompile(`^([a-z]+)_[0-9a-f]{32}$`)
+
+func expectedPrefix(path string) string {
+	switch {
+	case strings.Contains(path, "/account-groups/"):
+		return "agp"
+	case strings.Contains(path, "/accounts/"):
+		return "acc"
+	case strings.Contains(path, "/categories/"):
+		return "cat"
+	case strings.Contains(path, "/tags/"):
+		return "tag"
+	case strings.Contains(path, "/institutions/"):
+		return "inst"
+	case strings.HasPrefix(path, "households/"):
+		return "hsh"
+	}
+	return ""
+}
 func (m Module) resolve(cmd *cobra.Command, path, selector string) (string, error) {
-	if strings.Contains(selector, "_") {
+	if match := resourceID.FindStringSubmatch(selector); match != nil {
+		if match[1] != expectedPrefix(path) {
+			return "", usage("resource ID has the wrong prefix")
+		}
 		return selector, nil
 	}
 	var rows []map[string]any
@@ -594,13 +703,13 @@ func mapAPIError(err error) error {
 	return commandError(e.Code, e.Message, exit)
 }
 
-func confirm(cmd *cobra.Command, yes bool, message string) error {
+func confirm(cmd *cobra.Command, yes bool, format string, args ...any) error {
 	if yes {
 		return nil
 	}
 	h := cli.Human(cmd)
 	prompter := prompt.Prompter{In: cmd.InOrStdin(), Out: cmd.ErrOrStderr(), Localize: h.Localizer, Terminal: h.Interactive && !h.JSON}
-	err := prompter.ConfirmDestructive(h.Localizer.Human(message))
+	err := prompter.ConfirmDestructive(h.Localizer.Humanf(format, args...))
 	if errors.Is(err, prompt.ErrNonInteractive) {
 		return commandError("confirmation_required", "confirmation requires an interactive terminal; pass --yes to continue", cli.ExitUsage)
 	}
