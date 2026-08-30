@@ -226,7 +226,7 @@ func addPortfolioFlags(c *cobra.Command, f *portfolioFlags, create bool) {
 func (m Module) portfolioCreate() *cobra.Command {
 	var f portfolioFlags
 	c := run("create", "Create a portfolio", cobra.NoArgs, func(c *cobra.Command, _ []string) error {
-		if f.currency != "" && !validCurrency(f.currency) {
+		if c.Flags().Changed("display-currency") && !validCurrency(f.currency) {
 			return usage("unsupported currency")
 		}
 		b := daikuv1.PortfolioListRequest{Name: f.name}
@@ -259,7 +259,7 @@ func (m Module) portfolioUpdate() *cobra.Command {
 		if !anyChanged(c, "name", "display-currency", "emoji", "default") {
 			return usage("provide at least one field to update")
 		}
-		if f.currency != "" && !validCurrency(f.currency) {
+		if c.Flags().Changed("display-currency") && !validCurrency(f.currency) {
 			return usage("unsupported currency")
 		}
 		b := map[string]any{}
@@ -535,7 +535,7 @@ func (m Module) assetCreate() *cobra.Command {
 		if !validAssetType(f.kind) {
 			return usage("invalid asset type")
 		}
-		if f.currency != "" && !validCurrency(f.currency) {
+		if c.Flags().Changed("currency") && !validCurrency(f.currency) {
 			return usage("unsupported currency")
 		}
 		if c.Flags().Changed("last-price-update") {
@@ -599,7 +599,7 @@ func (m Module) assetUpdate() *cobra.Command {
 		if !anyChanged(c, "name", "type", "currency", "current-value", "quantity", "price-per-unit", "ticker", "last-price-update", "institution", "notes", "liability", "exclude-from-projections", "clear-quantity", "clear-price-per-unit", "clear-ticker", "clear-last-price-update") {
 			return usage("provide at least one field to update")
 		}
-		if f.currency != "" && !validCurrency(f.currency) {
+		if c.Flags().Changed("currency") && !validCurrency(f.currency) {
 			return usage("unsupported currency")
 		}
 		if c.Flags().Changed("type") && !validAssetType(f.kind) {
@@ -938,7 +938,6 @@ func addHistoryFlags(c *cobra.Command, f *historyFlags, create bool) {
 	c.Flags().StringVar(&f.notes, "notes", "", "notes")
 	if create {
 		_ = c.MarkFlagRequired("date")
-		_ = c.MarkFlagRequired("quantity")
 	} else {
 		c.Flags().BoolVar(&f.clearQuantity, "clear-quantity", false, "clear recorded quantity")
 	}
@@ -950,10 +949,13 @@ func (m Module) historyCreate() *cobra.Command {
 		if e != nil {
 			return usage("date must use YYYY-MM-DD")
 		}
-		if f.currency != "" && !validCurrency(f.currency) {
+		if c.Flags().Changed("currency") && !validCurrency(f.currency) {
 			return usage("unsupported currency")
 		}
-		b := daikuv1.AssetValueHistoryRequest{Date: d, Quantity: &f.quantity}
+		b := daikuv1.AssetValueHistoryRequest{Date: d}
+		if c.Flags().Changed("quantity") {
+			b.Quantity = &f.quantity
+		}
 		if f.value != "" {
 			b.Value = &f.value
 		}
@@ -983,7 +985,7 @@ func (m Module) historyUpdate() *cobra.Command {
 		if !anyChanged(c, "date", "value", "quantity", "currency", "notes", "clear-quantity") {
 			return usage("provide at least one field to update")
 		}
-		if f.currency != "" && !validCurrency(f.currency) {
+		if c.Flags().Changed("currency") && !validCurrency(f.currency) {
 			return usage("unsupported currency")
 		}
 		if c.Flags().Changed("quantity") && f.clearQuantity {

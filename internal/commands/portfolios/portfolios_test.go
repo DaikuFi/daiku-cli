@@ -14,13 +14,14 @@ import (
 )
 
 type fakeService struct {
-	portfolios []daikuv1.PortfolioList
-	totals     *daikuv1.PortfolioTotals
-	assets     []daikuv1.PublicAsset
-	flows      []daikuv1.AssetCashFlow
-	history    []daikuv1.AssetValueHistory
-	lastAsset  daikuv1.PublicAssetRequest
-	lastPatch  map[string]any
+	portfolios  []daikuv1.PortfolioList
+	totals      *daikuv1.PortfolioTotals
+	assets      []daikuv1.PublicAsset
+	flows       []daikuv1.AssetCashFlow
+	history     []daikuv1.AssetValueHistory
+	lastAsset   daikuv1.PublicAssetRequest
+	lastHistory daikuv1.AssetValueHistoryRequest
+	lastPatch   map[string]any
 }
 
 func (f *fakeService) PortfolioList(context.Context) ([]daikuv1.PortfolioList, error) {
@@ -78,7 +79,9 @@ func (f *fakeService) CashflowDelete(context.Context, string, string) error { re
 func (f *fakeService) HistoryList(context.Context, string) ([]daikuv1.AssetValueHistory, error) {
 	return f.history, nil
 }
-func (f *fakeService) HistoryCreate(context.Context, string, daikuv1.AssetValueHistoryRequest) (*daikuv1.AssetValueHistory, error) {
+
+func (f *fakeService) HistoryCreate(_ context.Context, _ string, request daikuv1.AssetValueHistoryRequest) (*daikuv1.AssetValueHistory, error) {
+	f.lastHistory = request
 	return &daikuv1.AssetValueHistory{}, nil
 }
 func (f *fakeService) HistoryUpdate(_ context.Context, _, _ string, patch map[string]any) (*daikuv1.AssetValueHistory, error) {
@@ -213,6 +216,28 @@ func TestHistoryQuantityOmittedOrExplicitlyCleared(t *testing.T) {
 	}
 }
 
+func TestHistoryCreateQuantityIsOptionalAndPresenceAware(t *testing.T) {
+	f := &fakeService{}
+	code, _, stderr := execute(t, f, "assets", "value-history", "create", "--asset", "ast_1", "--date", "2026-08-30", "--value", "25", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	if f.lastHistory.Quantity != nil {
+		t.Fatalf("quantity should be omitted: %#v", f.lastHistory)
+	}
+	if f.lastHistory.Value == nil || *f.lastHistory.Value != "25" {
+		t.Fatalf("value missing: %#v", f.lastHistory)
+	}
+
+	code, _, stderr = execute(t, f, "assets", "value-history", "create", "--asset", "ast_1", "--date", "2026-08-30", "--quantity", "2.5", "--json")
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	if f.lastHistory.Quantity == nil || *f.lastHistory.Quantity != "2.5" {
+		t.Fatalf("quantity missing: %#v", f.lastHistory)
+	}
+}
+
 func TestHistoryRejectsClearValueBecauseValueIsNotNullable(t *testing.T) {
 	f := &fakeService{}
 	code, _, stderr := execute(t, f, "assets", "value-history", "update", "vh_1", "--asset", "ast_1", "--clear-value", "--json")
@@ -228,6 +253,28 @@ func TestInvalidCurrencyRejected(t *testing.T) {
 	code, _, stderr := execute(t, &fakeService{}, "assets", "create", "--bucket", "bkt_1", "--name", "x", "--type", "other", "--currency", "BTC", "--json")
 	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "unsupported currency") {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+}
+
+func TestCurrencyFlagsRejectExplicitEmptyValues(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "portfolio create", args: []string{"portfolios", "create", "--name", "Main", "--display-currency", "", "--json"}},
+		{name: "portfolio", args: []string{"portfolios", "update", "prt_1", "--display-currency", "", "--json"}},
+		{name: "asset create", args: []string{"assets", "create", "--bucket", "bkt_1", "--name", "Cash", "--type", "other", "--currency", "", "--json"}},
+		{name: "asset", args: []string{"assets", "update", "ast_1", "--bucket", "bkt_1", "--currency", "", "--json"}},
+		{name: "value history create", args: []string{"assets", "value-history", "create", "--asset", "ast_1", "--date", "2026-08-30", "--currency", "", "--json"}},
+		{name: "value history", args: []string{"assets", "value-history", "update", "vh_1", "--asset", "ast_1", "--currency", "", "--json"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			code, _, stderr := execute(t, &fakeService{}, test.args...)
+			if code != int(cli.ExitUsage) || !strings.Contains(stderr, "unsupported currency") {
+				t.Fatalf("code=%d stderr=%s", code, stderr)
+			}
+		})
 	}
 }
 
