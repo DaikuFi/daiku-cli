@@ -12619,6 +12619,29 @@
           "unconverted"
         ]
       },
+      "CashFlowLinkSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "side": {
+            "$ref": "#/components/schemas/CashFlowLinkSummarySideEnum"
+          }
+        },
+        "required": [
+          "id",
+          "side"
+        ]
+      },
+      "CashFlowLinkSummarySideEnum": {
+        "enum": [
+          "cash_in",
+          "cash_out"
+        ],
+        "type": "string",
+        "description": "* `cash_in` - Cash in\n* `cash_out` - Cash out"
+      },
       "CashFlowLinkedTransaction": {
         "type": "object",
         "properties": {
@@ -12669,7 +12692,7 @@
             "type": "string"
           },
           "side": {
-            "$ref": "#/components/schemas/SideEnum"
+            "$ref": "#/components/schemas/CashFlowTransactionLinkSideEnum"
           },
           "visibility": {
             "$ref": "#/components/schemas/VisibilityEnum"
@@ -12683,6 +12706,14 @@
           "side",
           "visibility"
         ]
+      },
+      "CashFlowTransactionLinkSideEnum": {
+        "enum": [
+          "cash_in",
+          "cash_out"
+        ],
+        "type": "string",
+        "description": "* `cash_in` - cash_in\n* `cash_out` - cash_out"
       },
       "CashFlowTransactionLinks": {
         "type": "object",
@@ -13845,7 +13876,12 @@
             "nullable": true
           },
           "transfer_peer": {
-            "type": "string",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransferPeer"
+              }
+            ],
+            "nullable": true,
             "readOnly": true
           },
           "installment_plan": {
@@ -13859,11 +13895,17 @@
             "nullable": true
           },
           "installment_total": {
-            "type": "string",
+            "type": "integer",
+            "nullable": true,
             "readOnly": true
           },
           "cash_flow_link": {
-            "type": "string",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CashFlowLinkSummary"
+              }
+            ],
+            "nullable": true,
             "readOnly": true
           },
           "recurring_expense": {
@@ -18169,14 +18211,6 @@
         "type": "string",
         "description": "* `monthly` - monthly\n* `yearly` - yearly\n* `month` - month"
       },
-      "SideEnum": {
-        "enum": [
-          "cash_in",
-          "cash_out"
-        ],
-        "type": "string",
-        "description": "* `cash_in` - cash_in\n* `cash_out` - cash_out"
-      },
       "Status1d1Enum": {
         "enum": [
           "ok",
@@ -18317,6 +18351,31 @@
           "amount",
           "from_account",
           "to_account"
+        ]
+      },
+      "TransferPeer": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string",
+            "format": "decimal",
+            "pattern": "^-?\\d{0,13}(?:\\.\\d{0,2})?$"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency3e8Enum"
+          }
+        },
+        "required": [
+          "account",
+          "account_name",
+          "amount",
+          "currency"
         ]
       },
       "TransferResponse": {

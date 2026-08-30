@@ -93,6 +93,18 @@ const (
 	BudgetPeriodEnumYearly  BudgetPeriodEnum = "yearly"
 )
 
+// Defines values for CashFlowLinkSummarySideEnum.
+const (
+	CashFlowLinkSummarySideEnumCashIn  CashFlowLinkSummarySideEnum = "cash_in"
+	CashFlowLinkSummarySideEnumCashOut CashFlowLinkSummarySideEnum = "cash_out"
+)
+
+// Defines values for CashFlowTransactionLinkSideEnum.
+const (
+	CashFlowTransactionLinkSideEnumCashIn  CashFlowTransactionLinkSideEnum = "cash_in"
+	CashFlowTransactionLinkSideEnumCashOut CashFlowTransactionLinkSideEnum = "cash_out"
+)
+
 // Defines values for CashInCurrencyEnum.
 const (
 	CashInCurrencyEnumARS CashInCurrencyEnum = "ARS"
@@ -711,12 +723,6 @@ const (
 	Scope6feEnumYearly  Scope6feEnum = "yearly"
 )
 
-// Defines values for SideEnum.
-const (
-	CashIn  SideEnum = "cash_in"
-	CashOut SideEnum = "cash_out"
-)
-
 // Defines values for Status1d1Enum.
 const (
 	Status1d1EnumOk      Status1d1Enum = "ok"
@@ -1135,6 +1141,19 @@ type BudgetSummary_PaceStatus struct {
 	union json.RawMessage
 }
 
+// CashFlowLinkSummary defines model for CashFlowLinkSummary.
+type CashFlowLinkSummary struct {
+	Id string `json:"id"`
+
+	// Side * `cash_in` - Cash in
+	// * `cash_out` - Cash out
+	Side CashFlowLinkSummarySideEnum `json:"side"`
+}
+
+// CashFlowLinkSummarySideEnum * `cash_in` - Cash in
+// * `cash_out` - Cash out
+type CashFlowLinkSummarySideEnum string
+
 // CashFlowLinkedTransaction defines model for CashFlowLinkedTransaction.
 type CashFlowLinkedTransaction struct {
 	AccountName *string            `json:"account_name"`
@@ -1153,13 +1172,17 @@ type CashFlowTransactionLink struct {
 
 	// Side * `cash_in` - cash_in
 	// * `cash_out` - cash_out
-	Side        SideEnum                   `json:"side"`
-	Transaction *CashFlowLinkedTransaction `json:"transaction,omitempty"`
+	Side        CashFlowTransactionLinkSideEnum `json:"side"`
+	Transaction *CashFlowLinkedTransaction      `json:"transaction,omitempty"`
 
 	// Visibility * `visible` - visible
 	// * `redacted` - redacted
 	Visibility VisibilityEnum `json:"visibility"`
 }
+
+// CashFlowTransactionLinkSideEnum * `cash_in` - cash_in
+// * `cash_out` - cash_out
+type CashFlowTransactionLinkSideEnum string
 
 // CashFlowTransactionLinks defines model for CashFlowTransactionLinks.
 type CashFlowTransactionLinks struct {
@@ -1923,16 +1946,16 @@ type ExchangeRate struct {
 // Subclasses must still list the two field names in “Meta.fields“ (and in
 // “read_only_fields“) — DRF does not infer them from a mixin.
 type Expense struct {
-	Account       *string `json:"account"`
-	AccountAmount *string `json:"account_amount"`
-	AccountName   *string `json:"account_name,omitempty"`
-	Amount        string  `json:"amount"`
-	BrandLogoUrl  *string `json:"brand_logo_url,omitempty"`
-	BrandName     *string `json:"brand_name,omitempty"`
-	CashFlowLink  *string `json:"cash_flow_link,omitempty"`
-	Category      *string `json:"category"`
-	CategoryEmoji *string `json:"category_emoji,omitempty"`
-	CategoryName  *string `json:"category_name,omitempty"`
+	Account       *string              `json:"account"`
+	AccountAmount *string              `json:"account_amount"`
+	AccountName   *string              `json:"account_name,omitempty"`
+	Amount        string               `json:"amount"`
+	BrandLogoUrl  *string              `json:"brand_logo_url,omitempty"`
+	BrandName     *string              `json:"brand_name,omitempty"`
+	CashFlowLink  *CashFlowLinkSummary `json:"cash_flow_link"`
+	Category      *string              `json:"category"`
+	CategoryEmoji *string              `json:"category_emoji,omitempty"`
+	CategoryName  *string              `json:"category_name,omitempty"`
 
 	// CreatedAt Timestamp when this object was created
 	CreatedAt *time.Time `json:"created_at,omitempty"`
@@ -1965,7 +1988,7 @@ type Expense struct {
 	Id                *string             `json:"id,omitempty"`
 	InstallmentNumber *int                `json:"installment_number"`
 	InstallmentPlan   *string             `json:"installment_plan"`
-	InstallmentTotal  *string             `json:"installment_total,omitempty"`
+	InstallmentTotal  *int                `json:"installment_total"`
 	IsIncome          *bool               `json:"is_income,omitempty"`
 	IsSample          *bool               `json:"is_sample,omitempty"`
 	RecurringExpense  *string             `json:"recurring_expense"`
@@ -1977,7 +2000,7 @@ type Expense struct {
 	// * `adjustment` - Adjustment
 	TransactionType *ExpenseTransactionTypeEnum `json:"transaction_type,omitempty"`
 	TransferGroup   *string                     `json:"transfer_group"`
-	TransferPeer    *string                     `json:"transfer_peer,omitempty"`
+	TransferPeer    *TransferPeer               `json:"transfer_peer"`
 
 	// UpdatedAt Timestamp when this object was last updated
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
@@ -4692,10 +4715,6 @@ type Scope625Enum string
 // * `month` - month
 type Scope6feEnum string
 
-// SideEnum * `cash_in` - cash_in
-// * `cash_out` - cash_out
-type SideEnum string
-
 // Status1d1Enum * `ok` - ok
 // * `warning` - warning
 // * `over` - over
@@ -4760,6 +4779,35 @@ type TransferCreateRequestRequest struct {
 	FromAccount string              `json:"from_account"`
 	ToAccount   string              `json:"to_account"`
 	ToAmount    *string             `json:"to_amount"`
+}
+
+// TransferPeer defines model for TransferPeer.
+type TransferPeer struct {
+	Account     string `json:"account"`
+	AccountName string `json:"account_name"`
+	Amount      string `json:"amount"`
+
+	// Currency * `UYU` - Uruguayan Peso
+	// * `USD` - US Dollar
+	// * `EUR` - Euro
+	// * `BRL` - Brazilian Real
+	// * `GBP` - British Pound
+	// * `ARS` - Argentine Peso
+	// * `UI` - Unidad Indexada
+	// * `CLP` - Chilean Peso
+	// * `COP` - Colombian Peso
+	// * `MXN` - Mexican Peso
+	// * `PEN` - Peruvian Sol
+	// * `PYG` - Paraguayan Guaraní
+	// * `BOB` - Bolivian Boliviano
+	// * `VES` - Venezuelan Bolívar Soberano
+	// * `GTQ` - Guatemalan Quetzal
+	// * `HNL` - Honduran Lempira
+	// * `CRC` - Costa Rican Colón
+	// * `NIO` - Nicaraguan Córdoba
+	// * `PAB` - Panamanian Balboa
+	// * `DOP` - Dominican Peso
+	Currency Currency3e8Enum `json:"currency"`
 }
 
 // TransferResponse defines model for TransferResponse.
