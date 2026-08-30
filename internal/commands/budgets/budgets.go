@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -20,7 +21,7 @@ import (
 type API interface {
 	Planned(context.Context, string, *daikuv1.DaikuHouseholdsHouseholdPkBudgetsPlannedGetParams) (*daikuv1.PlannedBudgets, error)
 	Suggestions(context.Context, string, *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParams) (*daikuv1.BudgetSuggestionsResponse, error)
-	Summary(context.Context, string, *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSummaryGetParams) (*daikuv1.BudgetSummary, error)
+	Summary(context.Context, string, *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSummaryGetParams) (*SummaryResponse, error)
 	List(context.Context, string) ([]daikuv1.CategoryBudget, error)
 	Create(context.Context, string, daikuv1.CategoryBudgetRequest) (*daikuv1.CategoryBudget, error)
 	Update(context.Context, string, string, Patch) (*daikuv1.CategoryBudget, error)
@@ -30,6 +31,30 @@ type API interface {
 type Factory func(context.Context) (API, error)
 type Module struct{ Factory Factory }
 type Patch map[string]any
+
+// UnconvertedCurrencies matches the backend's missing-FX marker. The OpenAPI
+// serializer currently publishes this object-or-null field as an array, so it
+// cannot be represented by daikuv1.BudgetSummary without losing wire fidelity.
+type UnconvertedCurrencies struct {
+	Count      int      `json:"count"`
+	Currencies []string `json:"currencies"`
+}
+
+// SummaryResponse is the backend's actual budget summary response. Keep this
+// adapter local until the source schema models unconverted as object-or-null.
+type SummaryResponse struct {
+	BudgetedSpent      string                          `json:"budgeted_spent"`
+	CategoryRows       []daikuv1.BudgetCategorySummary `json:"category_rows"`
+	DailyProgress      []daikuv1.BudgetDailyProgress   `json:"daily_progress"`
+	DaysElapsed        int                             `json:"days_elapsed"`
+	DaysInMonth        int                             `json:"days_in_month"`
+	DisplayCurrency    daikuv1.DisplayCurrency43eEnum  `json:"display_currency"`
+	FreeToSpend        *string                         `json:"free_to_spend"`
+	PaceStatus         *daikuv1.PaceStatusEnum         `json:"pace_status"`
+	TotalMonthlyBudget string                          `json:"total_monthly_budget"`
+	TotalSpent         string                          `json:"total_spent"`
+	Unconverted        *UnconvertedCurrencies          `json:"unconverted"`
+}
 
 func New(store profiles.Store, manager *authcore.Manager) Module {
 	return Module{Factory: func(ctx context.Context) (API, error) {
@@ -366,6 +391,70 @@ func status(code int) error {
 	}
 	return apiFailure()
 }
+
+func responseError(code int, body []byte) error {
+	type errorBody struct {
+		Detail any `json:"detail"`
+		Error  *struct {
+			Errors     any    `json:"errors"`
+			Message    string `json:"message"`
+			StatusCode int    `json:"status_code"`
+		} `json:"error"`
+	}
+
+	details := map[string]any{"operation": "budget_summary", "status_code": code}
+	message := fmt.Sprintf("Daiku API returned HTTP %d", code)
+	var payload errorBody
+	if json.Unmarshal(body, &payload) == nil {
+		if payload.Error != nil {
+			if payload.Error.Message != "" {
+				message += ": " + payload.Error.Message
+			}
+			if payload.Error.Errors != nil {
+				details["errors"] = payload.Error.Errors
+			}
+		}
+		if payload.Detail != nil {
+			details["detail"] = payload.Detail
+			if detail, ok := payload.Detail.(string); ok && detail != "" {
+				message += ": " + detail
+			}
+		}
+	}
+
+	errorCode, exitCode := "api_error", cli.ExitFailure
+	switch code {
+	case http.StatusBadRequest:
+		errorCode, exitCode = "invalid_request", cli.ExitUsage
+	case http.StatusUnauthorized:
+		errorCode, exitCode = "unauthorized", cli.ExitAuth
+	case http.StatusForbidden:
+		errorCode, exitCode = "forbidden", cli.ExitForbidden
+	case http.StatusNotFound:
+		errorCode, exitCode = "not_found", cli.ExitNotFound
+	case http.StatusConflict:
+		errorCode, exitCode = "conflict", cli.ExitConflict
+	case http.StatusTooManyRequests:
+		errorCode, exitCode = "rate_limited", cli.ExitUnavailable
+	default:
+		if code >= http.StatusInternalServerError {
+			errorCode, exitCode = "api_unavailable", cli.ExitUnavailable
+		}
+	}
+	return &cli.Error{Code: errorCode, Message: message, ExitCode: exitCode, Details: details}
+}
+
+func decodeSummary(body []byte) (*SummaryResponse, error) {
+	var summary SummaryResponse
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	if err := decoder.Decode(&summary); err != nil {
+		return nil, err
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return nil, errors.New("response contains more than one JSON value")
+	}
+	return &summary, nil
+}
 func (a generatedAPI) Planned(ctx context.Context, h string, p *daikuv1.DaikuHouseholdsHouseholdPkBudgetsPlannedGetParams) (*daikuv1.PlannedBudgets, error) {
 	r, e := a.c.DaikuHouseholdsHouseholdPkBudgetsPlannedGetWithResponse(ctx, h, p)
 	if e != nil {
@@ -386,15 +475,24 @@ func (a generatedAPI) Suggestions(ctx context.Context, h string, p *daikuv1.Daik
 	}
 	return r.JSON200, nil
 }
-func (a generatedAPI) Summary(ctx context.Context, h string, p *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSummaryGetParams) (*daikuv1.BudgetSummary, error) {
-	r, e := a.c.DaikuHouseholdsHouseholdPkBudgetsSummaryGetWithResponse(ctx, h, p)
+func (a generatedAPI) Summary(ctx context.Context, h string, p *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSummaryGetParams) (*SummaryResponse, error) {
+	r, e := a.c.DaikuHouseholdsHouseholdPkBudgetsSummaryGet(ctx, h, p)
 	if e != nil {
-		return nil, apiFailure()
+		return nil, &cli.Error{Code: "network_error", Message: "the Daiku API could not be reached", ExitCode: cli.ExitUnavailable, Details: map[string]any{"operation": "budget_summary"}}
 	}
-	if e = status(r.StatusCode()); e != nil {
-		return nil, e
+	defer r.Body.Close()
+	body, e := io.ReadAll(r.Body)
+	if e != nil {
+		return nil, &cli.Error{Code: "network_error", Message: "the Daiku API response could not be read", ExitCode: cli.ExitUnavailable, Details: map[string]any{"operation": "budget_summary", "status_code": r.StatusCode}}
 	}
-	return r.JSON200, nil
+	if r.StatusCode < http.StatusOK || r.StatusCode >= http.StatusMultipleChoices {
+		return nil, responseError(r.StatusCode, body)
+	}
+	summary, e := decodeSummary(body)
+	if e != nil {
+		return nil, &cli.Error{Code: "invalid_response", Message: "the Daiku API returned an invalid budget summary", ExitCode: cli.ExitFailure, Details: map[string]any{"operation": "budget_summary", "reason": e.Error(), "status_code": r.StatusCode}}
+	}
+	return summary, nil
 }
 func (a generatedAPI) List(ctx context.Context, h string) ([]daikuv1.CategoryBudget, error) {
 	r, e := a.c.DaikuHouseholdsHouseholdPkCategoryBudgetsGetWithResponse(ctx, h)

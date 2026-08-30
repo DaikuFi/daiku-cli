@@ -82,3 +82,93 @@ func TestGeneratedBudgetAPIMapsHTTPStatuses(t *testing.T) {
 		})
 	}
 }
+
+func TestGeneratedBudgetAPIDecodesBackendSummaryWithUnconvertedCurrencies(t *testing.T) {
+	api := testGeneratedAPI(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{
+			"budgeted_spent":"80.00",
+			"category_rows":[],
+			"daily_progress":[],
+			"days_elapsed":30,
+			"days_in_month":31,
+			"display_currency":"UYU",
+			"free_to_spend":"20.00",
+			"pace_status":"ok",
+			"total_monthly_budget":"100.00",
+			"total_spent":"80.00",
+			"unconverted":{"count":1,"currencies":["USD"]}
+		}`)
+	})
+
+	summary, err := api.Summary(context.Background(), "hh_1", nil)
+	if err != nil {
+		t.Fatalf("Summary returned error for the backend wire response: %v", err)
+	}
+	if summary.TotalMonthlyBudget != "100.00" {
+		t.Fatalf("summary=%#v", summary)
+	}
+	if summary.Unconverted == nil || summary.Unconverted.Count != 1 || strings.Join(summary.Unconverted.Currencies, ",") != "USD" {
+		t.Fatalf("unconverted=%#v", summary.Unconverted)
+	}
+}
+
+func TestGeneratedBudgetAPIDecodesNullUnconvertedSummary(t *testing.T) {
+	api := testGeneratedAPI(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{
+			"budgeted_spent":"80.00","category_rows":[],"daily_progress":[],
+			"days_elapsed":30,"days_in_month":31,"display_currency":"UYU",
+			"free_to_spend":"20.00","pace_status":"ok",
+			"total_monthly_budget":"100.00","total_spent":"80.00","unconverted":null
+		}`)
+	})
+
+	summary, err := api.Summary(context.Background(), "hh_1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.Unconverted != nil {
+		t.Fatalf("unconverted=%#v", summary.Unconverted)
+	}
+}
+
+func TestGeneratedBudgetAPIReturnsStructuredSummaryErrors(t *testing.T) {
+	t.Run("server error", func(t *testing.T) {
+		api := testGeneratedAPI(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, `{"error":{"errors":{"month":["Must be valid."]},"message":"Invalid period","status_code":400}}`)
+		})
+
+		_, err := api.Summary(context.Background(), "hh_1", nil)
+		cliErr, ok := err.(*cli.Error)
+		if !ok || cliErr.Code != "invalid_request" || cliErr.ExitCode != cli.ExitUsage {
+			t.Fatalf("error=%#v", err)
+		}
+		if cliErr.Message != "Daiku API returned HTTP 400: Invalid period" {
+			t.Fatalf("message=%q", cliErr.Message)
+		}
+		details, ok := cliErr.Details.(map[string]any)
+		if !ok || details["operation"] != "budget_summary" || details["status_code"] != http.StatusBadRequest || details["errors"] == nil {
+			t.Fatalf("details=%#v", cliErr.Details)
+		}
+	})
+
+	t.Run("invalid success response", func(t *testing.T) {
+		api := testGeneratedAPI(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"unconverted":[]}`)
+		})
+
+		_, err := api.Summary(context.Background(), "hh_1", nil)
+		cliErr, ok := err.(*cli.Error)
+		if !ok || cliErr.Code != "invalid_response" || cliErr.ExitCode != cli.ExitFailure {
+			t.Fatalf("error=%#v", err)
+		}
+		details, ok := cliErr.Details.(map[string]any)
+		if !ok || details["operation"] != "budget_summary" || details["reason"] == nil {
+			t.Fatalf("details=%#v", cliErr.Details)
+		}
+	})
+}
