@@ -15,6 +15,7 @@ import (
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	"github.com/DaikuFi/daiku-cli/internal/commands/catalog"
 	"github.com/DaikuFi/daiku-cli/internal/profiles"
+	"github.com/spf13/cobra"
 )
 
 type tokens struct{}
@@ -115,6 +116,51 @@ func TestSpanishCatalogFlagHelpIsLocalized(t *testing.T) {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("missing %q in %s", want, out.String())
 		}
+	}
+}
+
+func TestAccountTypesAreDiscoverableInHelpValidationAndCompletion(t *testing.T) {
+	accountTypes := []string{"checking", "savings", "credit_card", "loan", "investment", "cash", "other"}
+	want := strings.Join(accountTypes, ", ")
+
+	for _, command := range []string{"create", "update"} {
+		t.Run(command+" help", func(t *testing.T) {
+			app, out, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { t.Fatal("network called") }, "", false)
+			if code := app.Run([]string{"accounts", command, "--help"}); code != int(cli.ExitOK) || errOut.String() != "" || !strings.Contains(out.String(), "account type: "+want) {
+				t.Fatalf("code=%d stdout=%q stderr=%q", code, out.String(), errOut.String())
+			}
+
+			app, out, errOut = testApp(t, func(http.ResponseWriter, *http.Request) { t.Fatal("network called") }, "", false)
+			if code := app.Run([]string{"accounts", command, "--help", "--language", "es"}); code != int(cli.ExitOK) || errOut.String() != "" || !strings.Contains(out.String(), "tipo de cuenta: "+want) {
+				t.Fatalf("spanish code=%d stdout=%q stderr=%q", code, out.String(), errOut.String())
+			}
+		})
+
+		t.Run(command+" completion", func(t *testing.T) {
+			app, out, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { t.Fatal("network called") }, "", false)
+			if code := app.Run([]string{cobra.ShellCompRequestCmd, "accounts", command, "--type", ""}); code != int(cli.ExitOK) || strings.Contains(errOut.String(), "unknown command") {
+				t.Fatalf("code=%d stdout=%q stderr=%q", code, out.String(), errOut.String())
+			}
+			for _, accountType := range accountTypes {
+				if !strings.Contains(out.String(), accountType+"\n") {
+					t.Fatalf("completion missing %q: %q", accountType, out.String())
+				}
+			}
+
+			app, out, errOut = testApp(t, func(http.ResponseWriter, *http.Request) { t.Fatal("network called") }, "", false)
+			if code := app.Run([]string{cobra.ShellCompRequestCmd, "accounts", command, "--type", "cr"}); code != int(cli.ExitOK) || strings.Contains(errOut.String(), "unknown command") || !strings.Contains(out.String(), "credit_card\n") || strings.Contains(out.String(), "checking\n") {
+				t.Fatalf("code=%d stdout=%q stderr=%q", code, out.String(), errOut.String())
+			}
+		})
+	}
+
+	called := false
+	app, _, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { called = true }, "", false)
+	if code := app.Run([]string{"accounts", "create", "--household", "hsh_1", "--name", "Bank", "--type", "wallet", "--language", "es"}); code != int(cli.ExitUsage) || !strings.Contains(errOut.String(), "tipo de cuenta inválido; valores aceptados: "+want) {
+		t.Fatalf("code=%d stderr=%q", code, errOut.String())
+	}
+	if called {
+		t.Fatal("network called")
 	}
 }
 
@@ -325,7 +371,10 @@ func TestContractEnumsAreValidatedBeforeNetwork(t *testing.T) {
 			if called {
 				t.Fatal("network called")
 			}
-			if !strings.Contains(errOut.String(), "not published") {
+			if args[0] == "accounts" && !strings.Contains(errOut.String(), "accepted values") {
+				t.Fatal(errOut.String())
+			}
+			if args[0] == "institutions" && !strings.Contains(errOut.String(), "not published") {
 				t.Fatal(errOut.String())
 			}
 		})

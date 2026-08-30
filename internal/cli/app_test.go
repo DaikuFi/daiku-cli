@@ -117,7 +117,8 @@ func TestRootHelpSpanishGolden(t *testing.T) {
 		"  version      Muestra la versión del CLI de Daiku\n\nOpciones:\n" +
 		"  -h, --help              ayuda de daiku\n" +
 		"      --json              escribe un envelope JSON estable\n" +
-		"      --language string   idioma de salida humana: en o es\n"
+		"      --language string   idioma de salida humana: en o es\n" +
+		"  -v, --version           versión de daiku\n"
 	if exitCode != int(cli.ExitOK) || stderr != "" || stdout != want {
 		t.Fatalf("exit=%d stderr=%q\noutput:\n%q\nwant:\n%q", exitCode, stderr, stdout, want)
 	}
@@ -209,6 +210,14 @@ func TestVersionHumanOutput(t *testing.T) {
 	exitCode, stdout, stderr := run(t, false, "version")
 
 	if exitCode != int(cli.ExitOK) || stdout != "1.2.3\n" || stderr != "" {
+		t.Fatalf("got exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+	}
+}
+
+func TestRootVersionFlagUsesConfiguredVersion(t *testing.T) {
+	exitCode, stdout, stderr := run(t, false, "--version")
+
+	if exitCode != int(cli.ExitOK) || stdout != "daiku version 1.2.3\n" || stderr != "" {
 		t.Fatalf("got exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
 	}
 }

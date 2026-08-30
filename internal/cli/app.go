@@ -139,6 +139,7 @@ func (a *App) Run(args []string) int {
 	}))
 	root.SetArgs(args)
 	root.InitDefaultHelpCmd()
+	root.InitDefaultVersionFlag()
 	root.InitDefaultCompletionCmd(args...)
 	typeCompletionArgsAsUsage(root)
 
@@ -179,6 +180,7 @@ func (a *App) rootCommand(jsonOutput bool, localizer i18n.Localizer, helpErr *er
 	root := &cobra.Command{
 		Use:           "daiku",
 		Short:         "Manage Daiku from the command line",
+		Version:       a.options.version,
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}

@@ -501,7 +501,7 @@ func (m Module) accountCreate() *cobra.Command {
 	addHouseholdFlag(cmd, &hh)
 	cmd.Flags().StringVar(&name, "name", "", "account name")
 	cmd.Flags().StringVar(&currency, "currency", "", "currency")
-	cmd.Flags().StringVar(&kind, "type", "", "account type")
+	addAccountTypeFlag(cmd, &kind)
 	cmd.Flags().StringVar(&group, "group", "", "account group ID")
 	cmd.Flags().StringVar(&institution, "institution", "", "institution ID")
 	cmd.Flags().StringVar(&balance, "opening-balance", "", "opening balance")
@@ -579,7 +579,7 @@ func (m Module) accountUpdate() *cobra.Command {
 	cmd.Flags().StringVar(&group, "group", "", "account group ID")
 	cmd.Flags().StringVar(&institution, "institution", "", "institution ID")
 	cmd.Flags().StringVar(&currency, "currency", "", "currency")
-	cmd.Flags().StringVar(&kind, "type", "", "account type")
+	addAccountTypeFlag(cmd, &kind)
 	cmd.Flags().StringVar(&balance, "opening-balance", "", "opening balance")
 	cmd.Flags().StringVar(&emoji, "emoji", "", "emoji")
 	cmd.Flags().StringVar(&number, "account-number", "", "account number")
@@ -675,8 +675,27 @@ func optional(value string) *string {
 
 const publishedCountries = "|AD|AE|AF|AG|AI|AL|AM|AO|AQ|AR|AS|AT|AU|AW|AX|AZ|BA|BB|BD|BE|BF|BG|BH|BI|BJ|BL|BM|BN|BO|BQ|BR|BS|BT|BV|BW|BY|BZ|CA|CC|CD|CF|CG|CH|CI|CK|CL|CM|CN|CO|CR|CU|CV|CW|CX|CY|CZ|DE|DJ|DK|DM|DO|DZ|EC|EE|EG|EH|ER|ES|ET|FI|FJ|FK|FM|FO|FR|GA|GB|GD|GE|GF|GG|GH|GI|GL|GM|GN|GP|GQ|GR|GS|GT|GU|GW|GY|HK|HM|HN|HR|HT|HU|ID|IE|IL|IM|IN|IO|IQ|IR|IS|IT|JE|JM|JO|JP|KE|KG|KH|KI|KM|KN|KP|KR|KW|KY|KZ|LA|LB|LC|LI|LK|LR|LS|LT|LU|LV|LY|MA|MC|MD|ME|MF|MG|MH|MK|ML|MM|MN|MO|MP|MQ|MR|MS|MT|MU|MV|MW|MX|MY|MZ|NA|NC|NE|NF|NG|NI|NL|NO|NP|NR|NU|NZ|OM|PA|PE|PF|PG|PH|PK|PL|PM|PN|PR|PS|PT|PW|PY|QA|RE|RO|RS|RU|RW|SA|SB|SC|SD|SE|SG|SH|SI|SJ|SK|SL|SM|SN|SO|SR|SS|ST|SV|SX|SY|SZ|TC|TD|TF|TG|TH|TJ|TK|TL|TM|TN|TO|TR|TT|TV|TW|TZ|UA|UG|UM|US|UY|UZ|VA|VC|VE|VG|VI|VN|VU|WF|WS|YE|YT|ZA|ZM|ZW|"
 
-var publishedAccountTypes = map[string]struct{}{
-	"checking": {}, "savings": {}, "credit_card": {}, "loan": {}, "investment": {}, "cash": {}, "other": {},
+var accountTypes = []string{
+	string(daikuv1.PublicAccountWriteAccountTypeEnumChecking),
+	string(daikuv1.PublicAccountWriteAccountTypeEnumSavings),
+	string(daikuv1.PublicAccountWriteAccountTypeEnumCreditCard),
+	string(daikuv1.PublicAccountWriteAccountTypeEnumLoan),
+	string(daikuv1.PublicAccountWriteAccountTypeEnumInvestment),
+	string(daikuv1.PublicAccountWriteAccountTypeEnumCash),
+	string(daikuv1.PublicAccountWriteAccountTypeEnumOther),
+}
+
+func addAccountTypeFlag(cmd *cobra.Command, value *string) {
+	cmd.Flags().StringVar(value, "type", "", "account type: "+strings.Join(accountTypes, ", "))
+	_ = cmd.RegisterFlagCompletionFunc("type", func(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		matches := make([]string, 0, len(accountTypes))
+		for _, accountType := range accountTypes {
+			if strings.HasPrefix(accountType, toComplete) {
+				matches = append(matches, accountType)
+			}
+		}
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	})
 }
 
 func normalizeCurrency(value string) (string, error) {
@@ -703,10 +722,12 @@ func institutionCountry(value string) (daikuv1.Country806Enum, error) {
 }
 func accountType(value string) (daikuv1.PublicAccountWriteAccountTypeEnum, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
-	if _, ok := publishedAccountTypes[value]; !ok {
-		return "", usage("account type is not published by the Daiku API contract")
+	for _, accountType := range accountTypes {
+		if value == accountType {
+			return daikuv1.PublicAccountWriteAccountTypeEnum(value), nil
+		}
 	}
-	return daikuv1.PublicAccountWriteAccountTypeEnum(value), nil
+	return "", usage("invalid account type; accepted values: " + strings.Join(accountTypes, ", "))
 }
 func singular(value string) string {
 	if value == "categories" {

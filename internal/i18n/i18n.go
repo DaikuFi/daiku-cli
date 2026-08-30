@@ -600,8 +600,23 @@ func (l Localizer) Human(value string) string {
 		if rest, ok := strings.CutPrefix(value, "asset type: "); ok {
 			return "tipo de activo: " + rest
 		}
+		if rest, ok := strings.CutPrefix(value, "account type: "); ok {
+			return "tipo de cuenta: " + rest
+		}
+		if rest, ok := strings.CutPrefix(value, "bucket type: "); ok {
+			return "tipo de grupo: " + rest
+		}
 		if rest, ok := strings.CutPrefix(value, "invalid asset type; accepted values: "); ok {
 			return "tipo de activo inválido; valores aceptados: " + rest
+		}
+		if rest, ok := strings.CutPrefix(value, "invalid account type; accepted values: "); ok {
+			return "tipo de cuenta inválido; valores aceptados: " + rest
+		}
+		if rest, ok := strings.CutPrefix(value, "invalid bucket type; accepted values: "); ok {
+			return "tipo de grupo inválido; valores aceptados: " + rest
+		}
+		if rest, ok := strings.CutPrefix(value, "version for "); ok {
+			return "versión de " + rest
 		}
 		if strings.HasPrefix(value, "cannot set and clear ") {
 			field := strings.TrimSuffix(strings.TrimPrefix(value, "cannot set and clear "), " together")

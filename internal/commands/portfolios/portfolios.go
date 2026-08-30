@@ -365,7 +365,16 @@ type bucketFlags struct {
 func addBucketFlags(c *cobra.Command, f *bucketFlags, create bool) {
 	portfolioFlag(c, &f.portfolio)
 	c.Flags().StringVar(&f.name, "name", "", "bucket name")
-	c.Flags().StringVar(&f.kind, "type", "", "bucket type")
+	c.Flags().StringVar(&f.kind, "type", "", "bucket type: "+strings.Join(bucketTypes, ", "))
+	_ = c.RegisterFlagCompletionFunc("type", func(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		matches := make([]string, 0, len(bucketTypes))
+		for _, bucketType := range bucketTypes {
+			if strings.HasPrefix(bucketType, toComplete) {
+				matches = append(matches, bucketType)
+			}
+		}
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	})
 	c.Flags().StringVar(&f.emoji, "emoji", "", "bucket emoji")
 	c.Flags().IntVar(&f.order, "sort-order", 0, "sort order")
 	if create {
@@ -373,10 +382,21 @@ func addBucketFlags(c *cobra.Command, f *bucketFlags, create bool) {
 		_ = c.MarkFlagRequired("type")
 	}
 }
-func validBucket(v string) bool {
-	switch v {
-	case "cash", "investments", "crypto", "real_estate", "vehicles", "other":
-		return true
+
+var bucketTypes = []string{
+	string(daikuv1.BucketTypeEnumCash),
+	string(daikuv1.BucketTypeEnumInvestments),
+	string(daikuv1.BucketTypeEnumCrypto),
+	string(daikuv1.BucketTypeEnumRealEstate),
+	string(daikuv1.BucketTypeEnumVehicles),
+	string(daikuv1.BucketTypeEnumOther),
+}
+
+func validBucket(value string) bool {
+	for _, bucketType := range bucketTypes {
+		if value == bucketType {
+			return true
+		}
 	}
 	return false
 }
@@ -415,7 +435,7 @@ func (m Module) bucketCreate() *cobra.Command {
 	var f bucketFlags
 	c := run("create", "Create a bucket", cobra.NoArgs, func(c *cobra.Command, _ []string) error {
 		if !validBucket(f.kind) {
-			return usage("type must be cash, investments, crypto, real_estate, vehicles or other")
+			return usage("invalid bucket type; accepted values: " + strings.Join(bucketTypes, ", "))
 		}
 		b := daikuv1.BucketListRequest{Name: f.name, BucketType: daikuv1.BucketTypeEnum(f.kind)}
 		if f.emoji != "" {
@@ -444,7 +464,7 @@ func (m Module) bucketUpdate() *cobra.Command {
 			return usage("provide at least one field to update")
 		}
 		if f.kind != "" && !validBucket(f.kind) {
-			return usage("invalid bucket type")
+			return usage("invalid bucket type; accepted values: " + strings.Join(bucketTypes, ", "))
 		}
 		b := map[string]any{}
 		if c.Flags().Changed("name") {
