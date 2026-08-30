@@ -131,7 +131,7 @@ func TestGeneratedServiceListSendsPublishedPaginationControlsOverHTTP(t *testing
 		w.Header().Set("Content-Type", "application/json")
 		switch requests {
 		case 1:
-			if r.URL.Query().Get("paginated") != "true" || r.URL.Query().Get("month") != "8" || r.URL.Query().Get("year") != "2026" || r.URL.Query().Get("currency") != "BRL" || r.URL.Query().Get("page") != "2" || r.URL.Query().Get("page_size") != "25" {
+			if r.URL.Query().Get("paginated") != "true" || r.URL.Query().Get("month") != "8" || r.URL.Query().Get("year") != "2026" || r.URL.Query().Get("currency") != "BRL" || r.URL.Query().Get("type") != "transfer" || r.URL.Query().Get("page") != "2" || r.URL.Query().Get("page_size") != "25" {
 				http.Error(w, "unexpected query", http.StatusBadRequest)
 				return
 			}
@@ -156,8 +156,9 @@ func TestGeneratedServiceListSendsPublishedPaginationControlsOverHTTP(t *testing
 	}
 	month, year, page, pageSize, paginated := 8, 2026, 2, 25, true
 	currency := daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency("BRL")
+	typeTransfer := daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParamsTypeTransfer
 	result, err := (generatedService{client}).List(context.Background(), "hh_1", &daikuv1.DaikuHouseholdsHouseholdPkExpensesGetParams{
-		Month: &month, Year: &year, Currency: &currency, Page: &page, PageSize: &pageSize, Paginated: &paginated,
+		Month: &month, Year: &year, Currency: &currency, Type: &typeTransfer, Page: &page, PageSize: &pageSize, Paginated: &paginated,
 	})
 	if err != nil {
 		t.Fatal(err)

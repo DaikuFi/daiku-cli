@@ -888,6 +888,13 @@ const (
 	DaikuHouseholdsHouseholdPkExpensesGetParamsCurrencyVES DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency = "VES"
 )
 
+// Defines values for DaikuHouseholdsHouseholdPkExpensesGetParamsType.
+const (
+	DaikuHouseholdsHouseholdPkExpensesGetParamsTypeExpense  DaikuHouseholdsHouseholdPkExpensesGetParamsType = "expense"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsTypeIncome   DaikuHouseholdsHouseholdPkExpensesGetParamsType = "income"
+	DaikuHouseholdsHouseholdPkExpensesGetParamsTypeTransfer DaikuHouseholdsHouseholdPkExpensesGetParamsType = "transfer"
+)
+
 // Defines values for DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatus.
 const (
 	DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatusAll        DaikuHouseholdsHouseholdPkRecurringOccurrencesGetParamsStatus = "all"
@@ -5222,8 +5229,8 @@ type DaikuHouseholdsHouseholdPkExpensesGetParams struct {
 	// Tag Filter by tag id. Repeatable; matches expenses carrying any of the given tags.
 	Tag *[]string `form:"tag,omitempty" json:"tag,omitempty"`
 
-	// Type Filter by kind: 'expense' or 'income' (transfers/adjustments are excluded from both; omit for all).
-	Type *string `form:"type,omitempty" json:"type,omitempty"`
+	// Type Filter by kind: 'expense', 'income', or 'transfer'. Adjustments remain available only in the unfiltered account history.
+	Type *DaikuHouseholdsHouseholdPkExpensesGetParamsType `form:"type,omitempty" json:"type,omitempty"`
 
 	// Year Filter by year, e.g. 2026.
 	Year *int `form:"year,omitempty" json:"year,omitempty"`
@@ -5231,6 +5238,9 @@ type DaikuHouseholdsHouseholdPkExpensesGetParams struct {
 
 // DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency defines parameters for DaikuHouseholdsHouseholdPkExpensesGet.
 type DaikuHouseholdsHouseholdPkExpensesGetParamsCurrency string
+
+// DaikuHouseholdsHouseholdPkExpensesGetParamsType defines parameters for DaikuHouseholdsHouseholdPkExpensesGet.
+type DaikuHouseholdsHouseholdPkExpensesGetParamsType string
 
 // DaikuHouseholdsHouseholdPkExpensesIdDeleteParams defines parameters for DaikuHouseholdsHouseholdPkExpensesIdDelete.
 type DaikuHouseholdsHouseholdPkExpensesIdDeleteParams struct {
@@ -5271,6 +5281,9 @@ type DaikuPortfoliosReportsCurrencyExposureGetParams struct {
 
 	// Date Snapshot date in YYYY-MM-DD format. Defaults to today.
 	Date *openapi_types.Date `form:"date,omitempty" json:"date,omitempty"`
+
+	// Portfolio Visible portfolio ID to report in isolation. Omit to use the user-wide net-worth scope.
+	Portfolio *string `form:"portfolio,omitempty" json:"portfolio,omitempty"`
 }
 
 // DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency defines parameters for DaikuPortfoliosReportsCurrencyExposureGet.
@@ -5286,6 +5299,9 @@ type DaikuPortfoliosReportsNetWorthGetParams struct {
 
 	// Months Number of monthly snapshots (1-60). Defaults to 12.
 	Months *int `form:"months,omitempty" json:"months,omitempty"`
+
+	// Portfolio Visible portfolio ID to report in isolation. Omit to use the user-wide net-worth scope.
+	Portfolio *string `form:"portfolio,omitempty" json:"portfolio,omitempty"`
 }
 
 // DaikuPortfoliosReportsNetWorthGetParamsCurrency defines parameters for DaikuPortfoliosReportsNetWorthGet.
@@ -13571,6 +13587,22 @@ func NewDaikuPortfoliosReportsCurrencyExposureGetRequest(server string, params *
 
 		}
 
+		if params.Portfolio != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "portfolio", runtime.ParamLocationQuery, *params.Portfolio); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
@@ -13639,6 +13671,22 @@ func NewDaikuPortfoliosReportsNetWorthGetRequest(server string, params *DaikuPor
 		if params.Months != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "months", runtime.ParamLocationQuery, *params.Months); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Portfolio != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "portfolio", runtime.ParamLocationQuery, *params.Portfolio); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err

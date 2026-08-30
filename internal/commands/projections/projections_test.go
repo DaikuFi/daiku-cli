@@ -279,13 +279,14 @@ func TestExchangeRatesNotFoundDoesNotClaimPortfolioOrScenarioIsMissing(t *testin
 	}
 }
 
-func TestFactoryNormalizesVersionedProfileURLAndSendsBearer(t *testing.T) {
-	var path, authorization string
+func TestFactorySendsAuthenticatedPortfolioReportQuery(t *testing.T) {
+	var path, authorization, portfolio string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path = r.URL.Path
 		authorization = r.Header.Get("Authorization")
+		portfolio = r.URL.Query().Get("portfolio")
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `[]`)
+		_, _ = io.WriteString(w, `{"currency":"USD","series":[]}`)
 	}))
 	defer server.Close()
 
@@ -304,11 +305,11 @@ func TestFactoryNormalizesVersionedProfileURLAndSendsBearer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = api.Rates(context.Background(), &daikuv1.DaikuExchangeRatesGetParams{}); err != nil {
+	if _, err = api.NetWorth(context.Background(), &daikuv1.DaikuPortfoliosReportsNetWorthGetParams{Portfolio: ptr("pfl_1")}); err != nil {
 		t.Fatal(err)
 	}
-	if path != "/api/v1/exchange-rates/" || authorization != "Bearer fixture-token" {
-		t.Fatalf("path=%q authorization=%q", path, authorization)
+	if path != "/api/v1/portfolios/reports/net-worth/" || authorization != "Bearer fixture-token" || portfolio != "pfl_1" {
+		t.Fatalf("path=%q authorization=%q portfolio=%q", path, authorization, portfolio)
 	}
 }
 
@@ -346,13 +347,13 @@ func TestEmptySeriesHasStableJSONAndHumanEmptyState(t *testing.T) {
 
 func TestReportFiltersAreValidatedAndSentToBackend(t *testing.T) {
 	api := &fakeAPI{series: &daikuv1.NetWorthSeries{Currency: "BRL", Series: []daikuv1.NetWorthPoint{}}}
-	code, _, stderr := run(t, api, false, "reports", "net-worth", "--currency", "brl", "--months", "24", "--end", "2026-08", "--json")
-	if code != 0 || stderr != "" || api.netWorthParams == nil || api.netWorthParams.Currency == nil || string(*api.netWorthParams.Currency) != "BRL" || api.netWorthParams.Months == nil || *api.netWorthParams.Months != 24 || api.netWorthParams.End == nil || *api.netWorthParams.End != "2026-08" {
+	code, _, stderr := run(t, api, false, "reports", "net-worth", "--currency", "brl", "--months", "24", "--end", "2026-08", "--portfolio", "pfl_1", "--json")
+	if code != 0 || stderr != "" || api.netWorthParams == nil || api.netWorthParams.Currency == nil || string(*api.netWorthParams.Currency) != "BRL" || api.netWorthParams.Months == nil || *api.netWorthParams.Months != 24 || api.netWorthParams.End == nil || *api.netWorthParams.End != "2026-08" || api.netWorthParams.Portfolio == nil || *api.netWorthParams.Portfolio != "pfl_1" {
 		t.Fatalf("code=%d params=%+v stderr=%q", code, api.netWorthParams, stderr)
 	}
 
-	code, _, stderr = run(t, api, false, "reports", "currency-exposure", "--currency", "uyu", "--date", "2026-08-29", "--json")
-	if code != 0 || stderr != "" || api.exposureParams == nil || api.exposureParams.Currency == nil || string(*api.exposureParams.Currency) != "UYU" || api.exposureParams.Date == nil || api.exposureParams.Date.String() != "2026-08-29" {
+	code, _, stderr = run(t, api, false, "reports", "currency-exposure", "--currency", "uyu", "--date", "2026-08-29", "--portfolio", "pfl_2", "--json")
+	if code != 0 || stderr != "" || api.exposureParams == nil || api.exposureParams.Currency == nil || string(*api.exposureParams.Currency) != "UYU" || api.exposureParams.Date == nil || api.exposureParams.Date.String() != "2026-08-29" || api.exposureParams.Portfolio == nil || *api.exposureParams.Portfolio != "pfl_2" {
 		t.Fatalf("code=%d params=%+v stderr=%q", code, api.exposureParams, stderr)
 	}
 }
@@ -363,12 +364,40 @@ func TestReportFiltersRejectInvalidValuesBeforeAPI(t *testing.T) {
 		{"reports", "net-worth", "--months", "0", "--json"},
 		{"reports", "net-worth", "--months", "61", "--json"},
 		{"reports", "net-worth", "--end", "2026-13", "--json"},
+		{"reports", "net-worth", "--portfolio=", "--json"},
 		{"reports", "currency-exposure", "--date", "29/08/2026", "--json"},
+		{"reports", "currency-exposure", "--portfolio=", "--json"},
 	} {
 		api := &fakeAPI{}
 		code, _, stderr := run(t, api, false, args...)
 		if code != int(cli.ExitUsage) || api.netWorthParams != nil || api.exposureParams != nil || stderr == "" {
 			t.Fatalf("args=%v code=%d net=%+v exposure=%+v stderr=%q", args, code, api.netWorthParams, api.exposureParams, stderr)
+		}
+	}
+}
+
+func TestReportPortfolioFlagIsDocumentedInEnglishAndSpanish(t *testing.T) {
+	api := &fakeAPI{}
+	for _, tc := range []struct {
+		language string
+		want     string
+	}{
+		{language: "en", want: "portfolio ID (omit for user-wide aggregate)"},
+		{language: "es", want: "ID del portafolio (omitir para el agregado del usuario)"},
+	} {
+		code, stdout, stderr := run(t, api, false, "reports", "net-worth", "--help", "--language", tc.language)
+		if code != 0 || stderr != "" || !strings.Contains(stdout, tc.want) {
+			t.Fatalf("language=%s code=%d stdout=%q stderr=%q", tc.language, code, stdout, stderr)
+		}
+	}
+}
+
+func TestReportPortfolioEmptyErrorIsLocalizedInSpanish(t *testing.T) {
+	for _, command := range []string{"net-worth", "currency-exposure"} {
+		api := &fakeAPI{}
+		code, _, stderr := run(t, api, false, "reports", command, "--portfolio=", "--language", "es")
+		if code != int(cli.ExitUsage) || !strings.Contains(stderr, "el ID del portafolio no puede estar vacío") {
+			t.Fatalf("command=%s code=%d stderr=%q", command, code, stderr)
 		}
 	}
 }
