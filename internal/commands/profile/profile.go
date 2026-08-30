@@ -7,7 +7,9 @@ import (
 
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	"github.com/DaikuFi/daiku-cli/internal/credentials"
+	"github.com/DaikuFi/daiku-cli/internal/output"
 	"github.com/DaikuFi/daiku-cli/internal/profiles"
+	"github.com/DaikuFi/daiku-cli/internal/prompt"
 	"github.com/spf13/cobra"
 )
 
@@ -47,7 +49,7 @@ func (m Module) add() *cobra.Command {
 		if err = m.Store.Save(cfg); err != nil {
 			return failure()
 		}
-		return emit(cmd, map[string]any{"name": name, "api_url": value, "current": cfg.Current == name}, fmt.Sprintf("Added profile %s.\n", name))
+		return emit(cmd, map[string]any{"name": name, "api_url": value, "current": cfg.Current == name}, "Added profile %s.\n", name)
 	}}
 	cmd.Flags().StringVar(&apiURL, "api-url", "", "Daiku API URL")
 	return cmd
@@ -65,7 +67,7 @@ func (m Module) use() *cobra.Command {
 		if m.Store.Save(cfg) != nil {
 			return failure()
 		}
-		return emit(cmd, map[string]any{"name": args[0], "current": true}, fmt.Sprintf("Using profile %s.\n", args[0]))
+		return emit(cmd, map[string]any{"name": args[0], "current": true}, "Using profile %s.\n", args[0])
 	}}
 }
 func (m Module) list() *cobra.Command {
@@ -87,20 +89,25 @@ func (m Module) list() *cobra.Command {
 		if jsonOut {
 			return cli.WriteSuccess(cmd.OutOrStdout(), map[string]any{"profiles": items})
 		}
+		human := cli.Human(cmd)
+		rows := make([]output.Row, 0, len(items))
 		for _, item := range items {
-			mark := " "
+			current := human.Localizer.Human("no")
 			if item["current"].(bool) {
-				mark = "*"
+				current = human.Localizer.Human("yes")
 			}
-			if _, err = fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", mark, item["name"]); err != nil {
-				return err
-			}
+			rows = append(rows, output.Row{
+				{Label: human.Localizer.Human("NAME"), Value: item["name"].(string)},
+				{Label: human.Localizer.Human("API URL"), Value: item["api_url"].(string)},
+				{Label: human.Localizer.Human("CURRENT"), Value: current},
+			})
 		}
-		return nil
+		return (output.Renderer{Writer: cmd.OutOrStdout(), Localize: human.Localizer, Terminal: human.Terminal, Width: human.Width, NoColor: human.NoColor}).Table(rows)
 	}}
 }
 func (m Module) remove() *cobra.Command {
-	return &cobra.Command{Use: "remove <name>", Short: "Remove a profile and its local credentials", Args: cli.UsageArgs(cobra.ExactArgs(1)), RunE: func(cmd *cobra.Command, args []string) error {
+	var yes bool
+	cmd := &cobra.Command{Use: "remove <name>", Short: "Remove a profile and its local credentials", Args: cli.UsageArgs(cobra.ExactArgs(1)), RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := m.Store.Load()
 		if err != nil {
 			return failure()
@@ -113,6 +120,13 @@ func (m Module) remove() *cobra.Command {
 		} else if !errors.Is(credentialErr, credentials.ErrNotFound) {
 			return failure()
 		}
+		if !yes {
+			human := cli.Human(cmd)
+			confirmation := prompt.Prompter{In: cmd.InOrStdin(), Out: cmd.ErrOrStderr(), Localize: human.Localizer, Terminal: human.Interactive && !human.JSON}
+			if err = confirmation.ConfirmDestructive(human.Localizer.Humanf("Remove profile %s.", args[0])); err != nil {
+				return confirmationError(err)
+			}
+		}
 		delete(cfg.Profiles, args[0])
 		if cfg.Current == args[0] {
 			cfg.Current = ""
@@ -120,16 +134,28 @@ func (m Module) remove() *cobra.Command {
 		if m.Store.Save(cfg) != nil {
 			return failure()
 		}
-		return emit(cmd, map[string]any{"name": args[0], "removed": true}, fmt.Sprintf("Removed profile %s.\n", args[0]))
+		return emit(cmd, map[string]any{"name": args[0], "removed": true}, "Removed profile %s.\n", args[0])
 	}}
+	cmd.Flags().BoolVar(&yes, "yes", false, "skip the interactive confirmation")
+	return cmd
 }
-func emit(cmd *cobra.Command, data any, human string) error {
+func emit(cmd *cobra.Command, data any, format string, args ...any) error {
 	jsonOut, _ := cmd.Flags().GetBool("json")
 	if jsonOut {
 		return cli.WriteSuccess(cmd.OutOrStdout(), data)
 	}
-	_, err := fmt.Fprint(cmd.OutOrStdout(), human)
+	_, err := fmt.Fprint(cmd.OutOrStdout(), cli.Human(cmd).Localizer.Humanf(format, args...))
 	return err
+}
+
+func confirmationError(err error) *cli.Error {
+	if errors.Is(err, prompt.ErrNonInteractive) {
+		return &cli.Error{Code: "confirmation_required", Message: "confirmation requires an interactive terminal; pass --yes to continue", ExitCode: cli.ExitUsage}
+	}
+	if errors.Is(err, prompt.ErrAborted) {
+		return &cli.Error{Code: "operation_cancelled", Message: "operation cancelled", ExitCode: cli.ExitConflict}
+	}
+	return &cli.Error{Code: "confirmation_failed", Message: "confirmation could not be read", ExitCode: cli.ExitFailure}
 }
 func usage(message string) *cli.Error {
 	return &cli.Error{Code: "usage_error", Message: message, ExitCode: cli.ExitUsage}

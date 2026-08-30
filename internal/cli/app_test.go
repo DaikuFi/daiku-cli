@@ -26,6 +26,7 @@ func run(t *testing.T, terminal bool, args ...string) (int, string, string) {
 		cli.WithModule(internalFailureModule{}),
 		cli.WithModule(requiredFlagModule{}),
 		cli.WithTerminalDetector(func(_ io.Writer) bool { return terminal }),
+		cli.WithEnvironment(func(string) (string, bool) { return "", false }),
 	)
 
 	return app.Run(args), stdout.String(), stderr.String()
@@ -105,6 +106,48 @@ func TestRootHelpForTerminalUsesHumanStyling(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "\x1b[1;36mDAIKU\x1b[0m") {
 		t.Fatalf("terminal help is not styled: %q", stdout)
+	}
+}
+
+func TestRootHelpSpanishGolden(t *testing.T) {
+	exitCode, stdout, stderr := run(t, false, "--language", "es", "--help")
+	want := "DAIKU\n\nGestiona Daiku desde la línea de comandos\n\nUso:\n  daiku [flags]\n\nComandos:\n" +
+		"  completion   Genera el script de autocompletado para el shell indicado\n" +
+		"  help         Ayuda sobre cualquier comando\n" +
+		"  version      Muestra la versión del CLI de Daiku\n\nOpciones:\n" +
+		"  -h, --help              ayuda de daiku\n" +
+		"      --json              escribe un envelope JSON estable\n" +
+		"      --language string   idioma de salida humana: en o es\n"
+	if exitCode != int(cli.ExitOK) || stderr != "" || stdout != want {
+		t.Fatalf("exit=%d stderr=%q\noutput:\n%q\nwant:\n%q", exitCode, stderr, stdout, want)
+	}
+}
+
+func TestLocaleEnvironmentAndNoColor(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	environment := map[string]string{"LANG": "es_UY.UTF-8", "NO_COLOR": "1"}
+	app := cli.New(
+		cli.WithIO(strings.NewReader(""), &stdout, &stderr),
+		cli.WithTerminalDetector(func(io.Writer) bool { return true }),
+		cli.WithEnvironment(func(key string) (string, bool) { value, ok := environment[key]; return value, ok }),
+	)
+	exitCode := app.Run([]string{"--help"})
+	if exitCode != int(cli.ExitOK) || !strings.Contains(stdout.String(), "Uso:") || strings.Contains(stdout.String(), "\x1b[") {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout.String(), stderr.String())
+	}
+}
+
+func TestLanguageDoesNotTranslateJSONContract(t *testing.T) {
+	exitCode, stdout, stderr := run(t, false, "--language=es", "version", "--json")
+	if exitCode != int(cli.ExitOK) || stderr != "" || stdout != "{\"ok\":true,\"data\":{\"version\":\"1.2.3\"}}\n" {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
+	}
+}
+
+func TestInvalidExplicitLanguageIsUsageError(t *testing.T) {
+	exitCode, stdout, stderr := run(t, false, "--language=pt", "version", "--json")
+	if exitCode != int(cli.ExitUsage) || stdout != "" || !strings.Contains(stderr, `"code":"usage_error"`) || !strings.Contains(stderr, "use en or es") {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exitCode, stdout, stderr)
 	}
 }
 

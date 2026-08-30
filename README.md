@@ -85,6 +85,15 @@ credentials; the draft workflow does neither.
 
 Interactive output is concise and may use ANSI styling when stdout is a terminal. Redirected output never includes ANSI escapes. Scripts and agents should always pass `--json`; JSON field names and commands are in English.
 
+Human output supports English and Spanish. Select it explicitly with `--language en|es` or set
+`DAIKU_LANG`; otherwise the CLI consults `LC_ALL`, `LC_MESSAGES`, then `LANG`. `C` and `POSIX` use
+English. Set `NO_COLOR` to disable ANSI styling. These settings never translate commands, flags,
+JSON fields, or machine error codes.
+
+Destructive commands such as `profile remove` and `auth logout` require the full localized
+confirmation word in an interactive terminal. Non-interactive callers and destructive `--json` calls must
+pass `--yes`; the CLI never reads a confirmation from a pipe.
+
 Successful JSON output uses one envelope:
 
 ```json
