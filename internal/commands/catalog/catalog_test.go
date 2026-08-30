@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -256,6 +257,46 @@ func TestHouseholdPatchPreservesOmissionAndAllowsClearingEmoji(t *testing.T) {
 	}
 }
 
+func TestHouseholdModePreservesExplicitBoolean(t *testing.T) {
+	id := "hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	for _, enabled := range []bool{true, false} {
+		t.Run(strconv.FormatBool(enabled), func(t *testing.T) {
+			h := apiHandler(t, "POST", "/api/v1/households/"+id+"/mode/", 200, `{"id":"`+id+`"}`, func(r *http.Request) {
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Fatal(err)
+				}
+				if body["uses_accounts"] != enabled {
+					t.Fatalf("body=%v", body)
+				}
+			})
+			app, _, errOut := testApp(t, h, "", false)
+			if code := app.Run([]string{"households", "mode", id, "--uses-accounts=" + strconv.FormatBool(enabled), "--json"}); code != 0 {
+				t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+			}
+		})
+	}
+}
+
+func TestHouseholdModeRequiresUsesAccountsFlag(t *testing.T) {
+	helpApp, out, _ := testApp(t, func(http.ResponseWriter, *http.Request) {}, "", false)
+	if code := helpApp.Run([]string{"households", "mode", "--help"}); code != 0 {
+		t.Fatalf("help exit=%d", code)
+	}
+	if !strings.Contains(out.String(), "--uses-accounts") || !strings.Contains(out.String(), "required") {
+		t.Fatalf("help=%s", out.String())
+	}
+
+	called := false
+	app, _, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { called = true }, "", false)
+	if code := app.Run([]string{"households", "mode", "hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--json"}); code != 2 {
+		t.Fatalf("exit=%d stderr=%s", code, errOut.String())
+	}
+	if called {
+		t.Fatal("network called")
+	}
+}
+
 func TestCatalogPreservesTypedPublicError(t *testing.T) {
 	h := apiHandler(t, "POST", "/api/v1/households/hsh_1/accounts/", 400, `{"error":{"status_code":400,"message":"This household is in simple mode.","errors":{"uses_accounts":["Enable advanced mode first."]}}}`, nil)
 	app, _, errOut := testApp(t, h, "", false)
@@ -391,7 +432,7 @@ func TestAccountAdjustUsesGeneratedContractShape(t *testing.T) {
 	}
 }
 
-func TestCategoryReorderUsesGeneratedArrayBody(t *testing.T) {
+func TestCategoryReorderOmitsParent(t *testing.T) {
 	h := apiHandler(t, "POST", "/api/v1/households/hh_1/categories/reorder/", 200, `[]`, func(r *http.Request) {
 		var body []map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -399,6 +440,11 @@ func TestCategoryReorderUsesGeneratedArrayBody(t *testing.T) {
 		}
 		if len(body) != 2 || body[0]["id"] != "cat_a" || body[0]["sort_order"] != float64(0) || body[1]["id"] != "cat_b" {
 			t.Fatalf("body=%v", body)
+		}
+		for i, item := range body {
+			if _, ok := item["parent"]; ok {
+				t.Fatalf("body[%d] unexpectedly includes parent: %v", i, item)
+			}
 		}
 	})
 	app, _, errOut := testApp(t, h, "", false)

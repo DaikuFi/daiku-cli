@@ -73,7 +73,7 @@ func (s session) do(ctx context.Context, method, path string, body, out any) err
 
 func (m Module) households() *cobra.Command {
 	cmd := &cobra.Command{Use: "households", Short: "Manage households", Args: cli.UsageArgs(cobra.NoArgs)}
-	cmd.AddCommand(m.householdList(), m.householdGet(), m.householdCreate(), m.householdUpdate(), m.householdDelete(), m.householdReorder())
+	cmd.AddCommand(m.householdList(), m.householdGet(), m.householdCreate(), m.householdUpdate(), m.householdMode(), m.householdDelete(), m.householdReorder())
 	return cmd
 }
 
@@ -165,6 +165,25 @@ func (m Module) householdUpdate() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "household name")
 	cmd.Flags().StringVar(&currency, "display-currency", "", "display currency")
 	cmd.Flags().StringVar(&emoji, "emoji", "", "household emoji")
+	return cmd
+}
+
+func (m Module) householdMode() *cobra.Command {
+	var usesAccounts bool
+	cmd := run("mode <household>", "Set household mode", cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
+		id, err := m.resolve(cmd, "households/", args[0])
+		if err != nil {
+			return err
+		}
+		body := daikuv1.HouseholdModeRequest{UsesAccounts: usesAccounts}
+		var item map[string]any
+		if err = m.call(cmd, http.MethodPost, "households/"+id+"/mode/", body, &item); err != nil {
+			return err
+		}
+		return emitOne(cmd, item)
+	})
+	cmd.Flags().BoolVar(&usesAccounts, "uses-accounts", false, "account mode (required)")
+	_ = cmd.MarkFlagRequired("uses-accounts")
 	return cmd
 }
 
@@ -394,10 +413,16 @@ func (m Module) resourceReorder(spec resourceSpec) *cobra.Command {
 			}
 			items = values
 		case "categories":
-			values := make([]daikuv1.CategoryReorderItemRequest, len(ids))
+			// CategoryReorderItemRequest.Parent is optional in the API contract but
+			// its generated JSON tag lacks omitempty. Using that type here would send
+			// parent:null and explicitly detach every reordered subcategory.
+			values := make([]struct {
+				ID        string `json:"id"`
+				SortOrder int    `json:"sort_order"`
+			}, len(ids))
 			for i, id := range ids {
-				order := i
-				values[i] = daikuv1.CategoryReorderItemRequest{Id: id, SortOrder: &order}
+				values[i].ID = id
+				values[i].SortOrder = i
 			}
 			items = values
 		case "accounts":
