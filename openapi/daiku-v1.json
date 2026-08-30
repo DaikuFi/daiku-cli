@@ -10014,6 +10014,14 @@
               "format": "date"
             },
             "description": "Snapshot date in YYYY-MM-DD format. Defaults to today."
+          },
+          {
+            "in": "query",
+            "name": "portfolio",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Visible portfolio ID to report in isolation. Omit to use the user-wide net-worth scope."
           }
         ],
         "tags": [
@@ -10157,6 +10165,14 @@
               "default": 12
             },
             "description": "Number of monthly snapshots (1-60). Defaults to 12."
+          },
+          {
+            "in": "query",
+            "name": "portfolio",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Visible portfolio ID to report in isolation. Omit to use the user-wide net-worth scope."
           }
         ],
         "tags": [

@@ -436,7 +436,7 @@ func (m Module) ruleDelete() *cobra.Command {
 }
 
 func (m Module) netWorth() *cobra.Command {
-	var displayCurrency, end string
+	var displayCurrency, end, portfolio string
 	var months int
 	c := reportCommand(m, "net-worth", "Show the server-calculated net worth series", func(a API, c *cobra.Command) (any, []output.Row, error) {
 		params := &daikuv1.DaikuPortfoliosReportsNetWorthGetParams{}
@@ -460,6 +460,12 @@ func (m Module) netWorth() *cobra.Command {
 			}
 			params.End = &end
 		}
+		if c.Flags().Changed("portfolio") {
+			if strings.TrimSpace(portfolio) == "" {
+				return nil, nil, usage("portfolio must not be empty")
+			}
+			params.Portfolio = &portfolio
+		}
 		v, e := a.NetWorth(c.Context(), params)
 		if e != nil {
 			return nil, nil, e
@@ -473,10 +479,11 @@ func (m Module) netWorth() *cobra.Command {
 	c.Flags().StringVar(&displayCurrency, "currency", "", "display currency ("+strings.Join(currency.Codes(), ", ")+")")
 	c.Flags().IntVar(&months, "months", 0, "number of monthly snapshots (1-60; server default 12)")
 	c.Flags().StringVar(&end, "end", "", "final month (YYYY-MM; server default current month)")
+	c.Flags().StringVar(&portfolio, "portfolio", "", "portfolio ID (omit for user-wide aggregate)")
 	return c
 }
 func (m Module) currencyExposure() *cobra.Command {
-	var displayCurrency, date string
+	var displayCurrency, date, portfolio string
 	c := reportCommand(m, "currency-exposure", "Show server-calculated currency exposure", func(a API, c *cobra.Command) (any, []output.Row, error) {
 		params := &daikuv1.DaikuPortfoliosReportsCurrencyExposureGetParams{}
 		if displayCurrency != "" {
@@ -495,6 +502,12 @@ func (m Module) currencyExposure() *cobra.Command {
 			value := types.Date{Time: parsed}
 			params.Date = &value
 		}
+		if c.Flags().Changed("portfolio") {
+			if strings.TrimSpace(portfolio) == "" {
+				return nil, nil, usage("portfolio must not be empty")
+			}
+			params.Portfolio = &portfolio
+		}
 		v, e := a.CurrencyExposure(c.Context(), params)
 		if e != nil {
 			return nil, nil, e
@@ -507,6 +520,7 @@ func (m Module) currencyExposure() *cobra.Command {
 	})
 	c.Flags().StringVar(&displayCurrency, "currency", "", "display currency ("+strings.Join(currency.Codes(), ", ")+")")
 	c.Flags().StringVar(&date, "date", "", "snapshot date (YYYY-MM-DD; server default today)")
+	c.Flags().StringVar(&portfolio, "portfolio", "", "portfolio ID (omit for user-wide aggregate)")
 	return c
 }
 func reportCommand(m Module, use, short string, run func(API, *cobra.Command) (any, []output.Row, error)) *cobra.Command {

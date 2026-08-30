@@ -315,6 +315,8 @@ var humanSpanish = map[string]string{
 	"portfolio name":                                                                     "nombre del portafolio",
 	"portfolio emoji":                                                                    "emoji del portafolio",
 	"portfolio ID":                                                                       "ID del portafolio",
+	"portfolio ID (omit for user-wide aggregate)":                                        "ID del portafolio (omitir para el agregado del usuario)",
+	"portfolio must not be empty":                                                        "portfolio no puede estar vacío",
 	"make this the default portfolio":                                                    "lo establece como portafolio predeterminado",
 	"bucket name":                                                                        "nombre del grupo",
 	"bucket type":                                                                        "tipo de grupo",

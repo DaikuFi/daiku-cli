@@ -5271,6 +5271,9 @@ type DaikuPortfoliosReportsCurrencyExposureGetParams struct {
 
 	// Date Snapshot date in YYYY-MM-DD format. Defaults to today.
 	Date *openapi_types.Date `form:"date,omitempty" json:"date,omitempty"`
+
+	// Portfolio Visible portfolio ID to report in isolation. Omit to use the user-wide net-worth scope.
+	Portfolio *string `form:"portfolio,omitempty" json:"portfolio,omitempty"`
 }
 
 // DaikuPortfoliosReportsCurrencyExposureGetParamsCurrency defines parameters for DaikuPortfoliosReportsCurrencyExposureGet.
@@ -5286,6 +5289,9 @@ type DaikuPortfoliosReportsNetWorthGetParams struct {
 
 	// Months Number of monthly snapshots (1-60). Defaults to 12.
 	Months *int `form:"months,omitempty" json:"months,omitempty"`
+
+	// Portfolio Visible portfolio ID to report in isolation. Omit to use the user-wide net-worth scope.
+	Portfolio *string `form:"portfolio,omitempty" json:"portfolio,omitempty"`
 }
 
 // DaikuPortfoliosReportsNetWorthGetParamsCurrency defines parameters for DaikuPortfoliosReportsNetWorthGet.
@@ -13571,6 +13577,22 @@ func NewDaikuPortfoliosReportsCurrencyExposureGetRequest(server string, params *
 
 		}
 
+		if params.Portfolio != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "portfolio", runtime.ParamLocationQuery, *params.Portfolio); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
@@ -13639,6 +13661,22 @@ func NewDaikuPortfoliosReportsNetWorthGetRequest(server string, params *DaikuPor
 		if params.Months != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "months", runtime.ParamLocationQuery, *params.Months); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Portfolio != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "portfolio", runtime.ParamLocationQuery, *params.Portfolio); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
