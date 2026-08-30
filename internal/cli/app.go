@@ -139,6 +139,7 @@ func (a *App) Run(args []string) int {
 	}))
 	root.SetArgs(args)
 	root.InitDefaultHelpCmd()
+	root.InitDefaultVersionFlag()
 	root.InitDefaultCompletionCmd(args...)
 	typeCompletionArgsAsUsage(root)
 
@@ -179,12 +180,18 @@ func (a *App) rootCommand(jsonOutput bool, localizer i18n.Localizer, helpErr *er
 	root := &cobra.Command{
 		Use:           "daiku",
 		Short:         "Manage Daiku from the command line",
+		Version:       a.options.version,
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}
 	root.SetIn(a.options.in)
 	root.SetOut(a.options.out)
 	root.SetErr(a.options.errOut)
+	if jsonOutput {
+		var versionOutput strings.Builder
+		_ = WriteSuccess(&versionOutput, map[string]string{"version": a.options.version})
+		root.SetVersionTemplate(fmt.Sprintf("{{print %q}}", versionOutput.String()))
+	}
 	root.PersistentFlags().Bool("json", false, "write a stable JSON envelope")
 	root.PersistentFlags().String("language", "", "human output language: en or es")
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {

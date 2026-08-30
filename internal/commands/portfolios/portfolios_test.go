@@ -185,6 +185,49 @@ func TestAssetTypesAreDiscoverableInHelpValidationAndCompletion(t *testing.T) {
 	}
 }
 
+func TestBucketTypesAreDiscoverableInHelpValidationAndCompletion(t *testing.T) {
+	expectedBucketTypes := []string{"cash", "investments", "crypto", "real_estate", "vehicles", "other"}
+	want := strings.Join(expectedBucketTypes, ", ")
+
+	for _, command := range []string{"create", "update"} {
+		code, stdout, stderr := execute(t, &fakeService{}, "portfolios", "buckets", command, "--help")
+		if code != int(cli.ExitOK) || stderr != "" || !strings.Contains(stdout, "bucket type: "+want) {
+			t.Fatalf("%s help code=%d stdout=%q stderr=%q", command, code, stdout, stderr)
+		}
+
+		code, stdout, stderr = execute(t, &fakeService{}, "portfolios", "buckets", command, "--help", "--language", "es")
+		if code != int(cli.ExitOK) || stderr != "" || !strings.Contains(stdout, "tipo de grupo: "+want) {
+			t.Fatalf("%s spanish help code=%d stdout=%q stderr=%q", command, code, stdout, stderr)
+		}
+
+		code, stdout, stderr = execute(t, &fakeService{}, cobra.ShellCompRequestCmd, "portfolios", "buckets", command, "--type", "")
+		if code != int(cli.ExitOK) || strings.Contains(stderr, "unknown command") {
+			t.Fatalf("%s completion code=%d stdout=%q stderr=%q", command, code, stdout, stderr)
+		}
+		for _, bucketType := range expectedBucketTypes {
+			if !strings.Contains(stdout, bucketType+"\n") {
+				t.Fatalf("completion missing %q: %q", bucketType, stdout)
+			}
+		}
+
+		code, stdout, stderr = execute(t, &fakeService{}, cobra.ShellCompRequestCmd, "portfolios", "buckets", command, "--type", "re")
+		if code != int(cli.ExitOK) || strings.Contains(stderr, "unknown command") || !strings.Contains(stdout, "real_estate\n") || strings.Contains(stdout, "cash\n") {
+			t.Fatalf("%s completion code=%d stdout=%q stderr=%q", command, code, stdout, stderr)
+		}
+	}
+
+	code, _, stderr := execute(t, &fakeService{}, "portfolios", "buckets", "create", "--portfolio", "prt_1", "--name", "Main", "--type", "invalid", "--language", "es")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "tipo de grupo inválido; valores aceptados: "+want) {
+		t.Fatalf("validation code=%d stderr=%q", code, stderr)
+	}
+
+	f := &fakeService{}
+	code, _, stderr = execute(t, f, "portfolios", "buckets", "update", "bkt_1", "--portfolio", "prt_1", "--type=", "--json")
+	if code != int(cli.ExitUsage) || !strings.Contains(stderr, "invalid bucket type; accepted values: "+want) || f.lastPatch != nil {
+		t.Fatalf("empty update validation code=%d patch=%v stderr=%q", code, f.lastPatch, stderr)
+	}
+}
+
 func TestAssetPatchClearFlagsProduceExplicitNullAndOmitOthers(t *testing.T) {
 	f := &fakeService{}
 	code, _, stderr := execute(t, f, "assets", "update", "ast_1", "--bucket", "bkt_1", "--clear-quantity", "--clear-price-per-unit", "--clear-ticker", "--clear-last-price-update", "--json")
