@@ -9,6 +9,7 @@ import (
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	"github.com/DaikuFi/daiku-cli/internal/credentials"
 	"github.com/DaikuFi/daiku-cli/internal/profiles"
+	"github.com/DaikuFi/daiku-cli/internal/prompt"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +45,7 @@ func (m Module) login() *cobra.Command {
 		var manual func(string) error
 		if !jsonOut {
 			manual = func(target string) error {
-				_, notifyErr := fmt.Fprintf(cmd.ErrOrStderr(), "Open this URL to continue authentication:\n%s\n", target)
+				_, notifyErr := fmt.Fprint(cmd.ErrOrStderr(), cli.Human(cmd).Localizer.Humanf("Open this URL to continue authentication:\n%s\n", target))
 				return notifyErr
 			}
 		}
@@ -59,16 +60,24 @@ func (m Module) login() *cobra.Command {
 		if jsonOut {
 			return cli.WriteSuccess(cmd.OutOrStdout(), data)
 		}
-		_, err = fmt.Fprintf(cmd.OutOrStdout(), "Logged in as profile %s.\n", profile)
+		_, err = fmt.Fprint(cmd.OutOrStdout(), cli.Human(cmd).Localizer.Humanf("Logged in as profile %s.\n", profile))
 		return err
 	}}
 }
 func (m Module) logout() *cobra.Command {
 	var local bool
+	var yes bool
 	cmd := &cobra.Command{Use: "logout", Short: "Revoke and remove credentials", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(cmd *cobra.Command, _ []string) error {
 		profile, err := m.selected()
 		if err != nil {
 			return err
+		}
+		if !yes {
+			human := cli.Human(cmd)
+			confirmation := prompt.Prompter{In: cmd.InOrStdin(), Out: cmd.ErrOrStderr(), Localize: human.Localizer, Terminal: human.Interactive && !human.JSON}
+			if err = confirmation.ConfirmDestructive(human.Localizer.Humanf("Log out profile %s.", profile)); err != nil {
+				return confirmationError(err)
+			}
 		}
 		if !local {
 			manager := authcore.Manager{Store: m.Credentials, OAuth: m.OAuth}
@@ -82,10 +91,11 @@ func (m Module) logout() *cobra.Command {
 		if jsonOut {
 			return cli.WriteSuccess(cmd.OutOrStdout(), map[string]any{"profile": profile, "logged_in": false, "revoked": !local})
 		}
-		_, err = fmt.Fprintf(cmd.OutOrStdout(), "Logged out profile %s.\n", profile)
+		_, err = fmt.Fprint(cmd.OutOrStdout(), cli.Human(cmd).Localizer.Humanf("Logged out profile %s.\n", profile))
 		return err
 	}}
 	cmd.Flags().BoolVar(&local, "local-only", false, "remove local credentials without revoking the token")
+	cmd.Flags().BoolVar(&yes, "yes", false, "skip the interactive confirmation")
 	return cmd
 }
 func (m Module) status() *cobra.Command {
@@ -109,12 +119,19 @@ func (m Module) status() *cobra.Command {
 			return cli.WriteSuccess(cmd.OutOrStdout(), data)
 		}
 		if logged {
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Profile %s is logged in.\n", profile)
+			_, err = fmt.Fprint(cmd.OutOrStdout(), cli.Human(cmd).Localizer.Humanf("Profile %s is logged in.\n", profile))
 		} else {
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Profile %s is not logged in.\n", profile)
+			_, err = fmt.Fprint(cmd.OutOrStdout(), cli.Human(cmd).Localizer.Humanf("Profile %s is not logged in.\n", profile))
 		}
 		return err
 	}}
+}
+
+func confirmationError(err error) *cli.Error {
+	if errors.Is(err, prompt.ErrNonInteractive) {
+		return &cli.Error{Code: "confirmation_required", Message: "confirmation requires an interactive terminal; pass --yes to continue", ExitCode: cli.ExitUsage}
+	}
+	return &cli.Error{Code: "operation_cancelled", Message: "operation cancelled", ExitCode: cli.ExitConflict}
 }
 func safe(code, message string, exit cli.ExitCode) *cli.Error {
 	return &cli.Error{Code: code, Message: message, ExitCode: exit}
