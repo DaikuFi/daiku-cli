@@ -1,10 +1,12 @@
 package projections
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -279,8 +281,13 @@ func parseConfig(raw string) (daikuv1.ProjectionRuleConfigRequest, error) {
 	if raw == "" {
 		return v, usage("config is required")
 	}
-	if err := json.Unmarshal([]byte(raw), &v); err != nil {
+	decoder := json.NewDecoder(bytes.NewBufferString(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&v); err != nil {
 		return v, usage("config must be a valid JSON object")
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return v, usage("config must contain exactly one JSON object")
 	}
 	var object map[string]json.RawMessage
 	if json.Unmarshal([]byte(raw), &object) != nil || object == nil {

@@ -130,6 +130,14 @@ func TestRuleConfigIsForwardedWithoutLocalFinancialLogic(t *testing.T) {
 	}
 }
 
+func TestRuleConfigRejectsFieldsOutsidePinnedContract(t *testing.T) {
+	api := &fakeAPI{}
+	code, _, errOut := run(t, api, false, "projections", "rules", "create", "--scenario", "scn_1", "--category", "income", "--type", "salary", "--config", `{"amount":"1","typo_currency":"USD"}`, "--json")
+	if code != int(cli.ExitUsage) || api.created != nil || !strings.Contains(errOut, "valid JSON object") {
+		t.Fatalf("code=%d request=%+v stderr=%q", code, api.created, errOut)
+	}
+}
+
 func TestDestructiveCommandsRequireConfirmation(t *testing.T) {
 	api := &fakeAPI{}
 	code, _, errOut := run(t, api, false, "projections", "scenarios", "delete", "scn_1", "--portfolio", "prt_1", "--json")
