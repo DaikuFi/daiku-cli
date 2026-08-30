@@ -8,12 +8,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	daikuv1 "github.com/DaikuFi/daiku-cli/generated/daikuv1"
+	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
+	"github.com/DaikuFi/daiku-cli/internal/credentials"
+	"github.com/DaikuFi/daiku-cli/internal/profiles"
 	"github.com/oapi-codegen/runtime/types"
 )
 
@@ -234,11 +240,85 @@ func TestHTTPStatusErrorsAreTyped(t *testing.T) {
 	}
 }
 
+func TestExchangeRatesNotFoundDoesNotClaimPortfolioOrScenarioIsMissing(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{"public message", `{"error":{"errors":null,"message":"rates unavailable","status_code":404}}`, "rates unavailable"},
+		{"neutral fallback", `{"error":{"errors":null,"message":"","status_code":404}}`, "the requested resource was not found"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			httpClient := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusNotFound,
+					Status:     "404 Not Found",
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(test.body)),
+					Request:    r,
+				}, nil
+			})}
+			client, err := daikuv1.NewClientWithResponses("https://api.example.test", daikuv1.WithHTTPClient(httpClient))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			code, _, errOut := run(t, generatedAPI{client}, false, "exchange-rates", "--json")
+			if code != int(cli.ExitNotFound) || !strings.Contains(errOut, `"message":"`+test.want+`"`) {
+				t.Fatalf("code=%d stderr=%q", code, errOut)
+			}
+			if strings.Contains(errOut, "portfolio") || strings.Contains(errOut, "scenario") {
+				t.Fatalf("exchange-rate error names an unrelated resource: %q", errOut)
+			}
+		})
+	}
+}
+
+func TestFactoryNormalizesVersionedProfileURLAndSendsBearer(t *testing.T) {
+	var path, authorization string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		authorization = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `[]`)
+	}))
+	defer server.Close()
+
+	configDir := t.TempDir()
+	if err := os.Chmod(configDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	store := profiles.Store{Path: filepath.Join(configDir, "config.json")}
+	if err := store.Save(profiles.Config{Current: "personal", Profiles: map[string]profiles.Profile{
+		"personal": {APIURL: server.URL + "/api/v1/"},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	manager := &authcore.Manager{Store: fixedCredentials{token: credentials.Token{AccessToken: "fixture-token"}}}
+	api, err := New(store, manager).Factory(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = api.Rates(context.Background(), &daikuv1.DaikuExchangeRatesGetParams{}); err != nil {
+		t.Fatal(err)
+	}
+	if path != "/api/v1/exchange-rates/" || authorization != "Bearer fixture-token" {
+		t.Fatalf("path=%q authorization=%q", path, authorization)
+	}
+}
+
 func ptr[T any](value T) *T { return &value }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
+
+type fixedCredentials struct{ token credentials.Token }
+
+func (s fixedCredentials) Get(string) (credentials.Token, error) { return s.token, nil }
+func (fixedCredentials) Put(string, credentials.Token) error     { return nil }
+func (fixedCredentials) Delete(string) error                     { return nil }
 
 func TestDestructiveCommandsRequireConfirmation(t *testing.T) {
 	api := &fakeAPI{}

@@ -65,7 +65,12 @@ func New(store profiles.Store, manager *authcore.Manager) Module {
 		if err != nil {
 			return nil, &cli.Error{Code: "authentication_required", Message: "the active profile is not authenticated", ExitCode: cli.ExitAuth}
 		}
-		client, err := daikuv1.NewClientWithResponses(profile.APIURL, daikuv1.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+		apiURL, err := profiles.NormalizeAPIURL(profile.APIURL)
+		if err != nil {
+			return nil, &cli.Error{Code: "profile_error", Message: "the active profile has an invalid API URL", ExitCode: cli.ExitFailure}
+		}
+		base := strings.TrimSuffix(apiURL, "/api/v1/")
+		client, err := daikuv1.NewClientWithResponses(base, daikuv1.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
 			req.Header.Set("Authorization", "Bearer "+token)
 			return nil
 		}))
@@ -573,11 +578,40 @@ func status(code int) error {
 	case code == 403:
 		return &cli.Error{Code: "forbidden", Message: "your role does not allow this operation", ExitCode: cli.ExitForbidden}
 	case code == 404:
-		return &cli.Error{Code: "not_found", Message: "the requested portfolio or scenario was not found", ExitCode: cli.ExitNotFound}
+		return &cli.Error{Code: "not_found", Message: "the requested resource was not found", ExitCode: cli.ExitNotFound}
 	default:
 		return apiFailure()
 	}
 }
+
+func ratesStatus(response *daikuv1.DaikuExchangeRatesGetResponse) error {
+	err := status(response.StatusCode())
+	if err == nil {
+		return nil
+	}
+	var publicError *daikuv1.PublicError
+	switch response.StatusCode() {
+	case http.StatusBadRequest:
+		publicError = response.JSON400
+	case http.StatusUnauthorized:
+		publicError = response.JSON401
+	case http.StatusForbidden:
+		publicError = response.JSON403
+	case http.StatusNotFound:
+		publicError = response.JSON404
+	case http.StatusTooManyRequests:
+		publicError = response.JSON429
+	}
+	if publicError == nil || strings.TrimSpace(publicError.Error.Message) == "" {
+		return err
+	}
+	var typed *cli.Error
+	if !errors.As(err, &typed) {
+		return err
+	}
+	return &cli.Error{Code: typed.Code, Message: publicError.Error.Message, ExitCode: typed.ExitCode}
+}
+
 func confirm(c *cobra.Command, message string) error {
 	h := cli.Human(c)
 	p := prompt.Prompter{In: c.InOrStdin(), Out: c.ErrOrStderr(), Localize: h.Localizer, Terminal: h.Interactive && !h.JSON}
@@ -718,7 +752,7 @@ func (a generatedAPI) Rates(c context.Context, p *daikuv1.DaikuExchangeRatesGetP
 	if e != nil {
 		return nil, apiFailure()
 	}
-	if e = status(r.StatusCode()); e != nil {
+	if e = ratesStatus(r); e != nil {
 		return nil, e
 	}
 	return *r.JSON200, nil

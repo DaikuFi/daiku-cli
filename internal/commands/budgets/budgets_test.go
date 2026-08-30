@@ -20,17 +20,17 @@ type fakeAPI struct {
 	updated     Patch
 }
 
-func (f *fakeAPI) Planned(_ context.Context, _ string, params *daikuv1.DaikuHouseholdsHouseholdPkBudgetsPlannedGetParams) (*daikuv1.PlannedBudgets, error) {
+func (f *fakeAPI) Planned(_ context.Context, _ string, params *daikuv1.DaikuHouseholdsHouseholdPkBudgetsPlannedGetParams) (*PlannedResponse, error) {
 	f.planned = params
-	return &daikuv1.PlannedBudgets{}, nil
+	return &PlannedResponse{}, nil
 }
-func (f *fakeAPI) Suggestions(_ context.Context, _ string, params *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParams) (*daikuv1.BudgetSuggestionsResponse, error) {
+func (f *fakeAPI) Suggestions(_ context.Context, _ string, params *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSuggestionsGetParams) (*SuggestionsResponse, error) {
 	f.suggestions = params
-	return &daikuv1.BudgetSuggestionsResponse{}, nil
+	return &SuggestionsResponse{}, nil
 }
-func (f *fakeAPI) Summary(_ context.Context, _ string, p *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSummaryGetParams) (*daikuv1.BudgetSummary, error) {
+func (f *fakeAPI) Summary(_ context.Context, _ string, p *daikuv1.DaikuHouseholdsHouseholdPkBudgetsSummaryGetParams) (*SummaryResponse, error) {
 	f.summary = p
-	return &daikuv1.BudgetSummary{}, nil
+	return &SummaryResponse{}, nil
 }
 func (f *fakeAPI) List(context.Context, string) ([]daikuv1.CategoryBudget, error) {
 	return []daikuv1.CategoryBudget{}, nil
