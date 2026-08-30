@@ -283,7 +283,17 @@ func (m Module) resourceUpdate(spec resourceSpec) *cobra.Command {
 	var household, name, emoji, color, domain, country, parent string
 	var clearParent bool
 	cmd := run("update <resource>", "Update "+singular(spec.label), cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
-		if name == "" && emoji == "" && color == "" && domain == "" && country == "" && parent == "" && !clearParent {
+		if parent != "" && clearParent {
+			return usage("--parent and --clear-parent cannot be used together")
+		}
+		fields := []string{"name", "emoji", "color", "domain", "country", "parent"}
+		changed := false
+		for _, flag := range fields {
+			if cmd.Flags().Lookup(flag) != nil && cmd.Flags().Changed(flag) {
+				changed = true
+			}
+		}
+		if !changed && !clearParent {
 			return usage("provide at least one field to update")
 		}
 		base := scopedPath(household, spec.path)
@@ -291,37 +301,14 @@ func (m Module) resourceUpdate(spec resourceSpec) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		var body any
-		switch spec.path {
-		case "account-groups":
-			body = daikuv1.PatchedPublicAccountGroupRequest{Name: optional(name), Emoji: optional(emoji)}
-		case "categories":
-			value := map[string]any{}
-			if name != "" {
-				value["name"] = name
+		body := map[string]any{}
+		for _, pair := range []struct{ flag, key, value string }{{"name", "name", name}, {"emoji", "emoji", emoji}, {"color", "color", color}, {"domain", "domain", domain}, {"country", "country", country}, {"parent", "parent", parent}} {
+			if cmd.Flags().Lookup(pair.flag) != nil && cmd.Flags().Changed(pair.flag) {
+				body[pair.key] = pair.value
 			}
-			if emoji != "" {
-				value["emoji"] = emoji
-			}
-			if parent != "" {
-				value["parent"] = parent
-			}
-			if clearParent {
-				value["parent"] = nil
-			}
-			body = value
-		case "tags":
-			body = daikuv1.PatchedPublicTagRequest{Name: optional(name), Color: optional(color)}
-		case "institutions":
-			value := daikuv1.PatchedPublicFinancialInstitutionRequest{Name: optional(name), Domain: optional(domain)}
-			if country != "" {
-				var union daikuv1.PatchedPublicFinancialInstitutionRequest_Country
-				if err := union.FromCountry806Enum(daikuv1.Country806Enum(country)); err != nil {
-					return usage("invalid country")
-				}
-				value.Country = &union
-			}
-			body = value
+		}
+		if clearParent {
+			body["parent"] = nil
 		}
 		var item map[string]any
 		if err = m.call(cmd, http.MethodPatch, base+id+"/", body, &item); err != nil {
@@ -478,11 +465,18 @@ func (m Module) accountUpdate() *cobra.Command {
 	var hh, name, group, institution, currency, kind, balance, emoji, number, holder string
 	var isDefault, clearGroup, clearInstitution bool
 	cmd := run("update <account>", "Update an account", cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
-		changed := []string{"name", "group", "institution", "currency", "type", "opening-balance", "emoji", "account-number", "account-holder", "is-default", "clear-group", "clear-institution"}
+		if group != "" && clearGroup {
+			return usage("--group and --clear-group cannot be used together")
+		}
+		if institution != "" && clearInstitution {
+			return usage("--institution and --clear-institution cannot be used together")
+		}
+		changed := []string{"name", "group", "institution", "currency", "type", "opening-balance", "emoji", "account-number", "account-holder", "is-default"}
 		has := false
 		for _, flag := range changed {
 			has = has || cmd.Flags().Changed(flag)
 		}
+		has = has || clearGroup || clearInstitution
 		if !has {
 			return usage("provide at least one field to update")
 		}
@@ -656,6 +650,9 @@ func (m Module) resolve(cmd *cobra.Command, path, selector string) (string, erro
 			return "", usage("resource ID has the wrong prefix")
 		}
 		return selector, nil
+	}
+	if prefix := expectedPrefix(path); prefix != "" && strings.HasPrefix(selector, prefix+"_") {
+		return "", usage("resource ID has an invalid format")
 	}
 	var rows []map[string]any
 	if err := m.call(cmd, http.MethodGet, path, nil, &rows); err != nil {
