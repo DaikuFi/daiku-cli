@@ -95,6 +95,16 @@ func TestHouseholdsListJSONIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestSpanishHumanHelpKeepsCommandsEnglish(t *testing.T) {
+	app, out, _ := testApp(t, func(http.ResponseWriter, *http.Request) { t.Fatal("network called") }, "", true)
+	if code := app.Run([]string{"households", "--help", "--language", "es"}); code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if !strings.Contains(out.String(), "Gestiona hogares") || !strings.Contains(out.String(), "create") {
+		t.Fatal(out.String())
+	}
+}
+
 func TestScopedCommandRequiresHouseholdWithoutNetwork(t *testing.T) {
 	called := false
 	app, _, errOut := testApp(t, func(http.ResponseWriter, *http.Request) { called = true }, "", false)

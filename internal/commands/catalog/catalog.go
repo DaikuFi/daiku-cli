@@ -234,7 +234,7 @@ func (m Module) resourceList(spec resourceSpec) *cobra.Command {
 
 func (m Module) resourceCreate(spec resourceSpec) *cobra.Command {
 	var household, name, emoji, color, domain, parent string
-	cmd := run("create", "Create "+strings.TrimSuffix(spec.label, "s"), cobra.NoArgs, func(cmd *cobra.Command, _ []string) error {
+	cmd := run("create", "Create "+singular(spec.label), cobra.NoArgs, func(cmd *cobra.Command, _ []string) error {
 		var body any
 		switch spec.path {
 		case "account-groups":
@@ -264,7 +264,7 @@ func (m Module) resourceCreate(spec resourceSpec) *cobra.Command {
 
 func (m Module) resourceUpdate(spec resourceSpec) *cobra.Command {
 	var household, name, emoji, color, domain, parent string
-	cmd := run("update <resource>", "Update "+strings.TrimSuffix(spec.label, "s"), cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
+	cmd := run("update <resource>", "Update "+singular(spec.label), cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
 		if name == "" && emoji == "" && color == "" && domain == "" && parent == "" {
 			return usage("provide at least one field to update")
 		}
@@ -302,7 +302,7 @@ func (m Module) resourceUpdate(spec resourceSpec) *cobra.Command {
 func (m Module) resourceDelete(spec resourceSpec) *cobra.Command {
 	var household string
 	var yes bool
-	cmd := run("delete <resource>", "Delete "+strings.TrimSuffix(spec.label, "s"), cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
+	cmd := run("delete <resource>", "Delete "+singular(spec.label), cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
 		base := scopedPath(household, spec.path)
 		id, err := m.resolve(cmd, base, args[0])
 		if err != nil {
@@ -524,6 +524,12 @@ func optional(value string) *string {
 		return nil
 	}
 	return &value
+}
+func singular(value string) string {
+	if value == "categories" {
+		return "category"
+	}
+	return strings.TrimSuffix(value, "s")
 }
 func usage(message string) *cli.Error { return commandError("usage_error", message, cli.ExitUsage) }
 func commandError(code, message string, exit cli.ExitCode) *cli.Error {
