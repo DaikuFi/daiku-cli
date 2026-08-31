@@ -104,6 +104,22 @@ required/inherited markers, and direct subcommands. Structured help returns the 
 one command. `--no-input` can also be used without agent mode when a caller wants human output but
 must guarantee that stdin will not be read.
 
+## Agent skill
+
+The portable Daiku skill in [`skills/daiku`](skills/daiku) teaches Codex and Claude how to compose
+safe finance workflows from the live CLI contract. Install it for either agent without changing
+the other agent's configuration:
+
+```sh
+./scripts/skill/install-codex.sh
+./scripts/skill/install-claude.sh
+```
+
+Set `CODEX_HOME` or `CLAUDE_HOME` to choose a non-default home. Installers refuse to replace a
+non-Daiku skill and atomically update an existing Daiku installation. Maintainers refresh the
+checked-in command manifest and compact reference with `make skill-generate`; `make skill-check`
+fails if either generated artifact is stale.
+
 Human output supports English and Spanish. Select it explicitly with `--language en|es` or set
 `DAIKU_LANG`; otherwise the CLI consults `LC_ALL`, `LC_MESSAGES`, then `LANG`. `C` and `POSIX` use
 English. Set `NO_COLOR` to disable ANSI styling. These settings never translate commands, flags,
