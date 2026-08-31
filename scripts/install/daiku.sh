@@ -6,8 +6,19 @@ validate_prerelease_version() {
   printf '%s\n' "$1" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-((0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.((0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*$'
 }
 
+# A release version is an exact v-prefixed semantic version whose prerelease
+# suffix is optional, so it accepts both v1.2.3-rc.1 and v1.2.3.
+validate_release_version() {
+  printf '%s\n' "$1" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.((0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$'
+}
+
 if [ "${1:-}" = --validate-version ]; then
   [ "$#" -eq 2 ] && validate_prerelease_version "$2"
+  exit $?
+fi
+
+if [ "${1:-}" = --validate-release-version ]; then
+  [ "$#" -eq 2 ] && validate_release_version "$2"
   exit $?
 fi
 
@@ -28,7 +39,7 @@ arch=$(uname -m)
 case "$arch" in x86_64|amd64) arch=amd64 ;; arm64|aarch64) arch=arm64 ;; *) fail "unsupported architecture: $arch" ;; esac
 
 case "$repo" in *[!A-Za-z0-9._/-]*|/*|*..*) fail 'invalid release repository' ;; esac
-validate_prerelease_version "$version" || fail 'DAIKU_VERSION must be an exact v-prefixed semantic prerelease'
+validate_release_version "$version" || fail 'DAIKU_VERSION must be an exact v-prefixed semantic version'
 base="https://github.com/$repo/releases/download/$version"
 label=${version#v}
 case "$base" in https://*) ;; *) fail 'release URL must use HTTPS' ;; esac

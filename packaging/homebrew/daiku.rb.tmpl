@@ -2,6 +2,8 @@ class Daiku < Formula
   desc "CLI for Daiku personal finance"
   homepage "https://daiku.app"
   version "{{ .Version }}"
+  license "Apache-2.0"
+
   on_macos do
     if Hardware::CPU.arm?
       url "{{ .DarwinArm64URL }}"
