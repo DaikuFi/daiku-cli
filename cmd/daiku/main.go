@@ -3,11 +3,16 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
+	"net"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/DaikuFi/daiku-cli/internal/agent"
 	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
@@ -15,6 +20,7 @@ import (
 	authcommand "github.com/DaikuFi/daiku-cli/internal/commands/auth"
 	budgetcommand "github.com/DaikuFi/daiku-cli/internal/commands/budgets"
 	catalogcommand "github.com/DaikuFi/daiku-cli/internal/commands/catalog"
+	doctorcommand "github.com/DaikuFi/daiku-cli/internal/commands/doctor"
 	mcpcommand "github.com/DaikuFi/daiku-cli/internal/commands/mcp"
 	portfoliocommand "github.com/DaikuFi/daiku-cli/internal/commands/portfolios"
 	profilecommand "github.com/DaikuFi/daiku-cli/internal/commands/profile"
@@ -25,6 +31,8 @@ import (
 	"github.com/DaikuFi/daiku-cli/internal/credentials"
 	"github.com/DaikuFi/daiku-cli/internal/mcpserver"
 	"github.com/DaikuFi/daiku-cli/internal/profiles"
+	"github.com/DaikuFi/daiku-cli/internal/skillmeta"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 var version = "dev"
@@ -53,6 +61,44 @@ func main() {
 		},
 		gate: make(chan struct{}, 1),
 	}
+	doctorModule, err := doctorcommand.New(doctorcommand.Environment{
+		Version: version, ProfileStore: profileStore, Credentials: credentialStore,
+		LookPath: exec.LookPath, UserHomeDir: os.UserHomeDir,
+		ProbeTransport: newDoctorProbeTransport(),
+		Commands:       executor.Commands,
+		SkillDigests:   skillmeta.Digests,
+		MCPReady: func(ctx context.Context) error {
+			serverTransport, clientTransport := mcp.NewInMemoryTransports()
+			server := mcpserver.New(executor, mcpserver.Options{Version: version})
+			done := make(chan error, 1)
+			go func() { done <- server.Run(ctx, serverTransport) }()
+			client := mcp.NewClient(&mcp.Implementation{Name: "daiku-doctor", Version: version}, nil)
+			session, connectErr := client.Connect(ctx, clientTransport, nil)
+			if connectErr != nil {
+				return connectErr
+			}
+			_, listErr := session.ListTools(ctx, nil)
+			closeErr := session.Close()
+			if listErr != nil {
+				return listErr
+			}
+			if closeErr != nil {
+				return closeErr
+			}
+			select {
+			case runErr := <-done:
+				return runErr
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		},
+		SchemaCommit: "e998a92f4843a3ba34e829731d27fe250c6bb51c",
+		SchemaSHA256: "7475048a22c5ffec2c583752b1e2281db7b239c843a706c8b203c17402b2bc3c",
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error: doctor could not be initialized")
+		os.Exit(int(cli.ExitFailure))
+	}
 	runMCP := func(ctx context.Context, allowWrites bool, in io.ReadCloser, out io.WriteCloser, errOut io.Writer) error {
 		logger := slog.New(slog.NewTextHandler(errOut, nil))
 		return mcpserver.Run(ctx, executor, mcpserver.Options{AllowWrites: allowWrites, Version: version, Logger: logger}, in, out)
@@ -63,6 +109,7 @@ func main() {
 			cli.WithIO(in, out, errOut),
 			cli.WithVersion(version),
 			cli.WithModule(versioncommand.New(version)),
+			cli.WithModule(doctorModule),
 			cli.WithModule(profilecommand.New(profileStore, credentialStore)),
 			cli.WithModule(authcommand.New(profileStore, credentialStore, oauthClient)),
 			cli.WithModule(catalogcommand.New(profileStore, authManager, nil)),
@@ -76,6 +123,15 @@ func main() {
 	}
 	app := newApp(context.Background(), os.Stdin, os.Stdout, os.Stderr)
 	os.Exit(app.Run(os.Args[1:]))
+}
+
+func newDoctorProbeTransport() *http.Transport {
+	return &http.Transport{
+		Proxy:             http.ProxyFromEnvironment,
+		DialContext:       (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: -1}).DialContext,
+		DisableKeepAlives: true, TLSHandshakeTimeout: 5 * time.Second,
+		ResponseHeaderTimeout: 5 * time.Second, MaxResponseHeaderBytes: 64 << 10,
+	}
 }
 
 type commandExecutor struct {

@@ -1,5 +1,56 @@
 #!/bin/sh
 set -eu
+umask 077
+
+current_uid=$(id -u)
+
+directory_uid() {
+  stat -f '%u' "$1" 2>/dev/null || stat -c '%u' "$1"
+}
+
+directory_mode() {
+  stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1"
+}
+
+validate_private_directory() {
+  validation_directory=$1
+  if [ -L "$validation_directory" ] || [ ! -d "$validation_directory" ]; then
+    printf '%s\n' 'daiku skill installer: refusing unsafe parent directory' >&2
+    return 1
+  fi
+  owner=$(directory_uid "$validation_directory") || {
+    printf '%s\n' 'daiku skill installer: could not validate parent ownership' >&2
+    return 1
+  }
+  mode=$(directory_mode "$validation_directory") || {
+    printf '%s\n' 'daiku skill installer: could not validate parent permissions' >&2
+    return 1
+  }
+  group_digit=$((mode / 10 % 10))
+  other_digit=$((mode % 10))
+  if [ "$owner" != "$current_uid" ] || [ $((group_digit & 2)) -ne 0 ] || [ $((other_digit & 2)) -ne 0 ]; then
+    printf '%s\n' 'daiku skill installer: refusing unsafe parent directory' >&2
+    return 1
+  fi
+}
+
+ensure_private_directory() {
+  ensured_directory=$1
+  if [ -e "$ensured_directory" ] || [ -L "$ensured_directory" ]; then
+    validate_private_directory "$ensured_directory"
+    return
+  fi
+  ancestor=$(dirname "$ensured_directory")
+  while [ ! -e "$ancestor" ] && [ ! -L "$ancestor" ]; do
+    next=$(dirname "$ancestor")
+    [ "$next" != "$ancestor" ] || break
+    ancestor=$next
+  done
+  validate_private_directory "$ancestor"
+  mkdir -p "$ensured_directory"
+  chmod 700 "$ensured_directory"
+  validate_private_directory "$ensured_directory"
+}
 
 agent=${1:-}
 case "$agent" in
@@ -36,9 +87,11 @@ trap cleanup EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
-mkdir -p "$skills_dir"
+ensure_private_directory "$agent_home"
+ensure_private_directory "$skills_dir"
 
 if [ -e "$target" ] || [ -L "$target" ]; then
+  validate_private_directory "$target"
   if [ ! -f "$target/SKILL.md" ] || ! grep -q '^name: daiku$' "$target/SKILL.md"; then
     printf '%s\n' "daiku skill installer: refusing to replace non-Daiku target at $target" >&2
     exit 1
