@@ -1,9 +1,9 @@
 module github.com/DaikuFi/daiku-cli
 
-go 1.24.0
+go 1.25.0
 
 require (
-	github.com/modelcontextprotocol/go-sdk v1.4.0
+	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/oapi-codegen/runtime v1.7.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6

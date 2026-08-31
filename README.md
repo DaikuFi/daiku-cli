@@ -36,7 +36,7 @@ below to test a release candidate.
 
 ## Install for development
 
-You need Go 1.24 or newer.
+You need Go 1.25 or newer. Release artifacts and security scans use Go 1.26.7.
 
 ```sh
 git clone git@github.com:DaikuFi/daiku-cli.git

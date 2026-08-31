@@ -7,6 +7,8 @@ Daiku releases are prepared by GitHub Actions and remain drafts until a maintain
 Run this from the release-candidate commit:
 
 ```sh
+export GOTOOLCHAIN=go1.26.7
+go version
 go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 make rc-check
 git diff --check
@@ -16,11 +18,9 @@ git diff --check
 
 The Go tests use local HTTP servers and fixtures. They verify that bearer credentials stay within the configured API origin, OAuth secret-bearing requests do not follow redirects, forbidden and foreign-resource responses remain typed and redacted, and commands delegate authorization decisions to the API. They do not prove production RLS policies or a deployed OAuth provider. Those checks belong to the backend deployment review and must be completed without using this repository to mutate production.
 
-GitHub Actions is the release gate. The `CI` workflow repeats the checks on Ubuntu and macOS, validates the release configuration with pinned tooling, builds every supported target, creates a GoReleaser snapshot, checks all four archive names and checksums, and requires each archive to contain only `daiku`. CircleCI results are not part of candidate approval.
+GitHub Actions is the release gate. Compatibility tests run with the module minimum, Go 1.25.0. Cross-builds, security scanning, release validation, and release artifact compilation use Go 1.26.7. The workflow validates the release configuration with pinned tooling, creates a GoReleaser snapshot, checks the exact four-archive set against `checksums.txt`, and requires each archive to contain only `daiku`. CircleCI results are not part of candidate approval.
 
-## Open security policy decision
-
-The CLI explicitly requires `github.com/segmentio/encoding` v0.5.4 and tests null-suffixed duplicate protocol keys through its real stdio MCP transport, addressing GO-2026-4770 without raising the Go requirement. `govulncheck` continues to associate GO-2026-4770 with MCP SDK v1.4.0 because it does not account for the selected transitive parser version; the stdio regression is the behavioral evidence for the fix. The scanner also reports GO-2026-4773, which concerns unauthenticated HTTP MCP servers. Daiku constructs only in-memory and stdio transports and exposes no HTTP MCP handler. Whether that result needs a structural CI assertion or may be accepted as unreachable is the sole open security policy decision. Do not add an advisory allowlist only to make CI green.
+The MCP SDK is pinned to v1.4.1, which contains the fixes for GO-2026-4770 and GO-2026-4773. The stdio regression test for null-suffixed duplicate protocol keys remains as behavioral coverage. Vulnerability allowlists and scanner exceptions are not used.
 
 ## Prepare the draft
 
