@@ -104,6 +104,22 @@ required/inherited markers, and direct subcommands. Structured help returns the 
 one command. `--no-input` can also be used without agent mode when a caller wants human output but
 must guarantee that stdin will not be read.
 
+### Agent skill
+
+The portable Daiku skill in [`skills/daiku`](skills/daiku) teaches Codex and Claude how to compose
+safe finance workflows from the live CLI contract. Install it for either agent without changing
+the other agent's configuration:
+
+```sh
+./scripts/skill/install-codex.sh
+./scripts/skill/install-claude.sh
+```
+
+Set `CODEX_HOME` or `CLAUDE_HOME` to choose a non-default home. Installers refuse to replace a
+non-Daiku skill and atomically update an existing Daiku installation. Maintainers refresh the
+checked-in command manifest and compact reference with `make skill-generate`; `make skill-check`
+fails if either generated artifact is stale.
+
 ### MCP server
 
 Run the Model Context Protocol server over stdio with:
