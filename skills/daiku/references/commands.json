@@ -109,6 +109,12 @@
           "runnable": false
         },
         {
+          "name": "doctor",
+          "path": "daiku doctor",
+          "short": "Diagnose the Daiku CLI installation and integrations",
+          "runnable": true
+        },
+        {
           "name": "exchange-rates",
           "path": "daiku exchange-rates",
           "short": "List server-resolved exchange rates",
@@ -4744,6 +4750,60 @@
       ],
       "subcommands": [],
       "read_only": false,
+      "requires_input": false
+    },
+    {
+      "name": "doctor",
+      "path": "daiku doctor",
+      "use": "daiku doctor",
+      "short": "Diagnose the Daiku CLI installation and integrations",
+      "aliases": [],
+      "runnable": true,
+      "flags": [
+        {
+          "name": "agent",
+          "type": "bool",
+          "default": "false",
+          "usage": "enable agent-safe JSON output and disable input",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false",
+          "usage": "help for doctor",
+          "required": false,
+          "inherited": false
+        },
+        {
+          "name": "json",
+          "type": "bool",
+          "default": "false",
+          "usage": "write a stable JSON envelope",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "language",
+          "type": "string",
+          "default": "",
+          "usage": "human output language: en or es",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "no-input",
+          "type": "bool",
+          "default": "false",
+          "usage": "disable all interactive input",
+          "required": false,
+          "inherited": true
+        }
+      ],
+      "subcommands": [],
+      "read_only": true,
       "requires_input": false
     },
     {

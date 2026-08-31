@@ -201,6 +201,25 @@ Human output supports English and Spanish. Select it explicitly with `--language
 English. Set `NO_COLOR` to disable ANSI styling. These settings never translate commands, flags,
 JSON fields, or machine error codes.
 
+### Operational diagnostics
+
+`daiku doctor` produces a read-only, deterministic report covering installation, the selected
+profile and credential shape, safe token metadata, DNS and one bounded API probe, compiled schema
+metadata, Codex and Claude skill integrity, in-memory MCP readiness, and an ephemeral loopback OAuth
+callback. Checks always appear in the same order. `--json` and `--agent` return the normal success
+envelope with `status`, `checks`, and pass/warning/fail counts.
+
+The API check uses one dedicated, non-replaying transport call. Installed Codex and Claude skills
+are verified with the generated `integrity.json` manifest, compiled trusted digests, safe bounded
+file reads, and comparison with live command metadata. When agent-home overrides are unset, doctor
+checks the documented `$HOME/.codex` and `$HOME/.claude` locations.
+
+Warnings and failed health checks are findings, not command failures: a completed report exits 0.
+Invalid usage exits 2, while a failure to construct or render the report exits 1. The command never
+refreshes or writes credentials and never sends an expired token.
+Cancellation stops the report immediately and returns `operation_cancelled` with exit 6; no partial
+report is emitted.
+
 Destructive commands such as `profile remove` and `auth logout` require the full localized
 confirmation word in an interactive terminal. Non-interactive callers and destructive `--json` calls must
 pass `--yes`; the CLI never reads a confirmation from a pipe.

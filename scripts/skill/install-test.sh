@@ -5,10 +5,69 @@ root=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)
 case_root=$(mktemp -d "${TMPDIR:-/tmp}/daiku-skill-install-test.XXXXXX")
 trap 'rm -rf "$case_root"' EXIT HUP INT TERM
 
-CODEX_HOME="$case_root/codex" "$root/scripts/skill/install-codex.sh" >/dev/null
-CLAUDE_HOME="$case_root/claude" "$root/scripts/skill/install-claude.sh" >/dev/null
+(umask 000; CODEX_HOME="$case_root/codex" "$root/scripts/skill/install-codex.sh" >/dev/null)
+(umask 000; CLAUDE_HOME="$case_root/claude" "$root/scripts/skill/install-claude.sh" >/dev/null)
 cmp "$root/skills/daiku/SKILL.md" "$case_root/codex/skills/daiku/SKILL.md"
 cmp "$root/skills/daiku/SKILL.md" "$case_root/claude/skills/daiku/SKILL.md"
+cmp "$root/skills/daiku/integrity.json" "$case_root/codex/skills/daiku/integrity.json"
+cmp "$root/skills/daiku/integrity.json" "$case_root/claude/skills/daiku/integrity.json"
+cmp "$root/skills/daiku/references/commands.json" "$case_root/codex/skills/daiku/references/commands.json"
+cmp "$root/skills/daiku/references/commands.json" "$case_root/claude/skills/daiku/references/commands.json"
+
+directory_mode() {
+  stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1"
+}
+
+assert_private() {
+  mode=$(directory_mode "$1")
+  group_digit=$((mode / 10 % 10))
+  other_digit=$((mode % 10))
+  if [ $((group_digit & 7)) -ne 0 ] || [ $((other_digit & 7)) -ne 0 ]; then
+    printf '%s\n' 'installer created a non-private directory under umask 000' >&2
+    exit 1
+  fi
+}
+
+for directory in \
+  "$case_root/codex" "$case_root/codex/skills" "$case_root/codex/skills/daiku" \
+  "$case_root/claude" "$case_root/claude/skills" "$case_root/claude/skills/daiku"; do
+  assert_private "$directory"
+done
+if find "$case_root/codex/skills/daiku" "$case_root/claude/skills/daiku" -perm -022 -print | grep -q .; then
+  printf '%s\n' 'installer created group/world-writable skill content under umask 000' >&2
+  exit 1
+fi
+
+mkdir -p "$case_root/unsafe/skills/daiku"
+chmod 700 "$case_root/unsafe" "$case_root/unsafe/skills/daiku"
+printf '%s\n' 'name: daiku' 'unsafe destination sentinel' > "$case_root/unsafe/skills/daiku/SKILL.md"
+cp "$case_root/unsafe/skills/daiku/SKILL.md" "$case_root/unsafe-before"
+chmod 777 "$case_root/unsafe/skills"
+if CODEX_HOME="$case_root/unsafe" "$root/scripts/skill/install-codex.sh" >/dev/null 2>&1; then
+  printf '%s\n' 'installer accepted a group/world-writable existing parent' >&2
+  exit 1
+fi
+cmp "$case_root/unsafe-before" "$case_root/unsafe/skills/daiku/SKILL.md"
+
+mkdir -p "$case_root/symlink-home" "$case_root/real-skills/daiku"
+chmod 700 "$case_root/symlink-home" "$case_root/real-skills" "$case_root/real-skills/daiku"
+printf '%s\n' 'name: daiku' 'symlink destination sentinel' > "$case_root/real-skills/daiku/SKILL.md"
+cp "$case_root/real-skills/daiku/SKILL.md" "$case_root/symlink-before"
+ln -s "$case_root/real-skills" "$case_root/symlink-home/skills"
+if CLAUDE_HOME="$case_root/symlink-home" "$root/scripts/skill/install-claude.sh" >/dev/null 2>&1; then
+  printf '%s\n' 'installer accepted a symlinked existing parent' >&2
+  exit 1
+fi
+cmp "$case_root/symlink-before" "$case_root/real-skills/daiku/SKILL.md"
+
+mkdir -p "$case_root/runtime-home" "$case_root/runtime-config"
+chmod 700 "$case_root/runtime-home" "$case_root/runtime-config"
+(cd "$root" && go build -o "$case_root/daiku" ./cmd/daiku)
+PATH="$case_root:$PATH" HOME="$case_root/runtime-home" XDG_CONFIG_HOME="$case_root/runtime-config" \
+  CODEX_HOME="$case_root/codex" CLAUDE_HOME="$case_root/claude" \
+  "$case_root/daiku" doctor --json > "$case_root/doctor.json"
+grep -q '"code":"codex_skill_ok"' "$case_root/doctor.json"
+grep -q '"code":"claude_skill_ok"' "$case_root/doctor.json"
 
 printf '\nlocal edit\n' >> "$case_root/codex/skills/daiku/SKILL.md"
 CODEX_HOME="$case_root/codex" "$root/scripts/skill/install-codex.sh" >/dev/null
