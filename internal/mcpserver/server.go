@@ -136,12 +136,11 @@ func handler(executor Executor, command agent.Command, allowWrites bool) mcp.Too
 
 func commandArgs(command agent.Command, input map[string]json.RawMessage) ([]string, error) {
 	args := strings.Fields(strings.TrimPrefix(command.Path, "daiku "))
+	var positional []string
 	if raw, ok := input["arguments"]; ok {
-		var positional []string
 		if err := json.Unmarshal(raw, &positional); err != nil {
 			return nil, errors.New("arguments must be an array of strings")
 		}
-		args = append(args, positional...)
 		delete(input, "arguments")
 	}
 	flags := map[string]agent.Flag{}
@@ -167,7 +166,8 @@ func commandArgs(command agent.Command, input map[string]json.RawMessage) ([]str
 		}
 		args = append(args, "--"+flag.Name+"="+value)
 	}
-	args = append(args, "--agent")
+	args = append(args, "--agent", "--")
+	args = append(args, positional...)
 	return args, nil
 }
 

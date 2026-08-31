@@ -27,6 +27,7 @@ func (f *fakeExecutor) Commands() []agent.Command {
 	return []agent.Command{
 		{Name: "list", Path: "daiku transactions list", Use: "daiku transactions list", Short: "List transactions", Runnable: true, ReadOnly: true, Flags: append(common, agent.Flag{Name: "household", Type: "string", Required: true, Usage: "household ID"}), Subcommands: []agent.CommandSummary{}},
 		{Name: "create", Path: "daiku transactions create", Use: "daiku transactions create", Short: "Create a transaction", Runnable: true, Flags: append(common, agent.Flag{Name: "household", Type: "string", Required: true, Usage: "household ID"}), Subcommands: []agent.CommandSummary{}},
+		{Name: "remove", Path: "daiku profile remove", Use: "daiku profile remove <name>", Short: "Remove a profile", Runnable: true, Flags: append(common, agent.Flag{Name: "yes", Type: "bool", Default: "false", Usage: "skip confirmation"}), Subcommands: []agent.CommandSummary{}},
 		{Name: "login", Path: "daiku auth login", Use: "daiku auth login", Runnable: true, RequiresInput: true, Subcommands: []agent.CommandSummary{}},
 		{Name: "bash", Path: "daiku completion bash", Use: "daiku completion bash", Runnable: true, Subcommands: []agent.CommandSummary{}},
 		{Name: "transactions", Path: "daiku transactions", Runnable: false, Subcommands: []agent.CommandSummary{{Name: "list"}}},
@@ -68,7 +69,7 @@ func TestDiscoveryCreatesTypedToolsPerRunnableCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Tools) != 2 {
+	if len(result.Tools) != 3 {
 		t.Fatalf("tools=%d", len(result.Tools))
 	}
 	tools := map[string]*mcp.Tool{}
@@ -104,7 +105,7 @@ func TestReadToolConformanceAndSecretRedaction(t *testing.T) {
 	}
 	executor.mu.Lock()
 	defer executor.mu.Unlock()
-	if got := strings.Join(executor.args[0], " "); got != "transactions list --household=h1 --agent" {
+	if got := strings.Join(executor.args[0], " "); got != "transactions list --household=h1 --agent --" {
 		t.Fatalf("args=%q", got)
 	}
 }
@@ -137,8 +138,22 @@ func TestWriteRunsWithDoubleOptIn(t *testing.T) {
 	}
 	executor.mu.Lock()
 	defer executor.mu.Unlock()
-	if got := strings.Join(executor.args[0], " "); got != "transactions create --household=h1 --agent" {
+	if got := strings.Join(executor.args[0], " "); got != "transactions create --household=h1 --agent --" {
 		t.Fatalf("args=%q", got)
+	}
+}
+
+func TestPositionalDoubleDashValueCannotBecomeFlag(t *testing.T) {
+	executor := &fakeExecutor{}
+	session, _ := connect(t, executor, true)
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{Name: "profile_remove", Arguments: map[string]any{"arguments": []string{"--yes"}, "confirm": true}})
+	if err != nil || result.IsError {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	executor.mu.Lock()
+	defer executor.mu.Unlock()
+	if got := strings.Join(executor.args[0], " "); got != "profile remove --agent -- --yes" {
+		t.Fatalf("positional argument crossed flag boundary: %q", got)
 	}
 }
 
