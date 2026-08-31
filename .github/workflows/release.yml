@@ -3,9 +3,21 @@ name: Draft release
 on:
   workflow_dispatch:
     inputs:
+      bump:
+        description: How to increase the version when one is not given explicitly
+        required: false
+        default: auto
+        type: choice
+        options: [auto, patch, minor, major]
+      prerelease:
+        description: Prerelease identifier such as rc, leave empty for a stable release
+        required: false
+        default: ""
+        type: string
       version:
-        description: Release version, stable or prerelease (for example v1.2.0 or v0.2.0-rc.1)
-        required: true
+        description: Exact version to release, overriding bump (for example v1.2.0)
+        required: false
+        default: ""
         type: string
 
 permissions:
@@ -17,7 +29,7 @@ env:
   GOTOOLCHAIN: local
 
 concurrency:
-  group: draft-release-${{ inputs.version }}
+  group: draft-release
   cancel-in-progress: false
 
 jobs:
@@ -33,13 +45,46 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      # Accepts stable versions as well as prereleases. GoReleaser's
-      # prerelease: auto marks the GitHub release from the tag, and the release
-      # stays a draft either way, so a human still promotes it.
-      - name: Validate release version
+      # An explicit version wins; otherwise it is derived from the conventional
+      # commits since the latest stable tag. Either way the release stays a
+      # draft, so a human still promotes it.
+      - name: Resolve release version
+        id: version
         env:
-          VERSION: ${{ inputs.version }}
-        run: scripts/install/daiku.sh --validate-release-version "$VERSION"
+          BUMP: ${{ inputs.bump }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            scripts/install/daiku.sh --validate-release-version "$INPUT_VERSION" ||
+              { echo "invalid version: $INPUT_VERSION" >&2; exit 1; }
+            if git rev-parse -q --verify "refs/tags/$INPUT_VERSION" >/dev/null; then
+              echo "tag $INPUT_VERSION already exists" >&2
+              exit 1
+            fi
+            version=$INPUT_VERSION
+          elif [ -n "$PRERELEASE" ]; then
+            version=$(scripts/release/version.sh --bump "$BUMP" --prerelease "$PRERELEASE")
+          else
+            version=$(scripts/release/version.sh --bump "$BUMP")
+          fi
+          echo "Releasing $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # GoReleaser requires the tag to exist and to point at the commit being
+      # built, so the tag is created here rather than by hand.
+      - name: Create and push tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name 'daiku-release-bot'
+          git config user.email 'daiku-release-bot@users.noreply.github.com'
+          git tag -a "$VERSION" -m "daiku $VERSION"
+          # The checkout does not persist credentials, so the token is supplied
+          # for this push alone instead of being written into .git/config.
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "refs/tags/$VERSION"
       - name: Install pinned release tools
         env:
           GOBIN: ${{ runner.temp }}/bin
@@ -48,10 +93,10 @@ jobs:
           go install github.com/sigstore/cosign/v2/cmd/cosign@6a7abbf3ae7eb6949883a80c8f6007cc065d2dfb
           go install github.com/anchore/syft/cmd/syft@46522bcc5dff8b65b61a7cda1393abe515802306
           echo "$GOBIN" >> "$GITHUB_PATH"
-      - name: Create signed draft prerelease
+      - name: Create signed draft release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_CURRENT_TAG: ${{ inputs.version }}
+          GORELEASER_CURRENT_TAG: ${{ steps.version.outputs.version }}
         run: goreleaser release --clean
       - name: Attest archives, checksums, signatures, certificates, and SBOMs
         uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3
