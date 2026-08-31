@@ -18,7 +18,7 @@ USAGE
   exit 2
 }
 
-bump=auto
+bump='auto'
 prerelease=
 while [ "$#" -gt 0 ]; do
   case $1 in
@@ -62,17 +62,17 @@ else
     trailers=$(git log --no-merges --format=%b "$latest..HEAD")
     if printf '%s\n' "$subjects" | grep -qE '^[a-z]+(\([^)]*\))?!:' ||
        printf '%s\n' "$trailers" | grep -q '^BREAKING[ -]CHANGE'; then
-      bump=major
+      bump='major'
       if [ "$major" -eq 0 ]; then
         # A 0.x line is still unstable, so a breaking change increases the
         # minor version. Reaching 1.0.0 stays an explicit, human decision.
         printf 'version: breaking change on a 0.x line, bumping minor\n' >&2
-        bump=minor
+        bump='minor'
       fi
     elif printf '%s\n' "$subjects" | grep -qE '^feat(\([^)]*\))?!?:'; then
-      bump=minor
+      bump='minor'
     else
-      bump=patch
+      bump='patch'
     fi
     printf 'version: detected %s bump from commits since %s\n' "$bump" "$latest" >&2
   fi
