@@ -25,9 +25,10 @@ archives:
     ids: [daiku]
     formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    files:
-      - README.md
-      - LICENSE*
+    # The signed installer requires an archive whose only member is the daiku
+    # binary. A glob that matches nothing is GoReleaser's documented way to
+    # suppress its default LICENSE/README globs; an empty list does not.
+    files: [none*]
 
 checksum:
   name_template: checksums.txt
