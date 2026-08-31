@@ -53,6 +53,16 @@ func TestRequiresInputAnnotation(t *testing.T) {
 	}
 }
 
+func TestReadOnlyRequiresExplicitAnnotation(t *testing.T) {
+	command := &cobra.Command{Use: "list", Run: func(*cobra.Command, []string) {}}
+	if Describe(command).ReadOnly {
+		t.Fatal("unannotated query failed open")
+	}
+	if got := ReadOnly(command); got != command || !Describe(command).ReadOnly {
+		t.Fatal("read-only annotation not reflected")
+	}
+}
+
 func TestBreadcrumbsAreDeterministic(t *testing.T) {
 	root := &cobra.Command{Use: "daiku"}
 	child := &cobra.Command{Use: "transactions"}

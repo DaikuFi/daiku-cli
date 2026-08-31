@@ -27,6 +27,7 @@ type interactiveDetector func(io.Reader, io.Writer) bool
 type terminalWidthDetector func(io.Writer) int
 
 type options struct {
+	context       context.Context
 	in            io.Reader
 	out           io.Writer
 	errOut        io.Writer
@@ -82,6 +83,7 @@ type App struct {
 
 func New(opts ...Option) *App {
 	config := options{
+		context:       context.Background(),
 		in:            os.Stdin,
 		out:           os.Stdout,
 		errOut:        os.Stderr,
@@ -95,6 +97,15 @@ func New(opts ...Option) *App {
 		option(&config)
 	}
 	return &App{options: config}
+}
+
+// WithContext propagates cancellation into command and API handlers.
+func WithContext(ctx context.Context) Option {
+	return func(options *options) {
+		if ctx != nil {
+			options.context = ctx
+		}
+	}
 }
 
 func isTerminal(writer io.Writer) bool {
@@ -137,7 +148,7 @@ func (a *App) Run(args []string) int {
 		root.SetOut(&agentOut)
 	}
 	_, noColor := a.options.lookupEnv("NO_COLOR")
-	root.SetContext(withHumanContext(context.Background(), HumanContext{
+	root.SetContext(withHumanContext(a.options.context, HumanContext{
 		Localizer:   localizer,
 		Terminal:    !agentOutput && a.options.isTerminal(a.options.out),
 		Interactive: !noInput && a.options.isInteractive(a.options.in, a.options.out),
@@ -185,6 +196,18 @@ func (a *App) Run(args []string) int {
 	}
 
 	return int(ExitOK)
+}
+
+// Commands returns the same live Cobra metadata used by the commands command.
+func (a *App) Commands() []agent.Command {
+	localizer := i18n.New(i18n.English)
+	var helpErr error
+	root := a.rootCommand(false, false, true, localizer, &helpErr)
+	root.InitDefaultHelpCmd()
+	root.InitDefaultVersionFlag()
+	root.InitDefaultCompletionCmd()
+	typeCompletionArgsAsUsage(root)
+	return agent.List(root)
 }
 
 func breadcrumbs(enabled bool, command *cobra.Command) []agent.Breadcrumb {
@@ -249,12 +272,12 @@ func (a *App) rootCommand(agentOutput, jsonOutput, noInput bool, localizer i18n.
 		return usageError(err.Error())
 	})
 	root.SetHelpFunc(a.helpFunc(jsonOutput, localizer, helpErr))
-	root.SetHelpCommand(newHelpCommand(root))
+	root.SetHelpCommand(agent.ReadOnly(newHelpCommand(root)))
 
 	for _, module := range a.options.modules {
 		module.Register(root)
 	}
-	root.AddCommand(newCommandsCommand(root, localizer))
+	root.AddCommand(agent.ReadOnly(newCommandsCommand(root, localizer)))
 
 	return root
 }

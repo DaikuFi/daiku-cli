@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/DaikuFi/daiku-cli/generated/daikuv1"
+	"github.com/DaikuFi/daiku-cli/internal/agent"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	"github.com/DaikuFi/daiku-cli/internal/output"
 	"github.com/DaikuFi/daiku-cli/internal/prompt"
@@ -27,11 +28,11 @@ type Module struct{ Factory ServiceFactory }
 func New(factory ServiceFactory) Module { return Module{Factory: factory} }
 func (m Module) Register(root *cobra.Command) {
 	tx := &cobra.Command{Use: "transactions", Short: "Manage transactions", Args: cli.UsageArgs(cobra.NoArgs)}
-	tx.AddCommand(m.list(false), m.list(true), m.get(), m.create(), m.update(), m.delete(), m.bulkCreate(), m.bulkUpdate(), m.bulkDelete())
+	tx.AddCommand(agent.ReadOnly(m.list(false)), agent.ReadOnly(m.list(true)), agent.ReadOnly(m.get()), m.create(), m.update(), m.delete(), m.bulkCreate(), m.bulkUpdate(), m.bulkDelete())
 	tr := &cobra.Command{Use: "transfers", Short: "Manage transfers", Args: cli.UsageArgs(cobra.NoArgs)}
-	tr.AddCommand(m.transferCreate(), m.transferConvert(), m.transferCandidates(), m.transferUnlink())
+	tr.AddCommand(m.transferCreate(), m.transferConvert(), agent.ReadOnly(m.transferCandidates()), m.transferUnlink())
 	ins := &cobra.Command{Use: "installments", Short: "Manage installment plans", Args: cli.UsageArgs(cobra.NoArgs)}
-	ins.AddCommand(m.installmentList(), m.installmentCreate(), m.installmentGet(), m.installmentUpdate())
+	ins.AddCommand(agent.ReadOnly(m.installmentList()), m.installmentCreate(), agent.ReadOnly(m.installmentGet()), m.installmentUpdate())
 	root.AddCommand(tx, tr, ins)
 }
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DaikuFi/daiku-cli/generated/daikuv1"
+	"github.com/DaikuFi/daiku-cli/internal/agent"
 	"github.com/DaikuFi/daiku-cli/internal/api"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	"github.com/DaikuFi/daiku-cli/internal/currency"
@@ -73,7 +74,7 @@ func (s session) do(ctx context.Context, method, path string, body, out any) err
 
 func (m Module) households() *cobra.Command {
 	cmd := &cobra.Command{Use: "households", Short: "Manage households", Args: cli.UsageArgs(cobra.NoArgs)}
-	cmd.AddCommand(m.householdList(), m.householdGet(), m.householdCreate(), m.householdUpdate(), m.householdMode(), m.householdDelete(), m.householdReorder())
+	cmd.AddCommand(agent.ReadOnly(m.householdList()), agent.ReadOnly(m.householdGet()), m.householdCreate(), m.householdUpdate(), m.householdMode(), m.householdDelete(), m.householdReorder())
 	return cmd
 }
 
@@ -232,7 +233,7 @@ type resourceSpec struct{ path, label string }
 func (m Module) collection(name, label string) *cobra.Command {
 	spec := resourceSpec{name, label}
 	cmd := &cobra.Command{Use: name, Short: "Manage " + label, Args: cli.UsageArgs(cobra.NoArgs)}
-	cmd.AddCommand(m.resourceList(spec), m.resourceCreate(spec), m.resourceUpdate(spec), m.resourceDelete(spec))
+	cmd.AddCommand(agent.ReadOnly(m.resourceList(spec)), m.resourceCreate(spec), m.resourceUpdate(spec), m.resourceDelete(spec))
 	if name == "account-groups" || name == "categories" {
 		cmd.AddCommand(m.resourceReorder(spec))
 	}
@@ -446,7 +447,7 @@ func (m Module) resourceReorder(spec resourceSpec) *cobra.Command {
 
 func (m Module) accounts() *cobra.Command {
 	cmd := &cobra.Command{Use: "accounts", Short: "Manage accounts", Args: cli.UsageArgs(cobra.NoArgs)}
-	cmd.AddCommand(m.accountList(), m.accountCreate(), m.accountUpdate(), m.accountArchive(), m.accountUnarchive(), m.accountAdjust(), m.accountReorder())
+	cmd.AddCommand(agent.ReadOnly(m.accountList()), m.accountCreate(), m.accountUpdate(), m.accountArchive(), m.accountUnarchive(), m.accountAdjust(), m.accountReorder())
 	return cmd
 }
 

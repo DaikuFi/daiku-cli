@@ -12,6 +12,7 @@ import (
 )
 
 const requiresInputAnnotation = "daiku.agent.requires_input"
+const readOnlyAnnotation = "daiku.agent.read_only"
 
 // Flag is the stable, machine-readable description of a command flag.
 type Flag struct {
@@ -35,15 +36,17 @@ type CommandSummary struct {
 
 // Command is the complete discoverable contract for one Cobra command.
 type Command struct {
-	Name        string           `json:"name"`
-	Path        string           `json:"path"`
-	Use         string           `json:"use"`
-	Short       string           `json:"short"`
-	Long        string           `json:"long,omitempty"`
-	Aliases     []string         `json:"aliases"`
-	Runnable    bool             `json:"runnable"`
-	Flags       []Flag           `json:"flags"`
-	Subcommands []CommandSummary `json:"subcommands"`
+	Name          string           `json:"name"`
+	Path          string           `json:"path"`
+	Use           string           `json:"use"`
+	Short         string           `json:"short"`
+	Long          string           `json:"long,omitempty"`
+	Aliases       []string         `json:"aliases"`
+	Runnable      bool             `json:"runnable"`
+	Flags         []Flag           `json:"flags"`
+	Subcommands   []CommandSummary `json:"subcommands"`
+	ReadOnly      bool             `json:"read_only"`
+	RequiresInput bool             `json:"requires_input"`
 }
 
 // Breadcrumb is a deterministic follow-up command an agent can execute.
@@ -65,21 +68,32 @@ func RequiresInput(command *cobra.Command) bool {
 	return command != nil && command.Annotations[requiresInputAnnotation] == "true"
 }
 
+// ReadOnly marks and returns a command whose handler has no side effects.
+func ReadOnly(command *cobra.Command) *cobra.Command {
+	if command.Annotations == nil {
+		command.Annotations = map[string]string{}
+	}
+	command.Annotations[readOnlyAnnotation] = "true"
+	return command
+}
+
 // Describe derives one command's public contract from Cobra metadata.
 func Describe(command *cobra.Command) Command {
 	command.InitDefaultHelpFlag()
 	command.InitDefaultVersionFlag()
 
 	description := Command{
-		Name:        command.Name(),
-		Path:        command.CommandPath(),
-		Use:         strings.TrimSuffix(command.UseLine(), " [flags]"),
-		Short:       command.Short,
-		Long:        command.Long,
-		Aliases:     append([]string(nil), command.Aliases...),
-		Runnable:    command.Runnable(),
-		Flags:       flags(command),
-		Subcommands: []CommandSummary{},
+		Name:          command.Name(),
+		Path:          command.CommandPath(),
+		Use:           strings.TrimSuffix(command.UseLine(), " [flags]"),
+		Short:         command.Short,
+		Long:          command.Long,
+		Aliases:       append([]string(nil), command.Aliases...),
+		Runnable:      command.Runnable(),
+		Flags:         flags(command),
+		Subcommands:   []CommandSummary{},
+		ReadOnly:      isReadOnly(command),
+		RequiresInput: RequiresInput(command),
 	}
 	if description.Aliases == nil {
 		description.Aliases = []string{}
@@ -90,6 +104,10 @@ func Describe(command *cobra.Command) Command {
 		})
 	}
 	return description
+}
+
+func isReadOnly(command *cobra.Command) bool {
+	return command != nil && command.Annotations[readOnlyAnnotation] == "true"
 }
 
 // List returns every visible command exactly once, sorted by command path.
