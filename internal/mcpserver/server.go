@@ -207,13 +207,20 @@ func flagSchema(flag agent.Flag) map[string]any {
 	if flag.Type == "bool" {
 		typeName = "boolean"
 	}
-	if flag.Type == "int" || flag.Type == "int64" || flag.Type == "uint" || flag.Type == "uint64" || flag.Type == "float64" {
+	if flag.Type == "int" || flag.Type == "int64" || flag.Type == "uint" || flag.Type == "uint64" {
+		typeName = "integer"
+	}
+	if flag.Type == "float64" {
 		typeName = "number"
 	}
 	if flag.Type == "stringSlice" || flag.Type == "stringArray" {
 		return map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": flag.Usage}
 	}
-	return map[string]any{"type": typeName, "description": flag.Usage}
+	schema := map[string]any{"type": typeName, "description": flag.Usage}
+	if flag.Type == "uint" || flag.Type == "uint64" {
+		schema["minimum"] = 0
+	}
+	return schema
 }
 
 func toolName(path string) string {

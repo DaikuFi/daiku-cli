@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/DaikuFi/daiku-cli/internal/agent"
 	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
@@ -77,6 +78,7 @@ func main() {
 
 type commandExecutor struct {
 	newApp func(context.Context, io.Reader, io.Writer, io.Writer) *cli.App
+	mu     sync.Mutex
 }
 
 func (e *commandExecutor) Commands() []agent.Command {
@@ -84,6 +86,9 @@ func (e *commandExecutor) Commands() []agent.Command {
 }
 
 func (e *commandExecutor) Execute(ctx context.Context, args []string) mcpserver.Execution {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	var stdout, stderr bytes.Buffer
 	app := e.newApp(ctx, strings.NewReader(""), &stdout, &stderr)
 	return mcpserver.Execution{ExitCode: app.Run(args), Stdout: stdout.Bytes(), Stderr: stderr.Bytes()}

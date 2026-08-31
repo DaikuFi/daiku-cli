@@ -92,6 +92,35 @@ func TestDiscoveryCreatesTypedToolsPerRunnableCommand(t *testing.T) {
 	}
 }
 
+func TestFlagSchemaNumericTypes(t *testing.T) {
+	tests := []struct {
+		kind        string
+		wantType    string
+		wantMinimum bool
+	}{
+		{kind: "int", wantType: "integer"},
+		{kind: "int64", wantType: "integer"},
+		{kind: "uint", wantType: "integer", wantMinimum: true},
+		{kind: "uint64", wantType: "integer", wantMinimum: true},
+		{kind: "float64", wantType: "number"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.kind, func(t *testing.T) {
+			schema := flagSchema(agent.Flag{Type: tt.kind, Usage: "value"})
+			if got := schema["type"]; got != tt.wantType {
+				t.Fatalf("type = %v, want %q", got, tt.wantType)
+			}
+			minimum, ok := schema["minimum"]
+			if ok != tt.wantMinimum {
+				t.Fatalf("minimum present = %v, want %v (schema=%#v)", ok, tt.wantMinimum, schema)
+			}
+			if tt.wantMinimum && minimum != 0 {
+				t.Fatalf("minimum = %v, want 0", minimum)
+			}
+		})
+	}
+}
+
 func TestReadToolConformanceAndSecretRedaction(t *testing.T) {
 	executor := &fakeExecutor{}
 	session, _ := connect(t, executor, false)
