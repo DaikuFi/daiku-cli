@@ -1,6 +1,7 @@
 package mcpserver
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -246,6 +247,48 @@ func TestMalformedRPCFailsClosedWithoutPanicking(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("server did not stop after malformed disconnected input")
+	}
+}
+
+func TestStdioRejectsNullSuffixedMethodOverride(t *testing.T) {
+	serverIn, clientOut, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientIn, serverOut, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	executor := &fakeExecutor{}
+	done := make(chan error, 1)
+	go func() {
+		done <- Run(context.Background(), executor, Options{Version: "test"}, serverIn, serverOut)
+	}()
+
+	request := `{"jsonrpc":"2.0","id":1,"method":"initialize","method\u0000":"tools/call","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"test"}}}` + "\n"
+	if _, err := io.WriteString(clientOut, request); err != nil {
+		t.Fatal(err)
+	}
+	response, err := bufio.NewReader(clientIn).ReadBytes('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := clientOut.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("server did not stop after disconnected input")
+	}
+
+	if !strings.Contains(string(response), `"serverInfo"`) || strings.Contains(string(response), `"error"`) {
+		t.Fatalf("null-suffixed method overrode initialize: %s", response)
+	}
+	executor.mu.Lock()
+	defer executor.mu.Unlock()
+	if len(executor.args) != 0 {
+		t.Fatalf("null-suffixed tools/call reached executor: %#v", executor.args)
 	}
 }
 
