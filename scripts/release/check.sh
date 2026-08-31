@@ -17,6 +17,10 @@ grep -q 'cosign' .goreleaser.yaml
 grep -q 'files: \[none\*\]' .goreleaser.yaml
 test -f LICENSE
 test -f NOTICE
+# The draft workflow must accept stable versions; only stable releases reach
+# the Homebrew tap, so a prerelease-only gate would strand the tap workflow.
+grep -q 'validate-release-version' .github/workflows/release.yml
+grep -q 'validate-release-version' .github/workflows/publish-tap.yml
 sh -n scripts/install/daiku.sh scripts/install/test.sh scripts/release/homebrew.sh
 
 if [ "${CI:-}" = true ]; then
