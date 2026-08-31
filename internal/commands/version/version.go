@@ -3,6 +3,7 @@ package version
 import (
 	"fmt"
 
+	"github.com/DaikuFi/daiku-cli/internal/agent"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	"github.com/spf13/cobra"
 )
@@ -16,7 +17,7 @@ func New(version string) Module {
 }
 
 func (module Module) Register(root *cobra.Command) {
-	root.AddCommand(&cobra.Command{
+	root.AddCommand(agent.ReadOnly(&cobra.Command{
 		Use:   "version",
 		Short: "Print the Daiku CLI version",
 		Args:  cli.UsageArgs(cobra.NoArgs),
@@ -28,5 +29,5 @@ func (module Module) Register(root *cobra.Command) {
 			_, err := fmt.Fprintln(command.OutOrStdout(), module.version)
 			return err
 		},
-	})
+	}))
 }

@@ -23,7 +23,7 @@ type Module struct {
 func New(p profiles.Store, c credentials.Store, o *authcore.Client) Module { return Module{p, c, o} }
 func (m Module) Register(root *cobra.Command) {
 	cmd := &cobra.Command{Use: "auth", Short: "Authenticate with Daiku", Args: cli.UsageArgs(cobra.NoArgs)}
-	cmd.AddCommand(m.login(), m.logout(), m.status())
+	cmd.AddCommand(m.login(), m.logout(), agent.ReadOnly(m.status()))
 	root.AddCommand(cmd)
 }
 func (m Module) selected() (string, error) {

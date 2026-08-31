@@ -3,6 +3,8 @@ package profile
 import (
 	"errors"
 	"fmt"
+
+	"github.com/DaikuFi/daiku-cli/internal/agent"
 	"sort"
 
 	"github.com/DaikuFi/daiku-cli/internal/cli"
@@ -21,7 +23,7 @@ type Module struct {
 func New(s profiles.Store, c credentials.Store) Module { return Module{s, c} }
 func (m Module) Register(root *cobra.Command) {
 	cmd := &cobra.Command{Use: "profile", Short: "Manage named Daiku profiles", Args: cli.UsageArgs(cobra.NoArgs)}
-	cmd.AddCommand(m.add(), m.use(), m.list(), m.remove())
+	cmd.AddCommand(m.add(), m.use(), agent.ReadOnly(m.list()), m.remove())
 	root.AddCommand(cmd)
 }
 func (m Module) add() *cobra.Command {

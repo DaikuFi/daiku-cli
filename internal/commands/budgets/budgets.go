@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	daikuv1 "github.com/DaikuFi/daiku-cli/generated/daikuv1"
+	"github.com/DaikuFi/daiku-cli/internal/agent"
 	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	"github.com/DaikuFi/daiku-cli/internal/currency"
@@ -134,7 +135,7 @@ func New(store profiles.Store, manager *authcore.Manager) Module {
 
 func (m Module) Register(root *cobra.Command) {
 	cmd := &cobra.Command{Use: "budgets", Short: "Inspect budget summaries and manage budget rules", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() }}
-	cmd.AddCommand(m.summary(), m.planned(), m.suggestions(), m.rules())
+	cmd.AddCommand(agent.ReadOnly(m.summary()), agent.ReadOnly(m.planned()), agent.ReadOnly(m.suggestions()), m.rules())
 	root.AddCommand(cmd)
 }
 
@@ -222,7 +223,7 @@ func (m Module) suggestions() *cobra.Command {
 
 func (m Module) rules() *cobra.Command {
 	cmd := &cobra.Command{Use: "rules", Short: "Manage category budget rules", Args: cli.UsageArgs(cobra.NoArgs)}
-	cmd.AddCommand(m.ruleList(), m.ruleCreate(), m.ruleUpdate(), m.ruleDelete())
+	cmd.AddCommand(agent.ReadOnly(m.ruleList()), m.ruleCreate(), m.ruleUpdate(), m.ruleDelete())
 	return cmd
 }
 
