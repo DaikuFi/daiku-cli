@@ -6,7 +6,7 @@ version=${1#v}
 checksums=$2
 output=$3
 repo=${DAIKU_RELEASE_REPOSITORY:-DaikuFi/daiku-cli}
-"$(dirname "$0")/../install/daiku.sh" --validate-version "v$version" || { echo 'invalid prerelease version' >&2; exit 2; }
+"$(dirname "$0")/../install/daiku.sh" --validate-release-version "v$version" || { echo 'invalid release version' >&2; exit 2; }
 printf '%s\n' "$repo" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$' || { echo 'invalid repository owner/name' >&2; exit 2; }
 base="https://github.com/$repo/releases/download/v$version"
 
