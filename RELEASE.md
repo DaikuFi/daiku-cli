@@ -7,15 +7,16 @@ Daiku releases are prepared by GitHub Actions and remain drafts until a maintain
 Run this from the release-candidate commit:
 
 ```sh
+go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 make rc-check
 git diff --check
 ```
 
-`make rc-check` verifies formatting, the pinned API checksum and generated client, vet, the race-enabled Go suites, OAuth and credential boundaries, redaction, supported command domains, English and Spanish output, agent mode, the Agent Skill, MCP, installer and Homebrew behavior, release version calculation, and macOS/Linux builds on amd64 and arm64.
+`make rc-check` verifies formatting, the pinned API checksum and generated client, vet, known Go vulnerabilities, the race-enabled Go suites, OAuth and credential boundaries, redaction, supported command domains, English and Spanish output, agent mode, the Agent Skill, MCP, installer and Homebrew behavior, release version calculation, and macOS/Linux builds on amd64 and arm64.
 
 The Go tests use local HTTP servers and fixtures. They verify that bearer credentials stay within the configured API origin, OAuth secret-bearing requests do not follow redirects, forbidden and foreign-resource responses remain typed and redacted, and commands delegate authorization decisions to the API. They do not prove production RLS policies or a deployed OAuth provider. Those checks belong to the backend deployment review and must be completed without using this repository to mutate production.
 
-GitHub Actions is the release gate. The `CI` workflow repeats the checks on Ubuntu and macOS, validates the release configuration with pinned tooling, and builds every supported target. CircleCI results are not part of candidate approval.
+GitHub Actions is the release gate. The `CI` workflow repeats the checks on Ubuntu and macOS, validates the release configuration with pinned tooling, builds every supported target, creates a GoReleaser snapshot, checks all four archive names and checksums, and requires each archive to contain only `daiku`. CircleCI results are not part of candidate approval.
 
 ## Prepare the draft
 

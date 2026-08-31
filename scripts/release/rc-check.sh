@@ -7,6 +7,9 @@ cd "$root"
 printf '%s\n' 'rc-check: formatting, contract, vet, race, and integration suites'
 make check
 
+printf '%s\n' 'rc-check: dependency vulnerability scan'
+make security-check
+
 printf '%s\n' 'rc-check: Agent Skill manifests and installers'
 make skill-check
 
