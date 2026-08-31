@@ -1,4 +1,4 @@
-.PHONY: build test check cross-build contract-generate contract-check release-check installer-test skill-generate skill-check skill-installer-test
+.PHONY: build test check cross-build contract-generate contract-check release-check rc-check installer-test skill-generate skill-check skill-installer-test
 
 build:
 	go build -o bin/daiku ./cmd/daiku
@@ -26,6 +26,9 @@ cross-build:
 
 release-check:
 	./scripts/release/check.sh
+
+rc-check:
+	./scripts/release/rc-check.sh
 
 installer-test:
 	./scripts/install/test.sh

@@ -88,6 +88,9 @@ Maintainers create drafts from GitHub Actions' **Draft release** workflow. The
 workflow derives the next version itself, creates the tag, and builds the draft,
 so releasing normally means dispatching it with no inputs at all.
 
+The complete candidate validation and human approval procedure is documented in
+[`RELEASE.md`](RELEASE.md). Run `make rc-check` before requesting approval.
+
 `scripts/release/version.sh` computes the version from the conventional commits
 since the latest stable tag: a `!` marker or a `BREAKING CHANGE` trailer selects
 a major bump, `feat` selects minor, and anything else selects patch. On a `0.x`

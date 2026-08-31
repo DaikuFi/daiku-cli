@@ -79,4 +79,4 @@ jobs:
           goreleaser check
           actionlint
           shellcheck scripts/contract/*.sh scripts/install/*.sh scripts/release/*.sh
-          make release-check
+          make rc-check
