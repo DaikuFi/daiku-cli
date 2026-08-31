@@ -85,6 +85,25 @@ credentials; the draft workflow does neither.
 
 Interactive output is concise and may use ANSI styling when stdout is a terminal. Redirected output never includes ANSI escapes. Scripts and agents should always pass `--json`; JSON field names and commands are in English.
 
+Agents can pass `--agent` instead. Agent mode implies `--json` and `--no-input`, disables ANSI and
+terminal behavior even when attached to a TTY, and adds deterministic `breadcrumbs` to every
+success or error envelope. A command that requires interaction fails with
+`interaction_required`; a command that does not emit the stable JSON envelope fails closed with
+`agent_output_invalid`. OAuth login therefore needs to be completed by a human before an agent
+uses the authenticated CLI.
+
+Discover the complete live command tree without maintaining a separate command registry:
+
+```sh
+daiku commands --json
+daiku help transactions create --agent
+```
+
+`commands --json` returns every visible Cobra command exactly once with its usage, flags,
+required/inherited markers, and direct subcommands. Structured help returns the same metadata for
+one command. `--no-input` can also be used without agent mode when a caller wants human output but
+must guarantee that stdin will not be read.
+
 Human output supports English and Spanish. Select it explicitly with `--language en|es` or set
 `DAIKU_LANG`; otherwise the CLI consults `LC_ALL`, `LC_MESSAGES`, then `LANG`. `C` and `POSIX` use
 English. Set `NO_COLOR` to disable ANSI styling. These settings never translate commands, flags,

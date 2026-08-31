@@ -18,6 +18,8 @@ type HumanContext struct {
 	Width       int
 	NoColor     bool
 	JSON        bool
+	Agent       bool
+	NoInput     bool
 }
 
 func withHumanContext(ctx context.Context, human HumanContext) context.Context {
