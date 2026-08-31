@@ -562,6 +562,12 @@ Flags:
 
 - `--no-descriptions` (bool): disable completion descriptions
 
+## `daiku doctor`
+
+Diagnose the Daiku CLI installation and integrations
+
+Usage: `daiku doctor`
+
 ## `daiku exchange-rates`
 
 List server-resolved exchange rates
