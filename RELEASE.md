@@ -20,7 +20,7 @@ GitHub Actions is the release gate. The `CI` workflow repeats the checks on Ubun
 
 ## Open security policy decision
 
-The CLI explicitly requires `github.com/segmentio/encoding` v0.5.4 and tests null-suffixed duplicate protocol keys through its real stdio MCP transport, addressing GO-2026-4770 without raising the Go requirement. `govulncheck` still reports GO-2026-4773 through MCP SDK v1.4.0. That advisory concerns unauthenticated HTTP MCP servers, while Daiku constructs only in-memory and stdio transports and exposes no HTTP MCP handler. Whether this scanner result needs a structural CI assertion or may be accepted as unreachable is the sole open security policy decision. Do not add an advisory allowlist only to make CI green.
+The CLI explicitly requires `github.com/segmentio/encoding` v0.5.4 and tests null-suffixed duplicate protocol keys through its real stdio MCP transport, addressing GO-2026-4770 without raising the Go requirement. `govulncheck` continues to associate GO-2026-4770 with MCP SDK v1.4.0 because it does not account for the selected transitive parser version; the stdio regression is the behavioral evidence for the fix. The scanner also reports GO-2026-4773, which concerns unauthenticated HTTP MCP servers. Daiku constructs only in-memory and stdio transports and exposes no HTTP MCP handler. Whether that result needs a structural CI assertion or may be accepted as unreachable is the sole open security policy decision. Do not add an advisory allowlist only to make CI green.
 
 ## Prepare the draft
 
