@@ -21,7 +21,8 @@ test -f NOTICE
 # the Homebrew tap, so a prerelease-only gate would strand the tap workflow.
 grep -q 'validate-release-version' .github/workflows/release.yml
 grep -q 'validate-release-version' .github/workflows/publish-tap.yml
-sh -n scripts/install/daiku.sh scripts/install/test.sh scripts/release/homebrew.sh
+sh -n scripts/install/daiku.sh scripts/install/test.sh scripts/release/homebrew.sh \
+  scripts/release/version.sh
 
 if [ "${CI:-}" = true ]; then
   printf 'release-check: GoReleaser configuration\n'
@@ -107,3 +108,62 @@ if ./scripts/install/daiku.sh --validate-version v1.2.3 >/dev/null 2>&1; then
   exit 1
 fi
 ./scripts/install/daiku.sh --validate-version v1.2.3-rc.1
+
+printf 'release-check: version computation\n'
+version_repo=$(mktemp -d "${TMPDIR:-/tmp}/daiku-version.XXXXXX")
+cleanup_version() { rm -rf "$version_repo"; }
+trap 'rm -f "$fixture" "$formula" "$stable_fixture"; cleanup_version' EXIT HUP INT TERM
+mkdir -p "$version_repo/scripts/release" "$version_repo/scripts/install"
+cp scripts/release/version.sh "$version_repo/scripts/release/version.sh"
+cp scripts/install/daiku.sh "$version_repo/scripts/install/daiku.sh"
+(
+  cd "$version_repo"
+  git init -q .
+  git config user.email release-check@example.invalid
+  git config user.name release-check
+  git commit -q --allow-empty -m 'initial'
+
+  expect() {
+    want=$1; shift
+    got=$(./scripts/release/version.sh "$@" 2>/dev/null) || got='(refused)'
+    if [ "$got" != "$want" ]; then
+      echo "version.sh $*: expected $want, got $got" >&2
+      exit 1
+    fi
+  }
+
+  # With no stable tag the first release is v0.1.0.
+  expect v0.1.0 --bump auto
+
+  git tag v0.1.0
+  git commit -q --allow-empty -m 'fix: a bug'
+  expect v0.1.1 --bump auto
+  expect v0.2.0 --bump minor
+  expect v0.1.1-rc.1 --bump auto --prerelease rc
+
+  git commit -q --allow-empty -m 'feat: a feature'
+  expect v0.2.0 --bump auto
+
+  # A breaking change on a 0.x line bumps minor; 1.0.0 stays explicit.
+  git commit -q --allow-empty -m 'feat!: breaking'
+  expect v0.2.0 --bump auto
+  expect v1.0.0 --bump major
+
+  # Version ordering must be numeric, so v0.10.0 outranks v0.9.0.
+  git tag v0.9.0
+  git tag v0.10.0
+  git commit -q --allow-empty -m 'fix: another'
+  expect v0.10.1 --bump auto
+
+  # A prerelease series continues rather than restarting.
+  git tag v0.10.1-rc.1
+  expect v0.10.1-rc.2 --bump auto --prerelease rc
+
+  # Nothing to release once HEAD is already tagged.
+  git tag v0.10.1
+  expect '(refused)' --bump auto
+
+  # Malformed arguments are refused.
+  expect '(refused)' --bump sideways
+  expect '(refused)' --prerelease 'rc;rm'
+) || exit 1
