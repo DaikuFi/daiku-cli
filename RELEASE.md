@@ -18,9 +18,9 @@ The Go tests use local HTTP servers and fixtures. They verify that bearer creden
 
 GitHub Actions is the release gate. The `CI` workflow repeats the checks on Ubuntu and macOS, validates the release configuration with pinned tooling, builds every supported target, creates a GoReleaser snapshot, checks all four archive names and checksums, and requires each archive to contain only `daiku`. CircleCI results are not part of candidate approval.
 
-## Known release blocker
+## Open security policy decision
 
-`govulncheck` reports GO-2026-4773 and GO-2026-4770 as reachable through the MCP Go SDK. Version 1.4.0 is the newest patched release that supports the repository's required Go 1.24 toolchain; the remaining fixes require MCP Go SDK 1.4.1, whose module requires Go 1.25. Do not approve or create a release candidate until the SDK publishes a Go 1.24-compatible fix or a separately approved remediation lands. The security check remains a failing CI gate so this cannot be missed.
+The CLI explicitly requires `github.com/segmentio/encoding` v0.5.4 and tests null-suffixed duplicate protocol keys through its real stdio MCP transport, addressing GO-2026-4770 without raising the Go requirement. `govulncheck` still reports GO-2026-4773 through MCP SDK v1.4.0. That advisory concerns unauthenticated HTTP MCP servers, while Daiku constructs only in-memory and stdio transports and exposes no HTTP MCP handler. Whether this scanner result needs a structural CI assertion or may be accepted as unreachable is the sole open security policy decision. Do not add an advisory allowlist only to make CI green.
 
 ## Prepare the draft
 
