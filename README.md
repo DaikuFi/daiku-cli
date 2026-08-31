@@ -104,6 +104,25 @@ required/inherited markers, and direct subcommands. Structured help returns the 
 one command. `--no-input` can also be used without agent mode when a caller wants human output but
 must guarantee that stdin will not be read.
 
+### MCP server
+
+Run the Model Context Protocol server over stdio with:
+
+```sh
+daiku mcp
+```
+
+The server derives one typed tool per runnable leaf command from the live Cobra tree. For example,
+`daiku transactions list` becomes `transactions_list`. Positional values use the `arguments` array;
+flags become typed properties with underscores in place of hyphens, and Cobra-required flags remain
+required in the tool schema. MCP calls execute the existing command handlers in agent mode, so they
+use the same active profile, credential store, token refresh, validation, and API clients as the CLI.
+
+The server is read-only by default. Write tools require both server-owner opt-in and per-call
+confirmation: start with `daiku mcp --allow-write`, then pass `confirm: true` in that write tool's
+arguments. Either missing opt-in fails before the command handler runs. Protocol traffic is the only
+stdout output; diagnostics go to stderr, and structured results remove secret-bearing fields.
+
 Human output supports English and Spanish. Select it explicitly with `--language en|es` or set
 `DAIKU_LANG`; otherwise the CLI consults `LC_ALL`, `LC_MESSAGES`, then `LANG`. `C` and `POSIX` use
 English. Set `NO_COLOR` to disable ANSI styling. These settings never translate commands, flags,

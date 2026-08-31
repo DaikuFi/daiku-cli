@@ -13,6 +13,7 @@ import (
 	"time"
 
 	daikuv1 "github.com/DaikuFi/daiku-cli/generated/daikuv1"
+	"github.com/DaikuFi/daiku-cli/internal/agent"
 	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	"github.com/DaikuFi/daiku-cli/internal/currency"
@@ -86,17 +87,18 @@ func New(store profiles.Store, manager *authcore.Manager) Module {
 
 func (m Module) Register(root *cobra.Command) {
 	projections := &cobra.Command{Use: "projections", Short: "Manage projection scenarios and rules", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(c *cobra.Command, _ []string) error { return c.Help() }}
-	projections.AddCommand(m.scenarios(), m.rules(), m.ruleTypes(), m.calculate(), m.retirement())
+	projections.AddCommand(m.scenarios(), m.rules(), m.ruleTypes(), agent.ReadOnly(m.calculate()), agent.ReadOnly(m.retirement()))
 	reports := &cobra.Command{Use: "reports", Short: "Inspect server-calculated portfolio reports", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(c *cobra.Command, _ []string) error { return c.Help() }}
-	reports.AddCommand(m.netWorth(), m.currencyExposure())
+	reports.AddCommand(agent.ReadOnly(m.netWorth()), agent.ReadOnly(m.currencyExposure()))
 	rates := &cobra.Command{Use: "exchange-rates", Short: "List server-resolved exchange rates", Args: cli.UsageArgs(cobra.NoArgs)}
 	rates.RunE = m.runRates(rates)
+	agent.ReadOnly(rates)
 	root.AddCommand(projections, reports, rates)
 }
 
 func (m Module) scenarios() *cobra.Command {
 	c := &cobra.Command{Use: "scenarios", Short: "Manage projection scenarios", Args: cli.UsageArgs(cobra.NoArgs)}
-	c.AddCommand(m.scenarioList(), m.scenarioCreate(), m.scenarioUpdate(), m.scenarioDelete())
+	c.AddCommand(agent.ReadOnly(m.scenarioList()), m.scenarioCreate(), m.scenarioUpdate(), m.scenarioDelete())
 	return c
 }
 func portfolioFlag(c *cobra.Command, value *string) {
@@ -265,13 +267,13 @@ func (m Module) resultCommand(use, short string, run func(API, context.Context, 
 
 func (m Module) rules() *cobra.Command {
 	c := &cobra.Command{Use: "rules", Short: "Manage projection rules", Args: cli.UsageArgs(cobra.NoArgs)}
-	c.AddCommand(m.ruleList(), m.ruleCreate(), m.ruleUpdate(), m.ruleDelete())
+	c.AddCommand(agent.ReadOnly(m.ruleList()), m.ruleCreate(), m.ruleUpdate(), m.ruleDelete())
 	return c
 }
 
 func (m Module) ruleTypes() *cobra.Command {
 	c := &cobra.Command{Use: "rule-types", Short: "Inspect available projection rule types", Args: cli.UsageArgs(cobra.NoArgs)}
-	c.AddCommand(m.ruleTypeList(), m.ruleTypeGet())
+	c.AddCommand(agent.ReadOnly(m.ruleTypeList()), agent.ReadOnly(m.ruleTypeGet()))
 	return c
 }
 

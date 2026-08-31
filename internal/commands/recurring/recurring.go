@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	daikuv1 "github.com/DaikuFi/daiku-cli/generated/daikuv1"
+	"github.com/DaikuFi/daiku-cli/internal/agent"
 	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	"github.com/DaikuFi/daiku-cli/internal/currency"
@@ -60,7 +61,7 @@ func New(store profiles.Store, manager *authcore.Manager) Module {
 
 func (m Module) Register(root *cobra.Command) {
 	cmd := &cobra.Command{Use: "recurring", Short: "Manage recurring templates and their occurrences", Args: cli.UsageArgs(cobra.NoArgs), RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() }}
-	cmd.AddCommand(m.list(), m.create(), m.update(), m.delete(), m.occurrences())
+	cmd.AddCommand(agent.ReadOnly(m.list()), m.create(), m.update(), m.delete(), m.occurrences())
 	root.AddCommand(cmd)
 }
 func householdFlag(cmd *cobra.Command, value *string) {
@@ -323,7 +324,7 @@ func (m Module) delete() *cobra.Command {
 
 func (m Module) occurrences() *cobra.Command {
 	cmd := &cobra.Command{Use: "occurrences", Short: "List and resolve server-generated occurrences", Args: cli.UsageArgs(cobra.NoArgs)}
-	cmd.AddCommand(m.occurrenceList(), m.confirm(), m.skip(), m.snooze())
+	cmd.AddCommand(agent.ReadOnly(m.occurrenceList()), m.confirm(), m.skip(), m.snooze())
 	return cmd
 }
 func (m Module) occurrenceList() *cobra.Command {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	daikuv1 "github.com/DaikuFi/daiku-cli/generated/daikuv1"
+	"github.com/DaikuFi/daiku-cli/internal/agent"
 	"github.com/DaikuFi/daiku-cli/internal/cli"
 	"github.com/DaikuFi/daiku-cli/internal/currency"
 	"github.com/DaikuFi/daiku-cli/internal/i18n"
@@ -23,7 +24,7 @@ type Module struct{ Factory Factory }
 func New(factory Factory) Module { return Module{Factory: factory} }
 func (m Module) Register(root *cobra.Command) {
 	p := &cobra.Command{Use: "portfolios", Short: "Manage portfolios and inspect server-calculated totals", Args: cli.UsageArgs(cobra.NoArgs)}
-	p.AddCommand(m.portfolioList(), m.portfolioGet(), m.portfolioCreate(), m.portfolioUpdate(), m.portfolioDelete(), m.totals(), m.holdings(), m.buckets())
+	p.AddCommand(agent.ReadOnly(m.portfolioList()), agent.ReadOnly(m.portfolioGet()), m.portfolioCreate(), m.portfolioUpdate(), m.portfolioDelete(), agent.ReadOnly(m.totals()), agent.ReadOnly(m.holdings()), m.buckets())
 	root.AddCommand(p)
 	root.AddCommand(m.assets())
 }
@@ -333,7 +334,7 @@ func (m Module) holdings() *cobra.Command {
 
 func (m Module) buckets() *cobra.Command {
 	c := &cobra.Command{Use: "buckets", Short: "Manage portfolio buckets", Args: cli.UsageArgs(cobra.NoArgs)}
-	c.AddCommand(m.bucketList(), m.bucketCreate(), m.bucketUpdate(), m.bucketDelete())
+	c.AddCommand(agent.ReadOnly(m.bucketList()), m.bucketCreate(), m.bucketUpdate(), m.bucketDelete())
 	return c
 }
 func portfolioFlag(c *cobra.Command, v *string) {
@@ -516,7 +517,7 @@ func (m Module) bucketDelete() *cobra.Command {
 
 func (m Module) assets() *cobra.Command {
 	c := &cobra.Command{Use: "assets", Short: "Manage assets, cashflows and value history", Args: cli.UsageArgs(cobra.NoArgs)}
-	c.AddCommand(m.assetList(), m.assetCreate(), m.assetUpdate(), m.assetDelete(), m.cashflows(), m.history())
+	c.AddCommand(agent.ReadOnly(m.assetList()), m.assetCreate(), m.assetUpdate(), m.assetDelete(), m.cashflows(), m.history())
 	return c
 }
 func bucketFlag(c *cobra.Command, v *string) {
@@ -757,7 +758,7 @@ func (m Module) assetDelete() *cobra.Command {
 
 func (m Module) cashflows() *cobra.Command {
 	c := &cobra.Command{Use: "cashflows", Short: "Manage asset cashflows", Args: cli.UsageArgs(cobra.NoArgs)}
-	c.AddCommand(m.cashflowList(), m.cashflowCreate(), m.cashflowUpdate(), m.cashflowDelete())
+	c.AddCommand(agent.ReadOnly(m.cashflowList()), m.cashflowCreate(), m.cashflowUpdate(), m.cashflowDelete())
 	return c
 }
 func assetFlag(c *cobra.Command, v *string) {
@@ -954,7 +955,7 @@ func (m Module) cashflowDelete() *cobra.Command {
 
 func (m Module) history() *cobra.Command {
 	c := &cobra.Command{Use: "value-history", Short: "Manage asset value history", Args: cli.UsageArgs(cobra.NoArgs)}
-	c.AddCommand(m.historyList(), m.historyCreate(), m.historyUpdate(), m.historyDelete())
+	c.AddCommand(agent.ReadOnly(m.historyList()), m.historyCreate(), m.historyUpdate(), m.historyDelete())
 	return c
 }
 func (m Module) historyList() *cobra.Command {
