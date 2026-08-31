@@ -1,0 +1,131 @@
+name: Publish Homebrew tap
+
+# Runs when a maintainer promotes a draft release to published, which keeps the
+# human promotion gate that the draft release workflow establishes. The
+# environment adds a second, explicit approval before the tap is written.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published stable version to republish (for example v1.2.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+
+concurrency:
+  group: publish-tap
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    environment: homebrew-tap
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Resolve and validate version
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version=${RELEASE_TAG:-$INPUT_VERSION}
+          [ -n "$version" ] || { echo 'no version to publish' >&2; exit 1; }
+          # --validate-version succeeds only for prereleases, which never reach
+          # the tap; users test those with the signed installer script instead.
+          if scripts/install/daiku.sh --validate-version "$version"; then
+            echo "refusing to publish prerelease $version to the tap" >&2
+            exit 1
+          fi
+          scripts/install/daiku.sh --validate-release-version "$version" ||
+            { echo "invalid release version: $version" >&2; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned cosign
+        env:
+          GOBIN: ${{ runner.temp }}/bin
+        run: |
+          go install github.com/sigstore/cosign/v2/cmd/cosign@6a7abbf3ae7eb6949883a80c8f6007cc065d2dfb
+          echo "$GOBIN" >> "$GITHUB_PATH"
+
+      - name: Download signed checksum manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p manifest
+          gh release download "$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir manifest \
+            --pattern 'checksums.txt' \
+            --pattern 'checksums.txt.sig' \
+            --pattern 'checksums.txt.pem'
+
+      - name: Verify checksum signature
+        env:
+          COSIGN_IDENTITY: https://github.com/DaikuFi/daiku-cli/.github/workflows/release.yml@refs/heads/main
+          COSIGN_ISSUER: https://token.actions.githubusercontent.com
+        run: |
+          cosign verify-blob \
+            --certificate manifest/checksums.txt.pem \
+            --signature manifest/checksums.txt.sig \
+            --certificate-identity "$COSIGN_IDENTITY" \
+            --certificate-oidc-issuer "$COSIGN_ISSUER" \
+            manifest/checksums.txt
+
+      - name: Generate formula
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          scripts/release/homebrew.sh "$VERSION" manifest/checksums.txt daiku.rb
+          ruby -c daiku.rb
+          if grep -q '{{' daiku.rb; then
+            echo 'formula contains an unexpanded template value' >&2
+            exit 1
+          fi
+          cat daiku.rb
+
+      - name: Check out tap
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: DaikuFi/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+          persist-credentials: true
+
+      - name: Commit formula to tap
+        working-directory: tap
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p Formula
+          cp ../daiku.rb Formula/daiku.rb
+          git config user.name 'daiku-release-bot'
+          git config user.email 'daiku-release-bot@users.noreply.github.com'
+          # Stage first so that the first publish, where the formula is still
+          # untracked, is detected as a change rather than skipped.
+          git add Formula/daiku.rb
+          if git diff --cached --quiet -- Formula/daiku.rb; then
+            echo "tap already carries $VERSION; nothing to publish"
+            exit 0
+          fi
+          printf 'daiku %s\n\nGenerated from the signed checksum manifest of\n%s@%s.\n' \
+            "$VERSION" "$SOURCE_REPOSITORY" "$SOURCE_SHA" > "$RUNNER_TEMP/commit-message"
+          git commit --file "$RUNNER_TEMP/commit-message"
+          git push
