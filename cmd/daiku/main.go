@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/DaikuFi/daiku-cli/internal/agent"
 	authcore "github.com/DaikuFi/daiku-cli/internal/auth"
@@ -48,9 +47,12 @@ func main() {
 	}
 	authManager := &authcore.Manager{Store: credentialStore, OAuth: oauthClient}
 	var newApp func(context.Context, io.Reader, io.Writer, io.Writer) *cli.App
-	executor := &commandExecutor{newApp: func(ctx context.Context, in io.Reader, out, errOut io.Writer) *cli.App {
-		return newApp(ctx, in, out, errOut)
-	}}
+	executor := &commandExecutor{
+		newApp: func(ctx context.Context, in io.Reader, out, errOut io.Writer) *cli.App {
+			return newApp(ctx, in, out, errOut)
+		},
+		gate: make(chan struct{}, 1),
+	}
 	runMCP := func(ctx context.Context, allowWrites bool, in io.ReadCloser, out io.WriteCloser, errOut io.Writer) error {
 		logger := slog.New(slog.NewTextHandler(errOut, nil))
 		return mcpserver.Run(ctx, executor, mcpserver.Options{AllowWrites: allowWrites, Version: version, Logger: logger}, in, out)
@@ -78,7 +80,7 @@ func main() {
 
 type commandExecutor struct {
 	newApp func(context.Context, io.Reader, io.Writer, io.Writer) *cli.App
-	mu     sync.Mutex
+	gate   chan struct{}
 }
 
 func (e *commandExecutor) Commands() []agent.Command {
@@ -86,8 +88,15 @@ func (e *commandExecutor) Commands() []agent.Command {
 }
 
 func (e *commandExecutor) Execute(ctx context.Context, args []string) mcpserver.Execution {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	select {
+	case e.gate <- struct{}{}:
+		defer func() { <-e.gate }()
+	case <-ctx.Done():
+		return mcpserver.Execution{}
+	}
+	if ctx.Err() != nil {
+		return mcpserver.Execution{}
+	}
 
 	var stdout, stderr bytes.Buffer
 	app := e.newApp(ctx, strings.NewReader(""), &stdout, &stderr)
