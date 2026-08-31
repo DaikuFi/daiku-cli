@@ -11,13 +11,26 @@ command -v goreleaser >/dev/null 2>&1 || {
 
 goreleaser release --snapshot --clean --skip=sign,sbom,publish
 
-archives=$(find dist -maxdepth 1 -type f -name 'daiku_*.tar.gz' | sort)
-test "$(printf '%s\n' "$archives" | grep -c .)" -eq 4 || {
-  echo 'artifact-check: expected four release archives' >&2
+version=$(sed -n 's/.*"version":"\([^"]*\)".*/\1/p' dist/metadata.json)
+printf '%s\n' "$version" | grep -Eq '^[0-9A-Za-z.-]+$' || {
+  echo 'artifact-check: invalid snapshot version metadata' >&2
   exit 1
 }
 
-for archive in $archives; do
+expected=$(printf '%s\n' \
+  "daiku_${version}_darwin_amd64.tar.gz" \
+  "daiku_${version}_darwin_arm64.tar.gz" \
+  "daiku_${version}_linux_amd64.tar.gz" \
+  "daiku_${version}_linux_arm64.tar.gz" | sort)
+actual=$(find dist -maxdepth 1 -type f -name 'daiku_*.tar.gz' -exec basename {} \; | sort)
+if [ "$actual" != "$expected" ]; then
+  echo 'artifact-check: release archive set does not match supported targets' >&2
+  printf '%s\n' 'expected:' "$expected" 'actual:' "$actual" >&2
+  exit 1
+fi
+
+for archive in $expected; do
+  archive="dist/$archive"
   test "$(tar -tzf "$archive")" = daiku || {
     echo "artifact-check: $archive must contain only the daiku binary" >&2
     exit 1
