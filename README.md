@@ -96,6 +96,27 @@ To preview a formula without touching a tap, run
 to the tap is handled by a separate approved workflow; the draft workflow does
 neither.
 
+### Publishing to the tap
+
+The **Publish Homebrew tap** workflow runs when a maintainer promotes a draft
+release to published, so the human promotion gate still applies. It re-verifies
+the Sigstore signature on `checksums.txt`, regenerates the formula from that
+signed manifest, and commits `Formula/daiku.rb` to the tap. It refuses to publish
+a prerelease, and it is idempotent: an unchanged formula is not committed.
+
+The workflow requires one-time setup outside this repository:
+
+- A public `DaikuFi/homebrew-tap` repository. Taps must be public because `brew`
+  fetches them anonymously.
+- A repository environment named `homebrew-tap`, ideally with required
+  reviewers, so writing to the tap needs an explicit approval.
+- A `HOMEBREW_TAP_TOKEN` secret on that environment: a fine-grained personal
+  access token scoped to `DaikuFi/homebrew-tap` with read and write access to
+  repository contents, and no other permission.
+
+Use the workflow's manual dispatch to republish a formula for an
+already-published stable version, for example after fixing the template.
+
 ## Output contract
 
 Interactive output is concise and may use ANSI styling when stdout is a terminal. Redirected output never includes ANSI escapes. Scripts and agents should always pass `--json`; JSON field names and commands are in English.
