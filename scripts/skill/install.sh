@@ -5,11 +5,11 @@ umask 077
 current_uid=$(id -u)
 
 directory_uid() {
-  stat -f '%u' "$1" 2>/dev/null || stat -c '%u' "$1"
+  stat -c '%u' "$1" 2>/dev/null || stat -f '%u' "$1"
 }
 
 directory_mode() {
-  stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1"
+  stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"
 }
 
 validate_private_directory() {
@@ -59,7 +59,7 @@ case "$agent" in
   *) printf '%s\n' 'usage: install.sh codex|claude' >&2; exit 2 ;;
 esac
 
-root=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)
 source_dir="$root/skills/daiku"
 skills_dir="$agent_home/skills"
 target="$skills_dir/daiku"

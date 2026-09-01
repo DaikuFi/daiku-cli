@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-root=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)
 case_root=$(mktemp -d "${TMPDIR:-/tmp}/daiku-skill-install-test.XXXXXX")
 trap 'rm -rf "$case_root"' EXIT HUP INT TERM
 
@@ -15,11 +15,17 @@ cmp "$root/skills/daiku/references/commands.json" "$case_root/codex/skills/daiku
 cmp "$root/skills/daiku/references/commands.json" "$case_root/claude/skills/daiku/references/commands.json"
 
 directory_mode() {
-  stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1"
+  stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"
 }
 
 assert_private() {
   mode=$(directory_mode "$1")
+  case $mode in
+    ''|*[!0-9]*)
+      printf '%s\n' 'directory mode helper did not return one numeric value' >&2
+      exit 1
+      ;;
+  esac
   group_digit=$((mode / 10 % 10))
   other_digit=$((mode % 10))
   if [ $((group_digit & 7)) -ne 0 ] || [ $((other_digit & 7)) -ne 0 ]; then

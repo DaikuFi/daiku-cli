@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
-          go-version-file: go.mod
+          go-version: "1.25.0"
           cache-dependency-path: go.sum
       - run: test -z "$(gofmt -l .)"
       - run: make contract-check
@@ -46,7 +46,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
-          go-version-file: go.mod
+          go-version: "1.26.7"
           cache-dependency-path: go.sum
       - name: Build
         env:
@@ -63,15 +63,15 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
-          go-version-file: go.mod
+          go-version: "1.26.7"
           cache-dependency-path: go.sum
       - name: Install immutable validation tools
         env:
           GOBIN: ${{ runner.temp }}/bin
         run: |
           go install github.com/goreleaser/goreleaser/v2@2d07c80923ac8a85886544b5dfb40160aa9ba90b
-          # v1.7.11 is the newest release whose go.mod requires Go 1.24.
           go install github.com/rhysd/actionlint/cmd/actionlint@393031adb9afb225ee52ae2ccd7a5af5525e03e8
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           echo "$GOBIN" >> "$GITHUB_PATH"
       - name: Validate
         run: |
@@ -79,4 +79,5 @@ jobs:
           goreleaser check
           actionlint
           shellcheck scripts/contract/*.sh scripts/install/*.sh scripts/release/*.sh
-          make release-check
+          make rc-check
+          make artifact-check

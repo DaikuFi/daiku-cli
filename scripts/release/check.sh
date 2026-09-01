@@ -22,7 +22,11 @@ test -f NOTICE
 grep -q 'validate-release-version' .github/workflows/release.yml
 grep -q 'validate-release-version' .github/workflows/publish-tap.yml
 sh -n scripts/install/daiku.sh scripts/install/test.sh scripts/release/homebrew.sh \
-  scripts/release/version.sh
+  scripts/release/version.sh scripts/release/artifact-check.sh \
+  scripts/release/artifact-validate.sh scripts/release/artifact-validate-test.sh
+
+printf 'release-check: artifact validator behavior\n'
+./scripts/release/artifact-validate-test.sh
 
 if [ "${CI:-}" = true ]; then
   printf 'release-check: GoReleaser configuration\n'

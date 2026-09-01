@@ -2,7 +2,7 @@
 
 ## Local checks
 
-Install Go 1.24 or newer, then run:
+Install Go 1.25 or newer, then run:
 
 ```sh
 make check
@@ -10,6 +10,8 @@ make cross-build
 ```
 
 Pull requests must keep `go test -race ./...`, `go vet ./...`, formatting, and Darwin/Linux amd64/arm64 builds green.
+CI runs compatibility tests with Go 1.25.0. Cross-builds, release validation,
+security scans, and release artifacts use Go 1.26.7.
 
 ## Structure
 
