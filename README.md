@@ -1,12 +1,31 @@
 # Daiku CLI
 
-`daiku` is the command-line client for [Daiku](https://daiku.app). It is designed for people at a terminal and for agents composing reliable workflows.
+Use Daiku from your terminal or connect it to an agent. The CLI covers daily finance work, including transactions, transfers, budgets, accounts, portfolios, reports, and projections.
 
-The CLI includes a modular Cobra runtime, deterministic machine output, stable exit codes, named profiles, and OAuth authentication for macOS and Linux.
+Commands work in English. Human output supports English and Spanish. Scripts and agents receive stable JSON.
 
-## Authentication and profiles
+## Install Daiku
 
-Create a profile, then sign in through the browser:
+Install the latest stable release with Homebrew:
+
+```sh
+brew install DaikuFi/tap/daiku
+```
+
+Confirm that your shell finds the installed binary:
+
+```sh
+daiku version
+daiku doctor
+```
+
+Homebrew installs signed releases for macOS on Apple Silicon and Intel. The project also publishes Linux archives for amd64 and arm64.
+
+Linux users can download the archive for their platform from [GitHub Releases](https://github.com/DaikuFi/daiku-cli/releases). Follow the [signed artifact instructions](RELEASE.md#verify-signed-artifacts) to verify its checksum and provenance.
+
+## Sign in
+
+Create a profile, complete OAuth in your browser, and check the session:
 
 ```sh
 daiku profile add personal
@@ -14,283 +33,215 @@ daiku auth login
 daiku auth status
 ```
 
-Use `daiku profile list`, `daiku profile use <name>`, and `daiku profile remove <name>` to manage isolated identities. `auth login` uses Authorization Code with PKCE S256 and an IPv4 loopback callback on a random dynamic port. If the browser cannot be launched, interactive mode prints a URL and keeps waiting for the callback.
+A profile keeps one Daiku server and its credentials separate from your other environments. Use `daiku profile list` and `daiku profile use profile_name` when you have more than one.
 
-Credentials use the operating-system keychain by default (Keychain on macOS and Secret Service on Linux). A keychain error is fatal and never causes a silent downgrade. Headless systems may explicitly accept a host-access-control and file-permission trust model with `DAIKU_CREDENTIAL_STORE=file`; those credential files are atomically replaced with mode `0600`. Environment variables cannot supply OAuth tokens.
+The CLI stores credentials in Keychain on macOS and Secret Service on Linux. OAuth login requires a browser and a local callback, so a person must complete it before an agent can use the authenticated CLI.
 
-`daiku auth logout` revokes the refresh token before deleting its local copy. If Daiku is unavailable, it preserves the local credential so revocation can be retried; `--local-only` is the explicit escape hatch.
-
-## Install with Homebrew
-
-Stable releases are published to the [`DaikuFi/homebrew-tap`](https://github.com/DaikuFi/homebrew-tap)
-tap:
+List your households to confirm that the connection works:
 
 ```sh
-brew install DaikuFi/tap/daiku
+daiku households list
 ```
 
-The tap formula is generated from the same signed checksum manifest that backs
-the installer script, and it is only updated when a maintainer promotes a draft
-release. Prereleases are not published to the tap; use the installer script
-below to test a release candidate.
+## Run common finance commands
 
-## Install for development
+Daiku resources use identifiers (IDs). Start with a list command, copy the ID you need, and pass it to the next command. The IDs below are recognizable placeholders.
 
-You need Go 1.25 or newer. Release artifacts and security scans use Go 1.26.7.
+List accounts and recent transactions:
 
 ```sh
-git clone git@github.com:DaikuFi/daiku-cli.git
+daiku accounts list --household hsh_1234567890123
+daiku transactions list \
+  --household hsh_1234567890123 \
+  --month 9 \
+  --year 2026 \
+  --all
+```
+
+Search and sort transactions:
+
+```sh
+daiku transactions list \
+  --household hsh_1234567890123 \
+  --query supermercado \
+  --ordering amount_high \
+  --all
+```
+
+Check a monthly budget in a chosen currency:
+
+```sh
+daiku budgets summary \
+  --household hsh_1234567890123 \
+  --month 9 \
+  --year 2026 \
+  --currency UYU
+```
+
+Inspect a portfolio and its net worth history:
+
+```sh
+daiku portfolios totals pfl_1234567890123
+daiku reports net-worth \
+  --portfolio pfl_1234567890123 \
+  --currency USD \
+  --months 12
+```
+
+Run `daiku help command_name` for flags and examples available in your installed version:
+
+```sh
+daiku help transactions create
+daiku help transfers create
+daiku help projections calculate
+```
+
+Set `--language es` or `DAIKU_LANG=es` for Spanish human output. Commands, flags, and JSON fields stay in English.
+
+## Use Daiku from an agent
+
+Daiku supports agents through a portable Agent Skill, deterministic agent mode, and a Model Context Protocol (MCP) server. Authenticate once as a person before using any of them.
+
+### Install the Agent Skill
+
+The Agent Skill teaches Codex or Claude how to discover IDs, choose the correct command, preserve currencies and signs, and stop before ambiguous or destructive changes.
+
+Clone the repository, then install the skill for the agent you use:
+
+```sh
+git clone --depth 1 https://github.com/DaikuFi/daiku-cli.git
 cd daiku-cli
-make build
-./bin/daiku --help
-```
-
-## Install a signed prerelease
-
-Releases are draft prereleases until a human promotes them. Download
-[`scripts/install/daiku.sh`](scripts/install/daiku.sh), inspect it, install
-[`cosign`](https://docs.sigstore.dev/cosign/system_config/installation/), and run the local file:
-
-```sh
-DAIKU_VERSION=v0.2.0-rc.1 sh ./daiku.sh
-```
-
-`DAIKU_VERSION` accepts any exact v-prefixed semantic version, stable or
-prerelease. The installer supports macOS and Linux on amd64 and arm64. It verifies the
-Sigstore identity on the signed checksum manifest and then verifies the selected
-archive's SHA-256 checksum. It installs atomically to `~/.local/bin/daiku` and
-restores an existing binary if installation is interrupted. Set
-`DAIKU_INSTALL_DIR` to choose another user-writable destination; it never invokes
-`sudo`.
-
-The installer serializes updates with
-`$DAIKU_INSTALL_DIR/.daiku.install.lock`. If that path remains after an
-interrupted process, first confirm that no Daiku installer is active, then remove
-that lock directory and retry. Files matching `.daiku.install.*` and
-`.daiku.backup.*` have unique names; inspect and remove leftovers only after
-confirming no installer is active. The installer never deletes a lock or
-leftover created by another process.
-
-GitHub also records SLSA build provenance for every archive, SBOM, checksum,
-signature, and certificate. After downloading an artifact, verify that it was
-built by this repository's release workflow and commit with:
-
-```sh
-gh attestation verify daiku_0.2.0-rc.1_linux_amd64.tar.gz \
-  --repo DaikuFi/daiku-cli \
-  --signer-workflow DaikuFi/daiku-cli/.github/workflows/release.yml
-```
-
-Add `--format json` when auditing and compare the provenance's source digest to
-the commit recorded in the draft release.
-
-Maintainers create drafts from GitHub Actions' **Draft release** workflow. The
-workflow derives the next version itself, creates the tag, and builds the draft,
-so releasing normally means dispatching it with no inputs at all.
-
-The complete candidate validation and human approval procedure is documented in
-[`RELEASE.md`](RELEASE.md). Run `make rc-check` before requesting approval.
-
-`scripts/release/version.sh` computes the version from the conventional commits
-since the latest stable tag: a `!` marker or a `BREAKING CHANGE` trailer selects
-a major bump, `feat` selects minor, and anything else selects patch. On a `0.x`
-line a breaking change bumps the minor version, because reaching `1.0.0` should
-be a deliberate decision rather than a side effect of a commit message.
-
-Three optional inputs override that:
-
-- `bump` forces `patch`, `minor`, or `major` instead of reading the commits.
-- `prerelease` appends an identifier such as `rc`, continuing the numbering of
-  any existing prerelease for the same version rather than restarting it.
-- `version` sets an exact version and ignores `bump` entirely.
-
-The workflow refuses to reuse an existing tag and refuses to release when there
-are no commits since the last one. Only stable releases reach the Homebrew tap.
-
-Run `scripts/release/version.sh --bump auto` locally to preview the version a
-dispatch would choose; it prints the version on stdout and its reasoning on
-stderr. The workflow only runs from `main`, uses
-least-privilege release and OIDC permissions, and does not run on pull requests.
-The four reproducible archives, SBOMs, signed checksum manifest, and certificate
-are generated by GoReleaser. Each archive contains exactly one member, the
-`daiku` binary, which is the contract the signed installer verifies.
-
-To preview a formula without touching a tap, run
-`scripts/release/homebrew.sh VERSION dist/checksums.txt dist/daiku.rb`. Publishing
-to the tap is handled by a separate approved workflow; the draft workflow does
-neither.
-
-### Publishing to the tap
-
-The **Publish Homebrew tap** workflow runs when a maintainer promotes a draft
-release to published, so the human promotion gate still applies. It re-verifies
-the Sigstore signature on `checksums.txt`, regenerates the formula from that
-signed manifest, and commits `Formula/daiku.rb` to the tap. It refuses to publish
-a prerelease, and it is idempotent: an unchanged formula is not committed.
-
-The workflow requires one-time setup outside this repository:
-
-- A public `DaikuFi/homebrew-tap` repository. Taps must be public because `brew`
-  fetches them anonymously.
-- A repository environment named `homebrew-tap`, ideally with required
-  reviewers, so writing to the tap needs an explicit approval.
-- A `HOMEBREW_TAP_TOKEN` secret on that environment: a fine-grained personal
-  access token scoped to `DaikuFi/homebrew-tap` with read and write access to
-  repository contents, and no other permission.
-
-Use the workflow's manual dispatch to republish a formula for an
-already-published stable version, for example after fixing the template.
-
-## Output contract
-
-Interactive output is concise and may use ANSI styling when stdout is a terminal. Redirected output never includes ANSI escapes. Scripts and agents should always pass `--json`; JSON field names and commands are in English.
-
-Agents can pass `--agent` instead. Agent mode implies `--json` and `--no-input`, disables ANSI and
-terminal behavior even when attached to a TTY, and adds deterministic `breadcrumbs` to every
-success or error envelope. A command that requires interaction fails with
-`interaction_required`; a command that does not emit the stable JSON envelope fails closed with
-`agent_output_invalid`. OAuth login therefore needs to be completed by a human before an agent
-uses the authenticated CLI.
-
-Discover the complete live command tree without maintaining a separate command registry:
-
-```sh
-daiku commands --json
-daiku help transactions create --agent
-```
-
-`commands --json` returns every visible Cobra command exactly once with its usage, flags,
-required/inherited markers, and direct subcommands. Structured help returns the same metadata for
-one command. `--no-input` can also be used without agent mode when a caller wants human output but
-must guarantee that stdin will not be read.
-
-### Agent skill
-
-The portable Daiku skill in [`skills/daiku`](skills/daiku) teaches Codex and Claude how to compose
-safe finance workflows from the live CLI contract. Install it for either agent without changing
-the other agent's configuration:
-
-```sh
 ./scripts/skill/install-codex.sh
+```
+
+For Claude, run:
+
+```sh
 ./scripts/skill/install-claude.sh
 ```
 
-Set `CODEX_HOME` or `CLAUDE_HOME` to choose a non-default home. Installers refuse to replace a
-non-Daiku skill and atomically update an existing Daiku installation. Maintainers refresh the
-checked-in command manifest and compact reference with `make skill-generate`; `make skill-check`
-fails if either generated artifact is stale.
+The installers update only the Daiku skill. They refuse to replace an unrelated skill at the same path.
 
-### MCP server
+### Connect through MCP
 
-Run the Model Context Protocol server over stdio with:
+Point any stdio-compatible MCP client at this command:
 
 ```sh
 daiku mcp
 ```
 
-The server derives one typed tool per runnable leaf command from the live Cobra tree. For example,
-`daiku transactions list` becomes `transactions_list`. Positional values use the `arguments` array;
-flags become typed properties with underscores in place of hyphens, and Cobra-required flags remain
-required in the tool schema. MCP calls execute the existing command handlers in agent mode, so they
-use the same active profile, credential store, token refresh, validation, and API clients as the CLI.
+The MCP server exposes one typed tool per runnable CLI command. It is read-only by default. Start it with `daiku mcp --allow-write` only when you want write tools available. Each write call must also include `confirm: true`.
 
-The server is read-only by default. Write tools require both server-owner opt-in and per-call
-confirmation: start with `daiku mcp --allow-write`, then pass `confirm: true` in that write tool's
-arguments. Either missing opt-in fails before the command handler runs. Protocol traffic is the only
-stdout output; diagnostics go to stderr, and structured results remove secret-bearing fields.
+### Use agent mode directly
 
-Human output supports English and Spanish. Select it explicitly with `--language en|es` or set
-`DAIKU_LANG`; otherwise the CLI consults `LC_ALL`, `LC_MESSAGES`, then `LANG`. `C` and `POSIX` use
-English. Set `NO_COLOR` to disable ANSI styling. These settings never translate commands, flags,
-JSON fields, or machine error codes.
-
-### Operational diagnostics
-
-`daiku doctor` produces a read-only, deterministic report covering installation, the selected
-profile and credential shape, safe token metadata, DNS and one bounded API probe, compiled schema
-metadata, Codex and Claude skill integrity, in-memory MCP readiness, and an ephemeral loopback OAuth
-callback. Checks always appear in the same order. `--json` and `--agent` return the normal success
-envelope with `status`, `checks`, and pass/warning/fail counts.
-
-The API check uses one dedicated, non-replaying transport call. Installed Codex and Claude skills
-are verified with the generated `integrity.json` manifest, compiled trusted digests, safe bounded
-file reads, and comparison with live command metadata. When agent-home overrides are unset, doctor
-checks the documented `$HOME/.codex` and `$HOME/.claude` locations.
-
-Warnings and failed health checks are findings, not command failures: a completed report exits 0.
-Invalid usage exits 2, while a failure to construct or render the report exits 1. The command never
-refreshes or writes credentials and never sends an expired token.
-Cancellation stops the report immediately and returns `operation_cancelled` with exit 6; no partial
-report is emitted.
-
-Destructive commands such as `profile remove` and `auth logout` require the full localized
-confirmation word in an interactive terminal. Non-interactive callers and destructive `--json` calls must
-pass `--yes`; the CLI never reads a confirmation from a pipe.
-
-Successful JSON output uses one envelope:
-
-```json
-{"ok":true,"data":{"version":"0.1.0"}}
-```
-
-Errors are written to stderr and use one envelope:
-
-```json
-{"ok":false,"error":{"code":"usage_error","message":"unknown command \"example\" for \"daiku\""}}
-```
-
-The process exit code remains authoritative even when JSON output is enabled:
-
-| Exit | Meaning | Stable error category |
-| ---: | --- | --- |
-| 0 | Success | — |
-| 1 | Internal or unclassified failure | `internal_error` |
-| 2 | Invalid command, flag, or input | `usage_error` |
-| 3 | Authentication is required or expired | `authentication_required` |
-| 4 | The authenticated identity lacks permission | `forbidden` |
-| 5 | The requested resource does not exist | `not_found` |
-| 6 | The request conflicts with current state | `conflict` |
-| 7 | The API or a required service is unavailable | `unavailable` |
-
-Minor releases may add fields to `data`, `error.details`, commands, and flags. They will not rename or change the meaning of existing envelope fields or exit codes. Agents should ignore unknown JSON fields.
-
-## Command architecture
-
-Each command domain implements `cli.Module` in its own package and owns its Cobra subtree. The executable explicitly injects modules into the app; packages must not use `init()` or mutate a global command registry. This keeps construction testable and limits overlap between parallel feature branches.
-
-```go
-app := cli.New(
-    cli.WithModule(versioncommand.New(version)),
-    cli.WithModule(accountscommand.New(client)),
-)
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for checks and the stacked-PR workflow.
-
-## API contract and generated client
-
-The typed Go client in `generated/daikuv1` is generated from the pinned public
-API snapshot at `openapi/daiku-v1.json`. Do not edit generated files by hand.
-`openapi/SOURCE.json` records the exact Daiku repository commit and export
-command, while the SHA-256 file and `METHOD PATH operationId` manifest make
-contract changes explicit in review.
-
-After intentionally exporting a new schema from that exact Daiku commit, update
-the checksum and operation ID manifest, then regenerate:
+Agents that run shell commands should pass `--agent`:
 
 ```sh
-make contract-generate
-make contract-check
+daiku households list --agent
+daiku commands --agent
+daiku help transactions create --agent
 ```
 
-`contract-check` regenerates into a temporary directory and compares byte for
-byte. It fails on a stale generated client, checksum drift, broken schema
-references, missing or duplicate operation IDs, or any unreviewed operation
-addition/removal/rename/move. The generator is pinned as a Go tool in `go.mod`, so a
-normal `go mod download` is the only dependency bootstrap required by a clean
-checkout.
+Agent mode implies JSON output, disables interactive input and terminal styling, and includes breadcrumbs for the next safe action. Use `--json` instead when a script needs JSON but may still handle interaction itself.
+
+## Write better prompts
+
+You do not need to find Daiku IDs before asking an agent. Name the household, account, date, amount, and currency when they matter. The agent can resolve names to IDs with read-only commands.
+
+Add `Solo lectura` when you want analysis without changes. For a write, ask the agent to show the resolved resources before it runs the command. State the output you want, such as a table, totals by category, or a short list of anomalies.
+
+Prompts can be written in Spanish or English. These examples use Spanish because Daiku primarily serves users in Uruguay.
+
+### Review spending
+
+```text
+En el household Mi Casa, mostrame todos los gastos de agosto de 2026,
+agrupalos por categoría y comparalos con el presupuesto del mes.
+Usá UYU para los totales. Solo lectura.
+```
+
+### Find possible duplicates
+
+```text
+Buscá transacciones posiblemente duplicadas en Mi Casa durante los últimos
+30 días. Compará fecha, cuenta, moneda, importe y descripción. No borres ni
+modifiques nada. Devolveme una tabla con las coincidencias más probables.
+```
+
+### Prepare a transaction
+
+```text
+Prepará un ingreso de 85.000 UYU con fecha 2026-09-01 en la cuenta Sueldo,
+descripción "Salario septiembre". Antes de crearlo, mostrame el household,
+la cuenta y los importes que resolviste. Esperá mi confirmación.
+```
+
+### Record a transfer
+
+```text
+Transferí 200 USD desde Itaú USD hacia Ahorro USD en Mi Casa con fecha
+2026-09-01. Antes de escribir, confirmá las dos cuentas y que no vas a
+registrarlo como gasto e ingreso separados.
+```
+
+### Check net worth and currency exposure
+
+```text
+Mostrame el patrimonio neto de los últimos 12 meses y la exposición por
+moneda. Separá el portfolio Inversiones del total general y marcá cambios
+que superen 10%. Solo lectura.
+```
+
+### Compare projection scenarios
+
+```text
+Compará los escenarios Base y Retiro temprano del portfolio FIRE. Explicá
+la diferencia en fecha de retiro, activos finales y supuestos. No cambies
+reglas ni escenarios.
+```
+
+## Inspect available commands
+
+The CLI is the source of truth for its installed command set:
+
+```sh
+daiku --help
+daiku commands --json
+daiku help transactions create --agent
+```
+
+The generated [command reference](skills/daiku/references/commands.md) is available when live introspection cannot run.
+
+Daiku currently covers:
+
+- Households, account groups, accounts, institutions, categories, and tags
+- Transactions, transfers, installments, and recurring entries
+- Budget rules, planned budgets, summaries, and exchange rates
+- Portfolios, buckets, assets, cash flows, and value history
+- Net worth, currency exposure, projection scenarios, and projection rules
+
+## Diagnose problems
+
+Run the read-only diagnostic before changing configuration:
+
+```sh
+daiku doctor
+```
+
+Use these focused checks when login or command discovery fails:
+
+```sh
+daiku auth status --json
+daiku profile list
+daiku commands --agent
+```
+
+If the access token expired, run `daiku auth login` again. If `doctor` reports a missing Agent Skill, reinstall it from a current repository checkout.
+
+## Contribute
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, machine-output contracts, API generation, Agent Skill maintenance, and pull request conventions. Maintainers should follow [RELEASE.md](RELEASE.md) for signed candidates and Homebrew publication.
 
 ## License
 
-Licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE)
-for attribution requirements.
+Daiku CLI is licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE) for attribution requirements.
