@@ -1,4 +1,4 @@
 interface:
   display_name: "Daiku"
   short_description: "Manage finances safely with the Daiku CLI"
-  default_prompt: "Use $daiku to review my current budget and explain the result."
+  default_prompt: "Use $daiku to review this month's budget in my selected household and explain the result without changing anything."
