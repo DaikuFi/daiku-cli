@@ -449,7 +449,15 @@ func installSkill(t *testing.T, home string) string {
 			t.Fatal(err)
 		}
 	}
-	for _, path := range []string{"SKILL.md", "integrity.json", "agents/openai.yaml", "references/commands.json", "references/commands.md"} {
+	for _, path := range []string{
+		"SKILL.md",
+		"integrity.json",
+		"agents/openai.yaml",
+		"references/commands.json",
+		"references/commands.md",
+		"references/safety.md",
+		"references/workflows.md",
+	} {
 		raw, err := os.ReadFile(filepath.Join("..", "..", "..", "skills", "daiku", filepath.FromSlash(path)))
 		if err != nil {
 			t.Fatal(err)

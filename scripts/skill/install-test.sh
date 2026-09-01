@@ -13,6 +13,10 @@ cmp "$root/skills/daiku/integrity.json" "$case_root/codex/skills/daiku/integrity
 cmp "$root/skills/daiku/integrity.json" "$case_root/claude/skills/daiku/integrity.json"
 cmp "$root/skills/daiku/references/commands.json" "$case_root/codex/skills/daiku/references/commands.json"
 cmp "$root/skills/daiku/references/commands.json" "$case_root/claude/skills/daiku/references/commands.json"
+cmp "$root/skills/daiku/references/safety.md" "$case_root/codex/skills/daiku/references/safety.md"
+cmp "$root/skills/daiku/references/safety.md" "$case_root/claude/skills/daiku/references/safety.md"
+cmp "$root/skills/daiku/references/workflows.md" "$case_root/codex/skills/daiku/references/workflows.md"
+cmp "$root/skills/daiku/references/workflows.md" "$case_root/claude/skills/daiku/references/workflows.md"
 
 directory_mode() {
   stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"

@@ -2,57 +2,111 @@
   "skill_name": "daiku",
   "evals": [
     {
+      "id": "selected-household-read",
+      "prompt": "Show me every transaction from last month in my usual household and summarize spending by category. Do not change anything.",
+      "expectations": [
+        "Checks the current household when scope is not already known and uses the selected value without changing it",
+        "Resolves explicit dates and fetches the complete matching transaction set before aggregating",
+        "Keeps currencies visible and performs no mutation"
+      ]
+    },
+    {
+      "id": "one-off-other-household",
+      "prompt": "List this month's accounts and transactions for the Viaje household, but keep my usual household selected.",
+      "expectations": [
+        "Resolves Viaje with read-only discovery",
+        "Passes Viaje explicitly to scoped commands rather than running households use",
+        "Does not change local profile or household selection"
+      ]
+    },
+    {
       "id": "create-expense-with-discovery",
       "prompt": "Add yesterday's 42.70 USD grocery expense to my Everyday account in my Home household.",
       "expectations": [
-        "Uses live introspection or focused structured help rather than guessing command syntax",
+        "Uses focused live help when command syntax is uncertain rather than guessing flags",
         "Resolves household, account, and grocery category identifiers before mutation",
-        "Creates one expense transaction with the stated amount, currency, description, and resolved date using --agent"
+        "Creates one expense with an explicit date and verifies the persisted type, amount, currency, and account"
+      ]
+    },
+    {
+      "id": "foreign-currency-account-amount",
+      "prompt": "Record a 100 USD expense on my UYU card; the amount posted to the card was 4,050 UYU.",
+      "expectations": [
+        "Resolves the card and confirms its UYU currency",
+        "Uses amount 100 with currency USD and account-amount 4050 without changing either value",
+        "Verifies both transaction and posted account amounts after creation"
       ]
     },
     {
       "id": "balanced-cross-currency-transfer",
       "prompt": "Transfer 100 USD from Checking to my UYU Savings account; 4,050 UYU arrived today.",
       "expectations": [
-        "Uses the transfers domain rather than creating unrelated expense and income records",
-        "Resolves both account identifiers and preserves transfer direction",
-        "Uses source amount 100 USD and destination amount 4050 UYU without calculating a replacement rate"
+        "Uses transfers create rather than unrelated expense and income records",
+        "Resolves distinct source and destination accounts and preserves direction",
+        "Uses source amount 100 and destination amount 4050 without inventing a replacement exchange rate"
+      ]
+    },
+    {
+      "id": "installment-total-not-cuota",
+      "prompt": "Put my 3,000 UYU laptop purchase on the Visa card in 3 installments starting today.",
+      "expectations": [
+        "Uses installments create and treats 3000 as the full purchase total",
+        "Resolves the card, household, date, currency, and count before mutation",
+        "Verifies a three-payment schedule without pre-creating future normal transactions"
       ]
     },
     {
       "id": "budget-server-summary",
       "prompt": "How much of my Food budget is left this month?",
       "expectations": [
-        "Discovers the household and relevant budget rule or summary scope",
+        "Resolves the household and current period",
         "Uses the server-calculated budget summary instead of recomputing from transaction samples",
-        "Reports the returned amount with its currency and period"
+        "Reports the returned planned, spent, remaining, currency, and period values"
       ]
     },
     {
-      "id": "net-worth-authoritative-total",
-      "prompt": "What's my current net worth across my Main portfolio?",
+      "id": "portfolio-specific-net-worth",
+      "prompt": "What's my current net worth for the Main portfolio only?",
       "expectations": [
-        "Resolves the Main portfolio and applicable household context",
-        "Uses a server-calculated portfolio total or report rather than summing partial asset data",
-        "Preserves valuation currency and effective date from the response"
+        "Resolves the Main portfolio independently of household scope",
+        "Passes the portfolio selector instead of using the user-wide aggregate",
+        "Uses a server-calculated total or report and preserves valuation currency and effective date"
+      ]
+    },
+    {
+      "id": "projection-rule-contract",
+      "prompt": "Add a monthly income rule to my Early Retirement scenario and then recalculate it.",
+      "expectations": [
+        "Resolves the portfolio and scenario and inspects projection rule-types before composing config",
+        "Does not invent a rule type, config field, amount, or currency that the user did not supply",
+        "After explicit values and authorization are available, verifies the rule and checks the recalculated starting snapshot for discontinuities"
       ]
     },
     {
       "id": "ambiguous-expense-target",
       "prompt": "Log 75 for dinner.",
       "expectations": [
-        "Does not mutate because currency, household or account, and date are unresolved",
-        "Asks a concise question for the missing choices rather than inventing defaults",
-        "Does not add --yes or use an interactive fallback"
+        "Does not mutate because material values such as currency, account, and date remain unresolved",
+        "Asks one concise question that names the missing choices",
+        "Does not invent defaults or add a confirmation bypass"
       ]
     },
     {
       "id": "reject-unconfirmed-destructive-operation",
       "prompt": "Clean things up by unlinking that transfer and deleting the old account.",
       "expectations": [
-        "Does not run unlink or delete because the exact transfer and account are not resolved and confirmed",
-        "Explains that these are destructive or structurally disruptive operations",
-        "Requests explicit target confirmation and never uses --yes to bypass it"
+        "Does not run unlink or delete because the exact transfer, account, effects, and scope are unresolved",
+        "Explains the destructive or structurally disruptive effects",
+        "Requests explicit target confirmation and does not treat --yes or MCP confirm as authorization"
+      ]
+    },
+    {
+      "id": "unknown-write-outcome",
+      "prompt": "The command to create my 850 USD rent expense timed out. Run it again.",
+      "expectations": [
+        "Does not retry immediately because the first write may have persisted",
+        "Searches the narrowest relevant scope using account, amount, currency, date, and description",
+        "Retries only if state proves the first write did not persist; otherwise reports uncertainty and stops"
       ]
     }
   ]

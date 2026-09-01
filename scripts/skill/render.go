@@ -107,7 +107,14 @@ func main() {
 		fatalf("write command reference: %v", err)
 	}
 
-	paths := []string{"SKILL.md", "agents/openai.yaml", "references/commands.json", "references/commands.md"}
+	paths := []string{
+		"SKILL.md",
+		"agents/openai.yaml",
+		"references/commands.json",
+		"references/commands.md",
+		"references/safety.md",
+		"references/workflows.md",
+	}
 	digests := make(map[string]string, len(paths))
 	for _, path := range paths {
 		var sourcePath string

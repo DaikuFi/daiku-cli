@@ -2,8 +2,10 @@
 package skillmeta
 
 var Digests = map[string]string{
-	"SKILL.md":                 "52f624ff1c6cb8c05a48854a08eb2a91aed4f69e69e2db162f520272918169d8",
-	"agents/openai.yaml":       "9eda58c12636fcb23d8b8a12e319aa421afe2675b4769c6bef70940e0a650755",
+	"SKILL.md":                 "fea13ecd1aac0495978926562d8c12b0df19cbe8b7e7e7570810f29c90467d22",
+	"agents/openai.yaml":       "1f47c7f3a7f0cc44e67c9e5d7c9751620c0d736a456ba8cd5abd81d0b82bc932",
 	"references/commands.json": "a7311377c28b8d8689847272708bf8a7ab803ae5f3e27a24953f4526a1999647",
 	"references/commands.md":   "99f35c8a2a9cd71820e22d017c08e13e88735e7bc7dcf780799c7e4467c74c49",
+	"references/safety.md":     "b47e2548078d809fce6950ec058b0d29879c781ff97e9b4205e119de9803c5f6",
+	"references/workflows.md":  "30ba52b3ba32eed8646286c2368c45e64fc7b334e134ac89f266fb93e0dc4634",
 }
