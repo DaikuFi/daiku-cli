@@ -434,6 +434,16 @@ var humanSpanish = map[string]string{
 	"the requested portfolio or scenario was not found":            "no se encontró el portafolio o escenario solicitado",
 }
 
+var householdSpanish = map[string]string{
+	"Select the household for the active profile":                          "Selecciona el hogar para el perfil activo",
+	"Show the household selected for the active profile":                   "Muestra el hogar seleccionado para el perfil activo",
+	"Clear the household selected for the active profile":                  "Quita el hogar seleccionado para el perfil activo",
+	"household ID (defaults to the selected household)":                    "ID del hogar (usa el hogar seleccionado de forma predeterminada)",
+	"Using household %s (%s) for profile %s.\n":                            "Usando el hogar %s (%s) para el perfil %s.\n",
+	"Cleared the selected household for profile %s.\n":                     "Se quitó el hogar seleccionado del perfil %s.\n",
+	"pass --household or select one with daiku households use <household>": "usa --household o selecciona uno con daiku households use <household>",
+}
+
 var transactionSpanish = map[string]string{
 	"Manage transactions":                                 "Gestiona transacciones",
 	"Manage transfers":                                    "Gestiona transferencias",
@@ -673,6 +683,9 @@ func (l Localizer) Human(value string) string {
 			return "La API de Daiku respondió HTTP " + strings.TrimPrefix(value, "Daiku API returned HTTP ")
 		}
 		if translated, ok := humanSpanish[value]; ok {
+			return translated
+		}
+		if translated, ok := householdSpanish[value]; ok {
 			return translated
 		}
 		if translated, ok := transactionSpanish[value]; ok {

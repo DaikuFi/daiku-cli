@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,6 +14,87 @@ import (
 	versioncommand "github.com/DaikuFi/daiku-cli/internal/commands/version"
 	"github.com/spf13/cobra"
 )
+
+type defaultableFlagModule struct{}
+
+func (defaultableFlagModule) Register(root *cobra.Command) {
+	command := &cobra.Command{
+		Use: "scoped",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			value, err := cmd.Flags().GetString("household")
+			if err != nil {
+				return err
+			}
+			return cli.WriteSuccess(cmd.OutOrStdout(), map[string]string{"household": value})
+		},
+	}
+	command.Flags().String("household", "", "household ID")
+	_ = command.MarkFlagRequired("household")
+	root.AddCommand(command)
+}
+
+func TestFlagDefaultFillsRequiredFlagAndExplicitValueWins(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "selected", args: []string{"scoped", "--json"}, want: "hsh_selected"},
+		{name: "explicit", args: []string{"scoped", "--household", "hsh_explicit", "--json"}, want: "hsh_explicit"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			calls := 0
+			app := cli.New(
+				cli.WithIO(strings.NewReader(""), &stdout, &stderr),
+				cli.WithFlagDefault("household", func(context.Context) (string, error) {
+					calls++
+					return "hsh_selected", nil
+				}),
+				cli.WithModule(defaultableFlagModule{}),
+			)
+			if exit := app.Run(test.args); exit != int(cli.ExitOK) || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"household":"`+test.want+`"`) {
+				t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
+			}
+			if test.name == "explicit" && calls != 0 {
+				t.Fatalf("resolver called %d times", calls)
+			}
+		})
+	}
+}
+
+func TestFlagDefaultIsOptionalInAgentMetadata(t *testing.T) {
+	app := cli.New(
+		cli.WithFlagDefault("household", func(context.Context) (string, error) { return "hsh_selected", nil }),
+		cli.WithModule(defaultableFlagModule{}),
+	)
+	for _, command := range app.Commands() {
+		if command.Path != "daiku scoped" {
+			continue
+		}
+		for _, flag := range command.Flags {
+			if flag.Name == "household" && flag.Required {
+				t.Fatalf("defaultable flag is still required: %+v", flag)
+			}
+			if flag.Name == "household" {
+				return
+			}
+		}
+	}
+	t.Fatal("household flag not found")
+}
+
+func TestFlagDefaultRejectsExplicitEmptyValue(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	app := cli.New(
+		cli.WithIO(strings.NewReader(""), &stdout, &stderr),
+		cli.WithFlagDefault("household", func(context.Context) (string, error) { return "hsh_selected", nil }),
+		cli.WithModule(defaultableFlagModule{}),
+	)
+	if exit := app.Run([]string{"scoped", "--household=", "--json"}); exit != int(cli.ExitUsage) || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code":"usage_error"`) {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
+	}
+}
 
 func run(t *testing.T, terminal bool, args ...string) (int, string, string) {
 	t.Helper()

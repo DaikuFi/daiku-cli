@@ -6,14 +6,55 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/DaikuFi/daiku-cli/internal/cli"
+	"github.com/DaikuFi/daiku-cli/internal/profiles"
 	"github.com/spf13/cobra"
 )
+
+func TestHouseholdDefaultUsesActiveProfile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	store := profiles.Store{Path: filepath.Join(dir, "config.json")}
+	if err := store.Save(profiles.Config{Current: "personal", Profiles: map[string]profiles.Profile{
+		"personal": {APIURL: "https://api.daiku.app/api/v1/", Household: "hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := householdDefault(store)(context.Background())
+	if err != nil || got != "hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+		t.Fatalf("household=%q err=%v", got, err)
+	}
+}
+
+func TestHouseholdDefaultReturnsActionableError(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	store := profiles.Store{Path: filepath.Join(dir, "config.json")}
+	if err := store.Save(profiles.Config{Current: "personal", Profiles: map[string]profiles.Profile{
+		"personal": {APIURL: "https://api.daiku.app/api/v1/"},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := householdDefault(store)(context.Background())
+	cliErr, ok := err.(*cli.Error)
+	if !ok {
+		t.Fatalf("error=%#v", err)
+	}
+	details, detailsOK := cliErr.Details.(map[string]string)
+	if cliErr.Code != "household_required" || cliErr.ExitCode != cli.ExitUsage || !detailsOK || details["action"] != "daiku households use <household>" {
+		t.Fatalf("error=%#v", err)
+	}
+}
 
 func TestDoctorProbeTransportHonorsHTTPSProxyWithoutNetwork(t *testing.T) {
 	const helper = "DAIKU_DOCTOR_PROXY_HELPER"

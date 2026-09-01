@@ -14,9 +14,11 @@ import (
 )
 
 var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
+var validHousehold = regexp.MustCompile(`^hsh_[0-9a-f]{32}$`)
 
 type Profile struct {
-	APIURL string `json:"api_url"`
+	APIURL    string `json:"api_url"`
+	Household string `json:"household,omitempty"`
 }
 
 type Config struct {
@@ -54,6 +56,9 @@ func (s Store) Load() (Config, error) {
 		}
 		if _, err := NormalizeAPIURL(profile.APIURL); err != nil {
 			return Config{}, errors.New("profile configuration contains an invalid API URL")
+		}
+		if profile.Household != "" && !validHousehold.MatchString(profile.Household) {
+			return Config{}, errors.New("profile configuration contains an invalid household ID")
 		}
 	}
 	if cfg.Current != "" {

@@ -4,6 +4,6 @@ package skillmeta
 var Digests = map[string]string{
 	"SKILL.md":                 "52f624ff1c6cb8c05a48854a08eb2a91aed4f69e69e2db162f520272918169d8",
 	"agents/openai.yaml":       "9eda58c12636fcb23d8b8a12e319aa421afe2675b4769c6bef70940e0a650755",
-	"references/commands.json": "8fcc8286e4a67f8c75f480547e6605b4d8461c9abd65e741e696e3e05955aa47",
-	"references/commands.md":   "d93f36823daa82c58666c107f4191ad7e9deb8fec0aa3c0f5c9e01ef219a1169",
+	"references/commands.json": "a7311377c28b8d8689847272708bf8a7ab803ae5f3e27a24953f4526a1999647",
+	"references/commands.md":   "99f35c8a2a9cd71820e22d017c08e13e88735e7bc7dcf780799c7e4467c74c49",
 }

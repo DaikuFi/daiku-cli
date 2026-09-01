@@ -145,7 +145,7 @@ type periodFlags struct {
 }
 
 func addPeriodFlags(cmd *cobra.Command, f *periodFlags, month bool) {
-	cmd.Flags().StringVar(&f.household, "household", "", "household ID")
+	cmd.Flags().StringVar(&f.household, "household", "", "household ID (defaults to the selected household)")
 	cmd.Flags().StringVar(&f.currency, "currency", "", "ISO currency supported by Daiku")
 	if month {
 		cmd.Flags().IntVar(&f.month, "month", 0, "month (1-12)")
@@ -228,7 +228,7 @@ func (m Module) rules() *cobra.Command {
 }
 
 func householdFlag(cmd *cobra.Command, value *string) {
-	cmd.Flags().StringVar(value, "household", "", "household ID")
+	cmd.Flags().StringVar(value, "household", "", "household ID (defaults to the selected household)")
 	_ = cmd.MarkFlagRequired("household")
 }
 

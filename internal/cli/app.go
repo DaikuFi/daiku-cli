@@ -25,6 +25,12 @@ const (
 type terminalDetector func(io.Writer) bool
 type interactiveDetector func(io.Reader, io.Writer) bool
 type terminalWidthDetector func(io.Writer) int
+type flagDefaultResolver func(context.Context) (string, error)
+
+type flagDefault struct {
+	name    string
+	resolve flagDefaultResolver
+}
 
 type options struct {
 	context       context.Context
@@ -37,6 +43,7 @@ type options struct {
 	isInteractive interactiveDetector
 	terminalWidth terminalWidthDetector
 	lookupEnv     func(string) (string, bool)
+	flagDefaults  []flagDefault
 }
 
 // Option configures an App without relying on package globals.
@@ -75,6 +82,14 @@ func WithTerminalWidthDetector(detector func(io.Writer) int) Option {
 // WithEnvironment makes locale and NO_COLOR behavior deterministic in tests.
 func WithEnvironment(lookup func(string) (string, bool)) Option {
 	return func(options *options) { options.lookupEnv = lookup }
+}
+
+// WithFlagDefault supplies a local default before Cobra validates a required
+// flag. An explicitly provided flag always wins.
+func WithFlagDefault(name string, resolve func(context.Context) (string, error)) Option {
+	return func(options *options) {
+		options.flagDefaults = append(options.flagDefaults, flagDefault{name: name, resolve: resolve})
+	}
 }
 
 type App struct {
@@ -235,6 +250,28 @@ func (a *App) rootCommand(agentOutput, jsonOutput, noInput bool, localizer i18n.
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		PersistentPreRunE: func(command *cobra.Command, _ []string) error {
+			for _, item := range a.options.flagDefaults {
+				flag := command.Flags().Lookup(item.name)
+				if flag == nil {
+					continue
+				}
+				if flag.Changed {
+					if strings.TrimSpace(flag.Value.String()) == "" {
+						return usageError("--" + item.name + " must not be empty")
+					}
+					continue
+				}
+				value, err := item.resolve(command.Context())
+				if err != nil {
+					return err
+				}
+				if value == "" {
+					continue
+				}
+				if err = command.Flags().Set(item.name, value); err != nil {
+					return err
+				}
+			}
 			if agentFlag {
 				if err := command.Flags().Set("json", "true"); err != nil {
 					return err
@@ -278,8 +315,24 @@ func (a *App) rootCommand(agentOutput, jsonOutput, noInput bool, localizer i18n.
 		module.Register(root)
 	}
 	root.AddCommand(agent.ReadOnly(newCommandsCommand(root, localizer)))
+	markDefaultableFlags(root, a.options.flagDefaults)
 
 	return root
+}
+
+func markDefaultableFlags(root *cobra.Command, defaults []flagDefault) {
+	var walk func(*cobra.Command)
+	walk = func(command *cobra.Command) {
+		for _, item := range defaults {
+			if flag := command.Flags().Lookup(item.name); flag != nil {
+				agent.MarkDefaultable(flag)
+			}
+		}
+		for _, child := range command.Commands() {
+			walk(child)
+		}
+	}
+	walk(root)
 }
 
 func newCommandsCommand(root *cobra.Command, localizer i18n.Localizer) *cobra.Command {

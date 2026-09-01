@@ -38,6 +38,9 @@ func (m Module) Register(root *cobra.Command) {
 
 func requiredString(cmd *cobra.Command, name, usage string) *string {
 	value := new(string)
+	if name == "household" {
+		usage = "household ID (defaults to the selected household)"
+	}
 	cmd.Flags().StringVar(value, name, "", usage)
 	_ = cmd.MarkFlagRequired(name)
 	return value
