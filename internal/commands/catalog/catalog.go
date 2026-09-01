@@ -74,7 +74,7 @@ func (s session) do(ctx context.Context, method, path string, body, out any) err
 
 func (m Module) households() *cobra.Command {
 	cmd := &cobra.Command{Use: "households", Short: "Manage households", Args: cli.UsageArgs(cobra.NoArgs)}
-	cmd.AddCommand(agent.ReadOnly(m.householdList()), agent.ReadOnly(m.householdGet()), m.householdCreate(), m.householdUpdate(), m.householdMode(), m.householdDelete(), m.householdReorder())
+	cmd.AddCommand(agent.ReadOnly(m.householdList()), agent.ReadOnly(m.householdGet()), m.householdUse(), agent.ReadOnly(m.householdCurrent()), m.householdClear(), m.householdCreate(), m.householdUpdate(), m.householdMode(), m.householdDelete(), m.householdReorder())
 	return cmd
 }
 
@@ -101,6 +101,92 @@ func (m Module) householdGet() *cobra.Command {
 		}
 		return emitOne(cmd, item)
 	})
+}
+
+func (m Module) householdUse() *cobra.Command {
+	cmd := run("use <household>", "Select the household for the active profile", cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
+		id, err := m.resolve(cmd, "households/", args[0])
+		if err != nil {
+			return err
+		}
+		var item map[string]any
+		if err = m.call(cmd, http.MethodGet, "households/"+id+"/", nil, &item); err != nil {
+			return err
+		}
+		cfg, profileName, profile, err := m.activeProfile()
+		if err != nil {
+			return err
+		}
+		profile.Household = id
+		cfg.Profiles[profileName] = profile
+		if err = m.Profiles.Save(cfg); err != nil {
+			return commandError("profile_error", "profile configuration could not be updated", cli.ExitFailure)
+		}
+		return emitHouseholdSelection(cmd, profileName, item, true)
+	})
+	cmd.Aliases = []string{"set"}
+	cmd.Example = `  daiku households use "Mi Casa"
+  daiku households set hsh_1234567890abcdef1234567890abcdef`
+	return cmd
+}
+
+func (m Module) householdCurrent() *cobra.Command {
+	return run("current", "Show the household selected for the active profile", cobra.NoArgs, func(cmd *cobra.Command, _ []string) error {
+		_, profileName, profile, err := m.activeProfile()
+		if err != nil {
+			return err
+		}
+		if profile.Household == "" {
+			return commandError("household_required", "pass --household or select one with daiku households use <household>", cli.ExitUsage)
+		}
+		var item map[string]any
+		if err = m.call(cmd, http.MethodGet, "households/"+profile.Household+"/", nil, &item); err != nil {
+			return err
+		}
+		return emitHouseholdSelection(cmd, profileName, item, true)
+	})
+}
+
+func (m Module) householdClear() *cobra.Command {
+	return run("clear", "Clear the household selected for the active profile", cobra.NoArgs, func(cmd *cobra.Command, _ []string) error {
+		cfg, profileName, profile, err := m.activeProfile()
+		if err != nil {
+			return err
+		}
+		previous := profile.Household
+		profile.Household = ""
+		cfg.Profiles[profileName] = profile
+		if err = m.Profiles.Save(cfg); err != nil {
+			return commandError("profile_error", "profile configuration could not be updated", cli.ExitFailure)
+		}
+		if jsonOut, _ := cmd.Flags().GetBool("json"); jsonOut {
+			return cli.WriteSuccess(cmd.OutOrStdout(), map[string]any{"profile": profileName, "household": previous, "current": false})
+		}
+		_, err = fmt.Fprint(cmd.OutOrStdout(), cli.Human(cmd).Localizer.Humanf("Cleared the selected household for profile %s.\n", profileName))
+		return err
+	})
+}
+
+func (m Module) activeProfile() (profiles.Config, string, profiles.Profile, error) {
+	cfg, err := m.Profiles.Load()
+	if err != nil {
+		return profiles.Config{}, "", profiles.Profile{}, commandError("profile_error", "profile configuration could not be read", cli.ExitFailure)
+	}
+	if cfg.Current == "" {
+		return profiles.Config{}, "", profiles.Profile{}, commandError("profile_required", "select a profile before using API commands", cli.ExitAuth)
+	}
+	return cfg, cfg.Current, cfg.Profiles[cfg.Current], nil
+}
+
+func emitHouseholdSelection(cmd *cobra.Command, profile string, household map[string]any, current bool) error {
+	data := map[string]any{"profile": profile, "household": household, "current": current}
+	if jsonOut, _ := cmd.Flags().GetBool("json"); jsonOut {
+		return cli.WriteSuccess(cmd.OutOrStdout(), data)
+	}
+	name, _ := household["name"].(string)
+	id, _ := household["id"].(string)
+	_, err := fmt.Fprint(cmd.OutOrStdout(), cli.Human(cmd).Localizer.Humanf("Using household %s (%s) for profile %s.\n", name, id, profile))
+	return err
 }
 
 func (m Module) householdCreate() *cobra.Command {
@@ -245,7 +331,7 @@ func scopedPath(household, resource string) string {
 }
 
 func addHouseholdFlag(cmd *cobra.Command, target *string) {
-	cmd.Flags().StringVar(target, "household", "", "household ID")
+	cmd.Flags().StringVar(target, "household", "", "household ID (defaults to the selected household)")
 	_ = cmd.MarkFlagRequired("household")
 }
 

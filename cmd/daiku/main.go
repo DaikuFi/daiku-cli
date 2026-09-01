@@ -108,6 +108,7 @@ func main() {
 			cli.WithContext(ctx),
 			cli.WithIO(in, out, errOut),
 			cli.WithVersion(version),
+			cli.WithFlagDefault("household", householdDefault(profileStore)),
 			cli.WithModule(versioncommand.New(version)),
 			cli.WithModule(doctorModule),
 			cli.WithModule(profilecommand.New(profileStore, credentialStore)),
@@ -123,6 +124,26 @@ func main() {
 	}
 	app := newApp(context.Background(), os.Stdin, os.Stdout, os.Stderr)
 	os.Exit(app.Run(os.Args[1:]))
+}
+
+func householdDefault(store profiles.Store) func(context.Context) (string, error) {
+	return func(context.Context) (string, error) {
+		cfg, err := store.Load()
+		if err != nil {
+			return "", &cli.Error{Code: "profile_error", Message: "profile configuration could not be read", ExitCode: cli.ExitFailure}
+		}
+		if cfg.Current == "" {
+			return "", &cli.Error{Code: "profile_required", Message: "select a profile before using API commands", ExitCode: cli.ExitAuth}
+		}
+		household := cfg.Profiles[cfg.Current].Household
+		if household == "" {
+			return "", &cli.Error{
+				Code: "household_required", Message: "pass --household or select one with daiku households use <household>", ExitCode: cli.ExitUsage,
+				Details: map[string]string{"action": "daiku households use <household>"},
+			}
+		}
+		return household, nil
+	}
 }
 
 func newDoctorProbeTransport() *http.Transport {

@@ -330,8 +330,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -400,8 +400,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -470,8 +470,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -532,8 +532,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -610,8 +610,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -785,8 +785,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -871,8 +871,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -981,8 +981,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -1091,8 +1091,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -1153,8 +1153,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -1223,8 +1223,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -1341,8 +1341,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -3239,8 +3239,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -3412,8 +3412,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -3498,8 +3498,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -3568,8 +3568,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -3670,8 +3670,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -3764,8 +3764,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -3850,8 +3850,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -4021,8 +4021,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -4099,8 +4099,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -4169,8 +4169,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -4231,8 +4231,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -4317,8 +4317,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -4975,9 +4975,21 @@
       ],
       "subcommands": [
         {
+          "name": "clear",
+          "path": "daiku households clear",
+          "short": "Clear the household selected for the active profile",
+          "runnable": true
+        },
+        {
           "name": "create",
           "path": "daiku households create",
           "short": "Create a household",
+          "runnable": true
+        },
+        {
+          "name": "current",
+          "path": "daiku households current",
+          "short": "Show the household selected for the active profile",
           "runnable": true
         },
         {
@@ -5015,8 +5027,68 @@
           "path": "daiku households update",
           "short": "Update a household",
           "runnable": true
+        },
+        {
+          "name": "use",
+          "path": "daiku households use",
+          "short": "Select the household for the active profile",
+          "runnable": true
         }
       ],
+      "read_only": false,
+      "requires_input": false
+    },
+    {
+      "name": "clear",
+      "path": "daiku households clear",
+      "use": "daiku households clear",
+      "short": "Clear the household selected for the active profile",
+      "aliases": [],
+      "runnable": true,
+      "flags": [
+        {
+          "name": "agent",
+          "type": "bool",
+          "default": "false",
+          "usage": "enable agent-safe JSON output and disable input",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false",
+          "usage": "help for clear",
+          "required": false,
+          "inherited": false
+        },
+        {
+          "name": "json",
+          "type": "bool",
+          "default": "false",
+          "usage": "write a stable JSON envelope",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "language",
+          "type": "string",
+          "default": "",
+          "usage": "human output language: en or es",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "no-input",
+          "type": "bool",
+          "default": "false",
+          "usage": "disable all interactive input",
+          "required": false,
+          "inherited": true
+        }
+      ],
+      "subcommands": [],
       "read_only": false,
       "requires_input": false
     },
@@ -5096,6 +5168,60 @@
       ],
       "subcommands": [],
       "read_only": false,
+      "requires_input": false
+    },
+    {
+      "name": "current",
+      "path": "daiku households current",
+      "use": "daiku households current",
+      "short": "Show the household selected for the active profile",
+      "aliases": [],
+      "runnable": true,
+      "flags": [
+        {
+          "name": "agent",
+          "type": "bool",
+          "default": "false",
+          "usage": "enable agent-safe JSON output and disable input",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false",
+          "usage": "help for current",
+          "required": false,
+          "inherited": false
+        },
+        {
+          "name": "json",
+          "type": "bool",
+          "default": "false",
+          "usage": "write a stable JSON envelope",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "language",
+          "type": "string",
+          "default": "",
+          "usage": "human output language: en or es",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "no-input",
+          "type": "bool",
+          "default": "false",
+          "usage": "disable all interactive input",
+          "required": false,
+          "inherited": true
+        }
+      ],
+      "subcommands": [],
+      "read_only": true,
       "requires_input": false
     },
     {
@@ -5471,6 +5597,62 @@
       "requires_input": false
     },
     {
+      "name": "use",
+      "path": "daiku households use",
+      "use": "daiku households use \u003chousehold\u003e",
+      "short": "Select the household for the active profile",
+      "aliases": [
+        "set"
+      ],
+      "runnable": true,
+      "flags": [
+        {
+          "name": "agent",
+          "type": "bool",
+          "default": "false",
+          "usage": "enable agent-safe JSON output and disable input",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false",
+          "usage": "help for use",
+          "required": false,
+          "inherited": false
+        },
+        {
+          "name": "json",
+          "type": "bool",
+          "default": "false",
+          "usage": "write a stable JSON envelope",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "language",
+          "type": "string",
+          "default": "",
+          "usage": "human output language: en or es",
+          "required": false,
+          "inherited": true
+        },
+        {
+          "name": "no-input",
+          "type": "bool",
+          "default": "false",
+          "usage": "disable all interactive input",
+          "required": false,
+          "inherited": true
+        }
+      ],
+      "subcommands": [],
+      "read_only": false,
+      "requires_input": false
+    },
+    {
       "name": "installments",
       "path": "daiku installments",
       "use": "daiku installments",
@@ -5642,8 +5824,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -5712,8 +5894,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -5774,8 +5956,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -5892,8 +6074,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -6049,8 +6231,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -6119,8 +6301,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -6189,8 +6371,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -6267,8 +6449,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -9065,8 +9247,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -9151,8 +9333,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -9221,8 +9403,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -9378,8 +9560,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -9456,8 +9638,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -9526,8 +9708,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -9596,8 +9778,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -9778,8 +9960,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -10182,8 +10364,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -10252,8 +10434,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -10322,8 +10504,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -10392,8 +10574,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -10580,8 +10762,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -10651,8 +10833,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -10777,8 +10959,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -10855,8 +11037,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -10933,8 +11115,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -11003,8 +11185,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -11105,8 +11287,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -11287,8 +11469,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -11525,8 +11707,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -11690,8 +11872,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -11752,8 +11934,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -11878,8 +12060,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {
@@ -11956,8 +12138,8 @@
           "name": "household",
           "type": "string",
           "default": "",
-          "usage": "household ID",
-          "required": true,
+          "usage": "household ID (defaults to the selected household)",
+          "required": false,
           "inherited": false
         },
         {

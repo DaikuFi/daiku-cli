@@ -11,7 +11,7 @@ Usage: `daiku account-groups create`
 Flags:
 
 - `--emoji` (string): emoji
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--name` (string) (required): name
 
 ## `daiku account-groups delete`
@@ -22,7 +22,7 @@ Usage: `daiku account-groups delete <resource>`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--yes` (bool): skip the interactive confirmation
 
 ## `daiku account-groups list`
@@ -33,7 +33,7 @@ Usage: `daiku account-groups list`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku account-groups reorder`
 
@@ -43,7 +43,7 @@ Usage: `daiku account-groups reorder`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--id` (stringSlice): resource IDs in desired order
 
 ## `daiku account-groups update`
@@ -55,7 +55,7 @@ Usage: `daiku account-groups update <resource>`
 Flags:
 
 - `--emoji` (string): emoji
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--name` (string): name
 
 ## `daiku accounts adjust`
@@ -67,7 +67,7 @@ Usage: `daiku accounts adjust <account>`
 Flags:
 
 - `--date` (string): adjustment date
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--note` (string): adjustment note
 - `--target-balance` (string) (required): target balance
 - `--yes` (bool): skip the interactive confirmation
@@ -80,7 +80,7 @@ Usage: `daiku accounts archive <account>`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--yes` (bool): skip the interactive confirmation
 
 ## `daiku accounts create`
@@ -96,7 +96,7 @@ Flags:
 - `--currency` (string): currency
 - `--emoji` (string): emoji
 - `--group` (string): account group ID
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--institution` (string): institution ID
 - `--is-default` (bool): make this the default account
 - `--name` (string) (required): account name
@@ -112,7 +112,7 @@ Usage: `daiku accounts list`
 Flags:
 
 - `--archived` (string): include archived accounts: true or all
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku accounts reorder`
 
@@ -122,7 +122,7 @@ Usage: `daiku accounts reorder`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--id` (stringSlice): resource IDs in desired order
 
 ## `daiku accounts unarchive`
@@ -133,7 +133,7 @@ Usage: `daiku accounts unarchive <account>`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku accounts update`
 
@@ -150,7 +150,7 @@ Flags:
 - `--currency` (string): currency
 - `--emoji` (string): emoji
 - `--group` (string): account group ID
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--institution` (string): institution ID
 - `--is-default` (bool): make this the default account
 - `--name` (string): account name
@@ -373,7 +373,7 @@ Usage: `daiku budgets planned`
 Flags:
 
 - `--currency` (string): ISO currency supported by Daiku
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--year` (int): calendar year
 
 ## `daiku budgets rules create`
@@ -387,7 +387,7 @@ Flags:
 - `--amount` (string) (required): budget amount
 - `--category` (string) (required): category ID
 - `--currency` (string) (required): ISO currency supported by Daiku
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--month` (int): month (required for month scope)
 - `--scope` (string) (required): scope: monthly, yearly or month
 - `--year` (int): pinned year (required for month scope)
@@ -400,7 +400,7 @@ Usage: `daiku budgets rules delete <id>`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--yes` (bool): skip the interactive confirmation
 
 ## `daiku budgets rules list`
@@ -411,7 +411,7 @@ Usage: `daiku budgets rules list`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku budgets rules update`
 
@@ -426,7 +426,7 @@ Flags:
 - `--clear-month` (bool): clear the pinned month
 - `--clear-year` (bool): clear the pinned year
 - `--currency` (string): ISO currency supported by Daiku
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--month` (int): month (required for month scope)
 - `--scope` (string): scope: monthly, yearly or month
 - `--year` (int): pinned year (required for month scope)
@@ -440,7 +440,7 @@ Usage: `daiku budgets suggestions`
 Flags:
 
 - `--currency` (string): ISO currency supported by Daiku
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--month` (int): month (1-12)
 - `--year` (int): calendar year
 
@@ -453,7 +453,7 @@ Usage: `daiku budgets summary`
 Flags:
 
 - `--currency` (string): ISO currency supported by Daiku
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--month` (int): month (1-12)
 - `--year` (int): calendar year
 
@@ -466,7 +466,7 @@ Usage: `daiku categories create`
 Flags:
 
 - `--emoji` (string): emoji
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--name` (string) (required): name
 - `--parent` (string): parent category ID
 
@@ -478,7 +478,7 @@ Usage: `daiku categories delete <resource>`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--yes` (bool): skip the interactive confirmation
 
 ## `daiku categories list`
@@ -489,7 +489,7 @@ Usage: `daiku categories list`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku categories reorder`
 
@@ -499,7 +499,7 @@ Usage: `daiku categories reorder`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--id` (stringSlice): resource IDs in desired order
 
 ## `daiku categories update`
@@ -512,7 +512,7 @@ Flags:
 
 - `--clear-parent` (bool): clear the parent category
 - `--emoji` (string): emoji
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--name` (string): name
 - `--parent` (string): parent category ID
 
@@ -584,6 +584,12 @@ Help about any command
 
 Usage: `daiku help [command]`
 
+## `daiku households clear`
+
+Clear the household selected for the active profile
+
+Usage: `daiku households clear`
+
 ## `daiku households create`
 
 Create a household
@@ -595,6 +601,12 @@ Flags:
 - `--display-currency` (string): display currency
 - `--emoji` (string): household emoji
 - `--name` (string) (required): household name
+
+## `daiku households current`
+
+Show the household selected for the active profile
+
+Usage: `daiku households current`
 
 ## `daiku households delete`
 
@@ -650,6 +662,12 @@ Flags:
 - `--emoji` (string): household emoji
 - `--name` (string): household name
 
+## `daiku households use`
+
+Select the household for the active profile
+
+Usage: `daiku households use <household>`
+
 ## `daiku installments create`
 
 Create an installment plan
@@ -666,7 +684,7 @@ Flags:
 - `--currency` (string) (required): currency code published by the installment API contract
 - `--date` (string) (required): purchase date
 - `--description` (string) (required): description
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--tag-ids` (stringSlice): tag ID (repeatable)
 
 ## `daiku installments get`
@@ -677,7 +695,7 @@ Usage: `daiku installments get ID`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku installments list`
 
@@ -687,7 +705,7 @@ Usage: `daiku installments list`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku installments update`
 
@@ -704,7 +722,7 @@ Flags:
 - `--clear-category` (bool): set category to null
 - `--currency` (string): currency code published by the installment API contract
 - `--description` (string): description
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku institutions create`
 
@@ -716,7 +734,7 @@ Flags:
 
 - `--country` (string): ISO country code
 - `--domain` (string): domain
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--name` (string) (required): name
 
 ## `daiku institutions delete`
@@ -727,7 +745,7 @@ Usage: `daiku institutions delete <resource>`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--yes` (bool): skip the interactive confirmation
 
 ## `daiku institutions list`
@@ -738,7 +756,7 @@ Usage: `daiku institutions list`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku institutions update`
 
@@ -750,7 +768,7 @@ Flags:
 
 - `--country` (string): ISO country code
 - `--domain` (string): domain
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--name` (string): name
 
 ## `daiku mcp`
@@ -1071,7 +1089,7 @@ Flags:
 - `--description` (string) (required): description
 - `--destination-account` (string): destination account ID for transfers
 - `--frequency` (string) (required): frequency: monthly or yearly
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--month` (int): month of year for yearly templates (1-12)
 - `--start-date` (string): start date (YYYY-MM-DD)
 - `--type` (string) (required): transaction type: expense, income or transfer
@@ -1084,7 +1102,7 @@ Usage: `daiku recurring delete <id>`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--yes` (bool): skip the interactive confirmation
 
 ## `daiku recurring list`
@@ -1095,7 +1113,7 @@ Usage: `daiku recurring list`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku recurring occurrences confirm`
 
@@ -1107,7 +1125,7 @@ Flags:
 
 - `--amount` (string) (required): final amount
 - `--date` (string) (required): final date (YYYY-MM-DD)
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--to-amount` (string): final destination amount for transfers
 - `--yes` (bool): skip the interactive confirmation
 
@@ -1119,7 +1137,7 @@ Usage: `daiku recurring occurrences list`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--status` (string): occurrence status
 
 ## `daiku recurring occurrences skip`
@@ -1130,7 +1148,7 @@ Usage: `daiku recurring occurrences skip <id>`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--yes` (bool): skip the interactive confirmation
 
 ## `daiku recurring occurrences snooze`
@@ -1141,7 +1159,7 @@ Usage: `daiku recurring occurrences snooze <id>`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--until` (string) (required): reminder date (YYYY-MM-DD)
 
 ## `daiku recurring update`
@@ -1166,7 +1184,7 @@ Flags:
 - `--description` (string): description
 - `--destination-account` (string): destination account ID for transfers
 - `--frequency` (string): frequency: monthly or yearly
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--month` (int): month of year for yearly templates (1-12)
 - `--start-date` (string): start date (YYYY-MM-DD)
 - `--type` (string): transaction type: expense, income or transfer
@@ -1211,7 +1229,7 @@ Usage: `daiku tags create`
 Flags:
 
 - `--color` (string): color
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--name` (string) (required): name
 
 ## `daiku tags delete`
@@ -1222,7 +1240,7 @@ Usage: `daiku tags delete <resource>`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--yes` (bool): skip the interactive confirmation
 
 ## `daiku tags list`
@@ -1233,7 +1251,7 @@ Usage: `daiku tags list`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku tags update`
 
@@ -1244,7 +1262,7 @@ Usage: `daiku tags update <resource>`
 Flags:
 
 - `--color` (string): color
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--name` (string): name
 
 ## `daiku transactions bulk-create`
@@ -1256,7 +1274,7 @@ Usage: `daiku transactions bulk-create`
 Flags:
 
 - `--file` (string) (required): JSON file, or - for stdin
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku transactions bulk-update`
 
@@ -1267,7 +1285,7 @@ Usage: `daiku transactions bulk-update`
 Flags:
 
 - `--file` (string) (required): JSON file, or - for stdin
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--yes` (bool): skip the interactive confirmation
 
 ## `daiku transactions create`
@@ -1285,7 +1303,7 @@ Flags:
 - `--currency` (string): currency code published by the transaction API contract
 - `--date` (string): transaction date (YYYY-MM-DD)
 - `--description` (string) (required): description
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--tag` (stringSlice): tag ID (repeatable)
 - `--type` (string): expense or income
 
@@ -1297,7 +1315,7 @@ Usage: `daiku transactions delete ID`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--scope` (string): this, future, or plan for installments
 - `--yes` (bool): skip the interactive confirmation
 
@@ -1309,7 +1327,7 @@ Usage: `daiku transactions delete-all`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--yes` (bool): skip the interactive confirmation
 
 ## `daiku transactions get`
@@ -1320,7 +1338,7 @@ Usage: `daiku transactions get ID`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku transactions list`
 
@@ -1335,7 +1353,7 @@ Flags:
 - `--category` (string): category ID
 - `--currency` (string): transaction currency code
 - `--from` (string): inclusive start date
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--kind` (string): recurring or one-time
 - `--month` (int): month 1-12
 - `--ordering` (string): newest, oldest, amount_high, or amount_low
@@ -1360,7 +1378,7 @@ Flags:
 - `--category` (string): category ID
 - `--currency` (string): transaction currency code
 - `--from` (string): inclusive start date
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--kind` (string): recurring or one-time
 - `--month` (int): month 1-12
 - `--ordering` (string): newest, oldest, amount_high, or amount_low
@@ -1392,7 +1410,7 @@ Flags:
 - `--currency` (string): currency code published by the transaction API contract
 - `--date` (string): transaction date (YYYY-MM-DD)
 - `--description` (string): description
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--recurring` (string): recurring expense ID
 - `--tag` (stringSlice): tag ID (repeatable)
 - `--type` (string): expense, income, transfer, or adjustment
@@ -1405,7 +1423,7 @@ Usage: `daiku transfers candidates TRANSACTION_ID`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 
 ## `daiku transfers convert`
 
@@ -1415,7 +1433,7 @@ Usage: `daiku transfers convert TRANSACTION_ID`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--peer` (string): existing peer transaction ID
 - `--peer-amount` (string): peer decimal amount
 - `--to-account` (string): destination account ID
@@ -1433,7 +1451,7 @@ Flags:
 - `--date` (string): transfer date
 - `--description` (string): description
 - `--from-account` (string) (required): source account ID
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--to-account` (string) (required): destination account ID
 - `--to-amount` (string): destination decimal amount
 
@@ -1445,7 +1463,7 @@ Usage: `daiku transfers unlink TRANSACTION_ID`
 
 Flags:
 
-- `--household` (string) (required): household ID
+- `--household` (string): household ID (defaults to the selected household)
 - `--yes` (bool): skip the interactive confirmation
 
 ## `daiku version`

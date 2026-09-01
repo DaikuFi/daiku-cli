@@ -65,7 +65,7 @@ func (m Module) Register(root *cobra.Command) {
 	root.AddCommand(cmd)
 }
 func householdFlag(cmd *cobra.Command, value *string) {
-	cmd.Flags().StringVar(value, "household", "", "household ID")
+	cmd.Flags().StringVar(value, "household", "", "household ID (defaults to the selected household)")
 	_ = cmd.MarkFlagRequired("household")
 }
 

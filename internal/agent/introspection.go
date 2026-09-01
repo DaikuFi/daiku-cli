@@ -13,6 +13,7 @@ import (
 
 const requiresInputAnnotation = "daiku.agent.requires_input"
 const readOnlyAnnotation = "daiku.agent.read_only"
+const defaultableFlagAnnotation = "daiku.agent.defaultable"
 
 // Flag is the stable, machine-readable description of a command flag.
 type Flag struct {
@@ -75,6 +76,15 @@ func ReadOnly(command *cobra.Command) *cobra.Command {
 	}
 	command.Annotations[readOnlyAnnotation] = "true"
 	return command
+}
+
+// MarkDefaultable records that a Cobra-required flag may be supplied by local
+// configuration. Agent schemas must not require callers to repeat it.
+func MarkDefaultable(flag *pflag.Flag) {
+	if flag.Annotations == nil {
+		flag.Annotations = map[string][]string{}
+	}
+	flag.Annotations[defaultableFlagAnnotation] = []string{"true"}
 }
 
 // Describe derives one command's public contract from Cobra metadata.
@@ -173,6 +183,9 @@ func flags(command *cobra.Command) []Flag {
 		required := false
 		for _, annotation := range flag.Annotations[cobra.BashCompOneRequiredFlag] {
 			required = required || annotation == "true"
+		}
+		if flag.Annotations[defaultableFlagAnnotation] != nil {
+			required = false
 		}
 		items = append(items, Flag{
 			Name:      flag.Name,

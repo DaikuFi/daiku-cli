@@ -24,12 +24,18 @@ func (tokens) AccessToken(context.Context, string) (string, error) { return "fix
 
 func testApp(t *testing.T, handler http.HandlerFunc, input string, interactive bool) (*cli.App, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
+	app, _, out, errOut := testAppWithConfig(t, handler, input, interactive, profiles.Config{Current: "test", Profiles: map[string]profiles.Profile{"test": {APIURL: "https://fixture.invalid/api/v1/"}}})
+	return app, out, errOut
+}
+
+func testAppWithConfig(t *testing.T, handler http.HandlerFunc, input string, interactive bool, cfg profiles.Config) (*cli.App, profiles.Store, *bytes.Buffer, *bytes.Buffer) {
+	t.Helper()
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	store := profiles.Store{Path: filepath.Join(dir, "config.json")}
-	if err := store.Save(profiles.Config{Current: "test", Profiles: map[string]profiles.Profile{"test": {APIURL: "https://fixture.invalid/api/v1/"}}}); err != nil {
+	if err := store.Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 	out, errOut := new(bytes.Buffer), new(bytes.Buffer)
@@ -38,8 +44,24 @@ func testApp(t *testing.T, handler http.HandlerFunc, input string, interactive b
 		handler.ServeHTTP(recorder, r)
 		return recorder.response(r), nil
 	})}
-	app := cli.New(cli.WithIO(strings.NewReader(input), out, errOut), cli.WithInteractiveDetector(func(_ io.Reader, _ io.Writer) bool { return interactive }), cli.WithTerminalDetector(func(io.Writer) bool { return false }), cli.WithModule(catalog.New(store, tokens{}, httpClient)))
-	return app, out, errOut
+	app := cli.New(
+		cli.WithIO(strings.NewReader(input), out, errOut),
+		cli.WithInteractiveDetector(func(_ io.Reader, _ io.Writer) bool { return interactive }),
+		cli.WithTerminalDetector(func(io.Writer) bool { return false }),
+		cli.WithFlagDefault("household", func(context.Context) (string, error) {
+			current, loadErr := store.Load()
+			if loadErr != nil {
+				return "", loadErr
+			}
+			household := current.Profiles[current.Current].Household
+			if household == "" {
+				return "", &cli.Error{Code: "household_required", Message: "select a household", ExitCode: cli.ExitUsage}
+			}
+			return household, nil
+		}),
+		cli.WithModule(catalog.New(store, tokens{}, httpClient)),
+	)
+	return app, store, out, errOut
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -97,6 +119,65 @@ func TestHouseholdsListJSONIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestHouseholdSelectionPersistsPerProfile(t *testing.T) {
+	const id = "hsh_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	requests := 0
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/households/":
+			_, _ = w.Write([]byte(`[{"id":"` + id + `","name":"Casa"}]`))
+		case "/api/v1/households/" + id + "/":
+			_, _ = w.Write([]byte(`{"id":"` + id + `","name":"Casa"}`))
+		default:
+			t.Fatalf("unexpected request %s", r.URL.Path)
+		}
+	}
+	cfg := profiles.Config{Current: "test", Profiles: map[string]profiles.Profile{"test": {APIURL: "https://fixture.invalid/api/v1/"}}}
+	app, store, out, errOut := testAppWithConfig(t, handler, "", false, cfg)
+	if code := app.Run([]string{"households", "set", "Casa", "--json"}); code != int(cli.ExitOK) || errOut.Len() != 0 || !strings.Contains(out.String(), `"current":true`) {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, out.String(), errOut.String())
+	}
+	stored, err := store.Load()
+	if err != nil || stored.Profiles["test"].Household != id {
+		t.Fatalf("config=%+v err=%v", stored, err)
+	}
+
+	out.Reset()
+	if code := app.Run([]string{"households", "current", "--json"}); code != int(cli.ExitOK) || !strings.Contains(out.String(), id) {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, out.String(), errOut.String())
+	}
+
+	out.Reset()
+	if code := app.Run([]string{"households", "clear", "--json"}); code != int(cli.ExitOK) || !strings.Contains(out.String(), `"current":false`) {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, out.String(), errOut.String())
+	}
+	stored, err = store.Load()
+	if err != nil || stored.Profiles["test"].Household != "" || requests != 3 {
+		t.Fatalf("config=%+v requests=%d err=%v", stored, requests, err)
+	}
+}
+
+func TestScopedCommandUsesSelectedHousehold(t *testing.T) {
+	const id = "hsh_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	cfg := profiles.Config{Current: "test", Profiles: map[string]profiles.Profile{"test": {APIURL: "https://fixture.invalid/api/v1/", Household: id}}}
+	app, _, out, errOut := testAppWithConfig(t, apiHandler(t, http.MethodGet, "/api/v1/households/"+id+"/accounts/", http.StatusOK, `[]`, nil), "", false, cfg)
+	if code := app.Run([]string{"accounts", "list", "--json"}); code != int(cli.ExitOK) || errOut.Len() != 0 || !strings.Contains(out.String(), `"accounts":[]`) {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, out.String(), errOut.String())
+	}
+	for _, command := range app.Commands() {
+		if command.Path != "daiku accounts list" {
+			continue
+		}
+		for _, flag := range command.Flags {
+			if flag.Name == "household" && (flag.Required || !strings.Contains(flag.Usage, "selected household")) {
+				t.Fatalf("flag=%+v", flag)
+			}
+		}
+	}
+}
+
 func TestSpanishHumanHelpKeepsCommandsEnglish(t *testing.T) {
 	app, out, _ := testApp(t, func(http.ResponseWriter, *http.Request) { t.Fatal("network called") }, "", true)
 	if code := app.Run([]string{"households", "--help", "--language", "es"}); code != 0 {
@@ -104,6 +185,17 @@ func TestSpanishHumanHelpKeepsCommandsEnglish(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "Gestiona hogares") || !strings.Contains(out.String(), "create") {
 		t.Fatal(out.String())
+	}
+}
+
+func TestSelectedHouseholdHelpIsLocalized(t *testing.T) {
+	app, out, _ := testApp(t, func(http.ResponseWriter, *http.Request) { t.Fatal("network called") }, "", true)
+	if code := app.Run([]string{"households", "--help", "--language", "es"}); code != int(cli.ExitOK) || !strings.Contains(out.String(), "Selecciona el hogar para el perfil activo") {
+		t.Fatalf("code=%d output=%q", code, out.String())
+	}
+	out.Reset()
+	if code := app.Run([]string{"accounts", "list", "--help", "--language", "es"}); code != int(cli.ExitOK) || !strings.Contains(out.String(), "usa el hogar seleccionado") {
+		t.Fatalf("code=%d output=%q", code, out.String())
 	}
 }
 
